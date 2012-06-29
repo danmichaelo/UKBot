@@ -2,17 +2,12 @@
 from __future__ import unicode_literals
 
 import numpy as np
-import mwclient
-import time
-import sys
-import codecs
+import time, datetime
 import re
-from progressbar import ProgressBar, Counter, Timer, SimpleProgress
-import pickle
 import sqlite3
-import datetime
 import urllib
 from odict import odict
+import mwclient
 
 from danmicholoparser import DanmicholoParser, DanmicholoParseError
 from ukrules import *
@@ -43,6 +38,7 @@ locale.setlocale(locale.LC_TIME, 'no_NO.utf-8'.encode('utf-8'))
 
 #from ete2 import Tree
 
+#from progressbar import ProgressBar, Counter, Timer, SimpleProgress
 #pbar = ProgressBar(widgets = ['Processed: ', Counter(), ' revisions (', Timer(), ')']).start()
 #pbar.maxval = pbar.currval + 1
 #pbar.update(pbar.currval+1)
@@ -84,13 +80,7 @@ class Article(object):
 
     @property
     def new(self):
-        # if properly sorted, we should actually only need to check the first revision
-        #any([r.new for r in self.revisions])
-        #try:
         return self.revisions[self.revisions.firstkey()].new
-        #except KeyError:
-        #    # is empty
-        #    return False
 
     def add_revision(self, revid, **kwargs):
         self.revisions[revid] = Revision(self.site_key, self.name, revid, **kwargs)
@@ -270,8 +260,6 @@ class User(object):
         if self.verbose and nr > 0:
             print " -> [%s] Checked %d parent revisions" % (site_key, nr)
 
-        #bytesdiff = len(ctext.encode('utf-8')) - len(ptext.encode('utf-8'))
-        #return self.articles
     
     def save_contribs_to_db(self, sql):
         """ Save self.articles to DB so it can be read by add_contribs_from_db """

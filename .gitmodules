@@ -1,0 +1,3 @@
+[submodule "danmicholoparser"]
+	path = danmicholoparser
+	url = git://github.com/danmichaelo/danmicholoparser.git

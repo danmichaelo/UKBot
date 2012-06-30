@@ -421,7 +421,7 @@ class User(object):
         return out
 
 
-class Competition(object):
+class UK(object):
 
     def __init__(self, txt, catignore, sites):
 
@@ -465,11 +465,8 @@ class Competition(object):
         if not 'ukens konkurranse kriterium' in dp.templates.keys():
             raise ParseError('Denne konkurransen har ingen bidragskriterier. Kriterier defineres med {{tl|ukens konkurranse kriterium}}.')
         
-        if not 'ukens konkurranse status' in dp.templates.keys():
-            raise ParseError('Denne konkurransen mangler en {{tl|ukens konkurranse status}}-mal.')
-
-        if len(dp.templates['ukens konkurranse status']) > 1:
-            raise ParseError('Denne konkurransen har mer enn én {{tl|ukens konkurranse status}}-mal.')
+        if not 'infoboks ukens konkurranse' in dp.templates.keys():
+            raise ParseError('Denne konkurransen mangler en {{tl|infoboks ukens konkurranse}}-mal.')
 
         catignore = dp2.tags['pre'][0].split()
 
@@ -558,23 +555,24 @@ class Competition(object):
         
         
         # Read status
-        status = dp.templates['ukens konkurranse status'][0]
-        #week = now.strftime('%W')
-        #week = '24'
+
         try:
-            if 'uke' in status.parameters:
-                now = datetime.datetime.now()
-                year = now.strftime('%Y')
-                week = status.parameters['uke']
-                self.start = datetime.datetime.strptime(year+' '+week+' 1 00 00', '%Y %W %w %H %M')
-                self.end = datetime.datetime.strptime(year+' '+week+' 0 23 59', '%Y %W %w %H %M')
-            else:
-                startdt = status.parameters[1]
-                enddt = status.parameters[2]
-                self.start = datetime.datetime.strptime(status.parameters[1] + ' 00 00', '%Y-%m-%d %H %M')
-                self.end = datetime.datetime.strptime(status.parameters[2]+' 23 59', '%Y-%m-%d %H %M')
+            infoboks = dp.templates['infoboks ukens konkurranse'][0]
         except:
-            raise ParseError('Klarte ikke å tolke innholdet i {{tl|ukens konkurranse status}}-malen.')
+            raise ParseError('Klarte ikke å tolke innholdet i {{tl|infoboks ukens konkurranse}}-malen.')
+
+        if 'år' in infoboks.parameters and 'uke' in infoboks.parameters:
+            year = infoboks.parameters['år']
+            week = infoboks.parameters['uke']
+            self.start = datetime.datetime.strptime(year+' '+week+' 1 00 00', '%Y %W %w %H %M')
+            self.end = datetime.datetime.strptime(year+' '+week+' 0 23 59', '%Y %W %w %H %M')
+        elif 'start' in infoboks.parameters and 'slutt' in infoboks.parameters:
+            startdt = infoboks.parameters['start']
+            enddt = infoboks.parameters['slutt']
+            self.start = datetime.datetime.strptime(startdt + ' 00 00', '%Y-%m-%d %H %M')
+            self.end = datetime.datetime.strptime(enddt +' 23 59', '%Y-%m-%d %H %M')
+        else:
+            raise ParseError('Fant ikke uke/år eller start/slutt i {{tl|infoboks ukens konkurranse}}.')
         
         self.week = self.start.isocalendar()[1]
 
@@ -634,7 +632,7 @@ konkurranseside = 'Bruker:UKBot/Sandkasse1'
 kategoriside = 'Bruker:UKBot/cat-ignore'
 
 try:
-    uk = Competition(sites['no'].pages[konkurranseside].edit(), sites['no'].pages[kategoriside].edit(), sites)
+    uk = UK(sites['no'].pages[konkurranseside].edit(), sites['no'].pages[kategoriside].edit(), sites)
 except ParseError as e:
     err = "\n* '''%s'''" % e.msg
     page = sites['no'].pages[konkurranseside]
@@ -684,7 +682,7 @@ if __name__ == '__main__':
 
     # Make outpage
     out = '== Resultater ==\n\n'
-    out += 'Konkurransen er åpen fra %s til %s.\n\n' % (uk.start.strftime('%e. %B %Y, %H:%M'), uk.end.strftime('%e. %B %Y, %H:%M'))
+    out += "''Konkurransen er åpen fra %s til %s.''\n\n" % (uk.start.strftime('%e. %B %Y, %H:%M'), uk.end.strftime('%e. %B %Y, %H:%M'))
     for u in uk.users:
         out += u.format_result()
 

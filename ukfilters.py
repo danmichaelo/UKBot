@@ -1,3 +1,8 @@
+#encoding=utf-8
+from __future__ import unicode_literals
+import sys, re
+from copy import copy
+from odict import odict
 
 class Filter(object):
 
@@ -78,7 +83,7 @@ class CatFilter(Filter):
         self.verbose = True
 
  
-    def fetchcats(self, articles):
+    def fetchcats(self, articles, debug=False):
         """ Fetches categories an overcategories for a set of articles """
         
         # Make a list of the categories of a given article, with one list for each level
@@ -111,9 +116,9 @@ class CatFilter(Filter):
         for site_key, site in self.sites.iteritems():
             
             if 'bot' in site.rights:
-                clim = 5000
+                apilim = 5000
             else:
-                clim = 500
+                apilim = 50
 
             # Titles of articles that belong to this site
             titles = [article.name for article in articles.itervalues() if article.site_key == site_key]
@@ -123,61 +128,75 @@ class CatFilter(Filter):
             if len(titles) > 0:
         
                 for level in range(self.maxdepth):
-                    ids = '|'.join(titles)
-                    cont = True
-                    clcont = ''
+
+                    titles0 = copy(titles)
+                    titles = [] # make a new list of titles to search
                     nc = 0
                     nnc = 0
-                    titles = [] # make a new list of titles to search
-                    while cont:
-                        #print clcont
-                        if clcont != '':
-                            q = site.api('query', prop = 'categories', titles = ids, cllimit = clim, clcontinue = clcont)
-                        else:
-                            q = site.api('query', prop = 'categories', titles = ids, cllimit = clim)
-                        for pageid, page in q['query']['pages'].iteritems():
-                            fulltitle = page['title']
-                            shorttitle = fulltitle.split(':',1)[-1]
-                            article_key = site_key + ':' + fulltitle
-                            if 'categories' in page:
-                                for cat in page['categories']:
-                                    cat_title = cat['title']
-                                    cat_short= cat_title.split(':',1)[1]
-                                    follow = True
-                                    for d in self.ignore:
-                                        if re.search(d, cat_short):
-                                            follow = False
-                                    if follow:
-                                        nc += 1
-                                        titles.append(cat_title)
-                                        if level == 0:
-                                            cats[article_key][level].append(cat_short)
-                                            parents[article_key][cat_short] = fulltitle
-                                            #print cat_short 
-                                            # use iter_search_nodes instead?
-                                            #ctree.search_nodes( name = fulltitle.encode('utf-8') )[0].add_child( name = cat_short.encode('utf-8') )
-                                        else:
-                                            for article_key, ccc in cats.iteritems():
-                                                if shorttitle in ccc[level-1]:
-                                                    ccc[level].append(cat_short)
-                                                    parents[article_key][cat_short] = shorttitle
+            
+                    for s0 in range(0, len(titles0), apilim):
+                        if debug:
+                            print
+                            print "[%d] > Getting %d to %d of %d" % (level, s0, s0+apilim, len(titles0))
+                        ids = '|'.join(titles0[s0:s0+apilim])
 
-                                                    #for node in ctree.search_nodes( name = shorttitle.encode('utf-8') ):
-                                                    #    if not cat_short.encode('utf-8') in [i.name for i in node.get_children()]:
-                                                    #        node.add_child(name = cat_short.encode('utf-8'))
-                                    else:
-                                        nnc += 1
-                        if 'query-continue' in q:
-                            clcont = q['query-continue']['categories']['clcontinue']
-                        else:
-                            cont = False
+                        cont = True
+                        clcont = ''
+                        while cont:
+                            #print clcont
+                            if clcont != '':
+                                q = site.api('query', prop = 'categories', titles = ids, cllimit = apilim, clcontinue = clcont)
+                            else:
+                                q = site.api('query', prop = 'categories', titles = ids, cllimit = apilim)
+                            
+                            if 'warnings' in q:
+                                raise StandardError(q['warnings']['query']['*'])
+
+                            for pageid, page in q['query']['pages'].iteritems():
+                                fulltitle = page['title']
+                                shorttitle = fulltitle.split(':',1)[-1]
+                                article_key = site_key + ':' + fulltitle
+                                if 'categories' in page:
+                                    for cat in page['categories']:
+                                        cat_title = cat['title']
+                                        cat_short= cat_title.split(':',1)[1]
+                                        follow = True
+                                        for d in self.ignore:
+                                            if re.search(d, cat_short):
+                                                follow = False
+                                        if follow:
+                                            nc += 1
+                                            titles.append(cat_title)
+                                            if level == 0:
+                                                cats[article_key][level].append(cat_short)
+                                                parents[article_key][cat_short] = fulltitle
+                                                #print cat_short 
+                                                # use iter_search_nodes instead?
+                                                #ctree.search_nodes( name = fulltitle.encode('utf-8') )[0].add_child( name = cat_short.encode('utf-8') )
+                                            else:
+                                                for article_key, ccc in cats.iteritems():
+                                                    if shorttitle in ccc[level-1]:
+                                                        ccc[level].append(cat_short)
+                                                        parents[article_key][cat_short] = shorttitle
+
+                                                        #for node in ctree.search_nodes( name = shorttitle.encode('utf-8') ):
+                                                        #    if not cat_short.encode('utf-8') in [i.name for i in node.get_children()]:
+                                                        #        node.add_child(name = cat_short.encode('utf-8'))
+                                        else:
+                                            if debug:
+                                                print "ignore",cat_title
+                                            nnc += 1
+                            if 'query-continue' in q:
+                                clcont = q['query-continue']['categories']['clcontinue']
+                            else:
+                                cont = False
                     titles = list(set(titles)) # to remove duplicates (not order preserving)
                     #if level == 0:
                     #    cattree = [p for p in titles]
                     if self.verbose:
                         sys.stdout.write(' %d' % (len(titles)))
                         sys.stdout.flush()
-                    #print "Found %d unique categories (%d total) at level %d (skipped %d categories)" % (len(titles), nc, level, nnc)
+                        #print "Found %d unique categories (%d total) at level %d (skipped %d categories)" % (len(titles), nc, level, nnc)
 
 
         return cats, parents 
@@ -191,23 +210,25 @@ class CatFilter(Filter):
                     return inc
         return None
     
-    def filter(self, articles):
+    def filter(self, articles, debug = False):
         
         if self.verbose:
             sys.stdout.write("  [+] Applying category filter")
             sys.stdout.flush()
 
-        cats, parents = self.fetchcats(articles)
-
-        if self.verbose:
-            sys.stdout.write("\n")
-            sys.stdout.flush()
+        cats, parents = self.fetchcats(articles, debug=debug)
 
         out = odict()
 
         # loop over articles
         for article_key, article_cats in cats.iteritems():
+            if debug:
+                print
             article = articles[article_key]
+            if debug:
+                print ">>>",article.name
+                for l,ca in enumerate(article_cats):
+                    print '[%d] ' % l, ', '.join(ca)
 
             catname = self.check_article_cats(article_cats)
             if catname:
@@ -232,6 +253,9 @@ class CatFilter(Filter):
 
                 out[article_key] = article
 
+        if self.verbose:
+            sys.stdout.write(": %d -> %d\n" % (len(articles), len(out)))
+            sys.stdout.flush()
         return out
 
 class ByteFilter(Filter):
@@ -242,11 +266,11 @@ class ByteFilter(Filter):
         self.bytelimit = int(bytelimit)
 
     def filter(self, articles):
-        print "  [+] Applying byte filter (%d bytes)" % self.bytelimit
         out = odict()
         for article_key, article in articles.iteritems():
             if article.bytes >= self.bytelimit:
                 out[article_key] = article
+        print "  [+] Applying byte filter (%d bytes): %d -> %d" % (self.bytelimit, len(articles), len(out))
         return out
 
 class NewPageFilter(Filter):

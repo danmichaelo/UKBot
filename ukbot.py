@@ -5,7 +5,6 @@ import numpy as np
 import time, datetime
 import re
 import sqlite3
-import urllib
 from odict import odict
 import mwclient
 
@@ -20,13 +19,11 @@ locale.setlocale(locale.LC_TIME, 'no_NO.utf-8'.encode('utf-8'))
 #  revid INTEGER NOT NULL,
 #  site TEXT NOT NULL,
 #  parentid INTEGER NOT NULL,
-#  week INTEGER NOT NULL,
 #  user TEXT NOT NULL, 
 #  page TEXT NOT NULL, 
 #  timestamp DATETIME NOT NULL, 
-#  isnew INTEGER NOT NULL, 
-#  isredir INTEGER NOT NULL, 
 #  size  INTEGER NOT NULL,
+#  parentsize  INTEGER NOT NULL,
 #  PRIMARY KEY(revid, site)
 #);
 #CREATE TABLE fulltexts (
@@ -77,6 +74,9 @@ class Article(object):
         self.redirect = False
 
         self.points = 0
+    
+    def __repr__(self):
+        return ("<Article %s:%s>" % (self.site_key, self.name)).encode('utf-8')
 
     @property
     def new(self):
@@ -88,7 +88,7 @@ class Article(object):
     
     @property
     def bytes(self):
-        return np.sum([r.size - r.parentsize for r in self.revisions.itervalues()])
+        return np.sum([rev.size - rev.parentsize for rev in self.revisions.itervalues()])
 
 
 class Revision(object):
@@ -106,7 +106,7 @@ class Revision(object):
         self.article = article
 
         self.revid = revid
-        self.size = 0
+        self.size = -1
         self.text = ''
 
         self.parentid = 0
@@ -127,6 +127,9 @@ class Revision(object):
                 self.parentsize = int(v)
             else:
                 raise StandardError('add_revision got unknown argument %s' % k)
+    
+    def __repr__(self):
+        return ("<Revision %d for %s:%s>" % (self.revid, self.site_key, self.article)).encode('utf-8')
 
     @property
     def new(self):
@@ -141,6 +144,9 @@ class User(object):
         self.points = 0
         self.bytes = 0
         self.verbose = verbose
+
+    def __repr__(self):
+        return ("<User %s>" % self.name).encode('utf-8')
     
     @property
     def revisions(self):
@@ -166,7 +172,9 @@ class User(object):
             fulltext  : get revision fulltexts
             namespace : namespace ID
         """
-        apilim = site.api_limit         # API limit, should be 500
+        apilim = 50
+        if 'bot' in site.rights:
+            apilim = site.api_limit         # API limit, should be 500
 
         site_key = site.host.split('.')[0]
         
@@ -216,6 +224,7 @@ class User(object):
         parentids = []
         nr = 0
         for s0 in range(0, len(new_revisions), apilim):
+            print "API limit is ",apilim," getting ",s0
             ids = '|'.join(revids[s0:s0+apilim])
             for page in site.api('query', prop = 'revisions', rvprop = props, revids = ids)['query']['pages'].itervalues():
                 article_key = site_key + ':' + page['title']
@@ -229,7 +238,10 @@ class User(object):
                     if not rev.new:
                         parentids.append(rev.parentid)
         if self.verbose and nr > 0:
-            print " -> [%s] Checked %d revisions, found %d parent revisions" % (site_key, nr, len(parentids))
+            print " -> [%s] Checked %d of %d revisions, found %d parent revisions" % (site_key, nr, len(new_revisions), len(parentids))
+
+        if nr != len(new_revisions):
+            raise StandardError("Did not get all revisions")
         
         # 4) Fetch info about the parent revisions: diff size, possibly content
         
@@ -492,8 +504,8 @@ class Competition(object):
                 if len(anon) < 2:
                     raise ParseError('Ingen kategori(er) ble gitt til {{mlp|ukens konkurranse kriterium|kategori}}')
                 params = { 'sites': self.sites, 'catnames': anon[1:], 'ignore': catignore }
-                if 'maxdepth' in named:
-                    params['maxdepth'] = int(named['maxdepth'])
+                if 'maksdybde' in named:
+                    params['maxdepth'] = int(named['maksdybde'])
                 filters.append(CatFilter(**params))
 
             #elif key == 'tilbakelenke':
@@ -632,58 +644,61 @@ except ParseError as e:
 
 sql = sqlite3.connect('uk.db')
 
-# Loop over users
-for u in uk.users:
-    print "=== %s ===" % u.name
-    
-    # First read contributions from db
-    u.add_contribs_from_db(sql, uk.start, uk.end, sites)
 
-    # Then fill in new contributions from wiki
-    for site in sites.itervalues():
-        u.add_contribs_from_wiki(site, uk.start, uk.end, fulltext = True)
+if __name__ == '__main__':
 
-    # And update db
-    u.save_contribs_to_db(sql)
+    # Loop over users
+    for u in uk.users:
+        print "=== %s ===" % u.name
+        
+        # First read contributions from db
+        u.add_contribs_from_db(sql, uk.start, uk.end, sites)
 
-    try:
+        # Then fill in new contributions from wiki
+        for site in sites.itervalues():
+            u.add_contribs_from_wiki(site, uk.start, uk.end, fulltext = True)
 
-        # Filter out relevant articles
-        u.filter(uk.filters)
+        # And update db
+        u.save_contribs_to_db(sql)
 
-        # And calculate points
-        u.analyze(uk.rules)
+        try:
 
-    except ParseError as e:
-        err = "\n* '''%s'''" % e.msg
-        page = sites['no'].pages[konkurranseside]
-        out = '\n\n{{Ukens konkurranse robotinfo | error | %s }}' % err
-        page.save('dummy', summary = 'Resultatboten støtte på et problem', appendtext = out)
-        raise
+            # Filter out relevant articles
+            u.filter(uk.filters)
 
-# Sort users by points
-uk.users.sort( key = lambda x: x.points, reverse = True )
+            # And calculate points
+            u.analyze(uk.rules)
 
-# Plot
-#makeplot(parts)
+        except ParseError as e:
+            err = "\n* '''%s'''" % e.msg
+            page = sites['no'].pages[konkurranseside]
+            out = '\n\n{{Ukens konkurranse robotinfo | error | %s }}' % err
+            page.save('dummy', summary = 'Resultatboten støtte på et problem', appendtext = out)
+            raise
 
-# Make outpage
-out = '== Resultater ==\n\n'
-out += 'Konkurransen er åpen fra %s til %s.\n\n' % (uk.start.strftime('%e. %B %Y, %H:%M'), uk.end.strftime('%e. %B %Y, %H:%M'))
-for u in uk.users:
-    out += u.format_result()
+    # Sort users by points
+    uk.users.sort( key = lambda x: x.points, reverse = True )
 
-now = datetime.datetime.now()
-errors = []
-for f in uk.filters:
-    errors.extend(f.errors)
-if len(errors) == 0:
-    out += '\n\n{{Ukens konkurranse robotinfo | ok | %s }}' % now.strftime('%F %T')
-else:
-    err = ''.join("\n* '''%s'''<br />%s" % (e['title'], e['text']) for e in errors)
-    out += '\n\n{{Ukens konkurranse robotinfo | note | %s | %s }}' % ( now.strftime('%F %T'), err )
+    # Plot
+    #makeplot(parts)
 
-print " -> Updating wiki, section = %d " % (uk.results_section)
-page = sites['no'].pages[konkurranseside]
-page.save(out, summary = 'Oppdaterer resultater', section = uk.results_section)
+    # Make outpage
+    out = '== Resultater ==\n\n'
+    out += 'Konkurransen er åpen fra %s til %s.\n\n' % (uk.start.strftime('%e. %B %Y, %H:%M'), uk.end.strftime('%e. %B %Y, %H:%M'))
+    for u in uk.users:
+        out += u.format_result()
+
+    now = datetime.datetime.now()
+    errors = []
+    for f in uk.filters:
+        errors.extend(f.errors)
+    if len(errors) == 0:
+        out += '\n\n{{Ukens konkurranse robotinfo | ok | %s }}' % now.strftime('%F %T')
+    else:
+        err = ''.join("\n* '''%s'''<br />%s" % (e['title'], e['text']) for e in errors)
+        out += '\n\n{{Ukens konkurranse robotinfo | note | %s | %s }}' % ( now.strftime('%F %T'), err )
+
+    print " -> Updating wiki, section = %d " % (uk.results_section)
+    page = sites['no'].pages[konkurranseside]
+    page.save(out, summary = 'Oppdaterer resultater', section = uk.results_section)
 

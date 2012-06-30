@@ -1,3 +1,7 @@
+#encoding=utf-8
+from __future__ import unicode_literals
+import re
+import urllib
 
 class Rule(object):
     def __init__(self):

@@ -157,7 +157,7 @@ class User(object):
 
         # sort revisions by revision id
         for article in self.articles.itervalues():
-            article.revisions.sort()
+            article.revisions.sort( key = lambda x: x[0] ) # sort by key (revision id)
 
         # sort articles by first revision id
         self.articles.sort( key = lambda x: x[1].revisions.firstkey() )
@@ -201,6 +201,7 @@ class User(object):
                 rev = article.add_revision(rev_id, timestamp = time.mktime(c['timestamp']) )
                 new_revisions.append(rev)
             
+        # Always sort after we've added contribs
         self.sort_contribs()
         if self.verbose and (len(new_revisions) > 0 or len(new_articles) > 0):
             print " -> [%s] Added %d new revisions, %d new articles from API" % (site_key, len(new_revisions), len(new_articles))
@@ -352,19 +353,27 @@ class User(object):
         cur.close()
         cur2.close()
 
-        # Sort revisions by revision id
+        # Always sort after we've added contribs
         self.sort_contribs()
 
         if self.verbose and (nrevs > 0 or narts > 0):
             print " -> Added %d revisions, %d articles from DB" % (nrevs, narts)
 
-    def filter(self, filters):
+    def filter(self, filters, debug = False):
 
         for filter in filters:
             self.articles = filter.filter(self.articles)
 
+        # We should re-sort afterwards since not all filters preserve the order (notably the CatFilter)
+        self.sort_contribs()
+
         if self.verbose:
             print " -> %d articles remain after filtering" % len(self.articles)
+        if debug:
+            print '----'
+            for a in self.articles.iterkeys():
+                print a
+            print '----'
 
 
     def analyze(self, rules):
@@ -390,11 +399,8 @@ class User(object):
             # Cumulative points
             self.plotdata['x'].append(article.revisions[article.revisions.firstkey()].timestamp)
             self.plotdata['y'].append(self.points)
-    
-    def format_result(self):
         
-        # make sure things are sorted
-        self.sort_contribs()
+    def format_result(self):
         
         # loop over articles
         entries = []

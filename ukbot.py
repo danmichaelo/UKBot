@@ -535,8 +535,7 @@ class UK(object):
                 filters.append(ExistingPageFilter())
 
             elif key == 'stubb':
-                params = { }
-                filters.append(StubFilter(**params))
+                filters.append(StubFilter())
             
             elif key == 'bytes':
                 if len(anon) < 2:

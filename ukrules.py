@@ -2,7 +2,7 @@
 from __future__ import unicode_literals
 import re
 import urllib
-from danmicholoparser import DanmicholoParser
+from danmicholoparser import DanmicholoParser, DanmicholoParseError
 
 
 class Rule(object):

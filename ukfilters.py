@@ -3,6 +3,8 @@ from __future__ import unicode_literals
 import sys, re
 from copy import copy
 from odict import odict
+from danmicholoparser import DanmicholoParser, DanmicholoParseError
+
 
 class Filter(object):
 
@@ -27,7 +29,6 @@ class StubFilter(Filter):
         return False
 
     def filter(self, articles, verbose = True):
-        print "  [+] Applying stub filter (bytelimit = %.f)" % self.bytelimit
 
         out = odict()
         for article_key, article in articles.iteritems():
@@ -44,15 +45,15 @@ class StubFilter(Filter):
                 if article.new == False and article.redirect == False and len(firstrev.parenttext) < 20000:  
 
                     # Check if first revision is a stub
-                    if is_stub(firstrev.parenttext, verbose):
+                    if self.is_stub(firstrev.parenttext, verbose):
 
                         # Check if last revision is a stub
-                        if not is_stub(lastrev.text, verbose):
+                        if not self.is_stub(lastrev.text, verbose):
 
                             out[article_key] = article
 
-                    if verbose:
-                        sys.stdout.write("\n")
+                        if verbose:
+                            sys.stdout.write("\n")
                 
             except DanmicholoParseError as e:
                 print " >> DanmicholoParser failed to parse ", article_key
@@ -61,6 +62,8 @@ class StubFilter(Filter):
                     'title': 'Klarte ikke å tolke revisjonstekst',
                     'text': 'Artikkelen [[%s]] kunne ikke analyseres fordi en av revisjone %d eller %d ikke kunne parses: %s' % (article_key, firstrev.parentid, lastrev.revid, e.msg)
                 })
+        
+        print "  [+] Applying stub filter: %d -> %d" % (len(articles), len(out))
 
         return out
 

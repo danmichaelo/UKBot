@@ -4,9 +4,16 @@ import re
 import urllib
 from danmicholoparser import DanmicholoParser
 
+
 class Rule(object):
+
     def __init__(self):
         self.errors = []
+
+    def iszero(self, f):
+        f = float(f)
+        return (f > -0.1 and f < 0.1)
+
 
 class NewPageRule(Rule):
     
@@ -14,20 +21,20 @@ class NewPageRule(Rule):
         Rule.__init__(self)
         self.points = float(points)
 
-    def test(self, article):
-        if article.new and not article.redirect:
-            return self.points, '%.f p (N)' % self.points
-        else:
-            return 0, ''
+    def test(self, rev):
+        if rev.new and not rev.article.redirect:
+            rev.points.append([self.points, 'newpage', 'ny side'])
+
 
 class QualiRule(Rule):
 
     def __init__(self, points):
         Rule.__init__(self)
         self.points = float(points)
-
-    def test(self, article):
-        return self.points, '<abbr title="Kvalifisering">%.f p</abbr>' % self.points
+    
+    def test(self, rev):
+        if self.iszero(rev.article.get_points('quali')):
+            rev.points.append([self.points, 'quali', 'kvalifisert'])
 
 
 class ByteRule(Rule):
@@ -37,33 +44,15 @@ class ByteRule(Rule):
         self.points = float(points)
         self.maxpoints = float(maxpoints)
 
-    def test(self, article):
-        p = article.bytes * self.points
-        if self.maxpoints != -1 and p > self.maxpoints:
-            p = self.maxpoints
+    def test(self, rev):
+        revpoints = rev.bytes * self.points
+        ab = rev.article.get_points('byte')
+        if self.maxpoints > 0.0 and ab + revpoints > self.maxpoints:
+            revpoints = self.maxpoints - ab
+    
+        if not self.iszero(revpoints):
+            rev.points.append([revpoints, 'byte', '%.f bytes' % rev.bytes])
 
-        nb = []
-        for revid, rev in article.revisions.iteritems():
-            
-            # make a link to the revision
-            q = { 'title': article.name.encode('utf-8'), 'oldid': revid }
-            if not rev.new:
-                q['diff'] = 'prev'
-            link = 'http://' + article.site.host + article.site.site['script'] + '?' + urllib.urlencode(q)
-
-            revsize = rev.size - rev.parentsize
-            if revsize != 0:
-                if len(nb) == 0:
-                    fortegn = '%s ' % ('' if revsize > 0 else '-')
-                else:
-                    fortegn = '%s ' % ('+' if revsize > 0 else '-')
-                nb.append('[%s %s%d]' % (link, fortegn, abs(revsize)))
-
-        if len(nb) > 1:
-            label = '%.1f p (<span class="uk-b">%s = </span><span class="uk-bt">%.f bytes</span>)' % (p, ' '.join(nb), article.bytes)
-        else:
-            label = '%.1f p (<span class="uk-be">%s bytes</span>)' % (p, nb[0])
-        return p, label
 
 class WordRule(Rule):
 
@@ -76,38 +65,19 @@ class WordRule(Rule):
         dp = DanmicholoParser(txt)
         return len(dp.maintext.split())
 
-    def test(self, article):
-        nbw = []
-        article_words = 0
-        for revid, rev in article.revisions.iteritems():
+    def test(self, rev):
+        nwords = self.get_wordcount(rev.text)
+        nwords_p = self.get_wordcount(rev.parenttext)
+        words = nwords - nwords_p
+        
+        revpoints = words * self.points
+        ab = rev.article.get_points('word')
+        if self.maxpoints > 0.0 and ab + revpoints > self.maxpoints:
+            revpoints = self.maxpoints - ab
+        
+        if not self.iszero(revpoints):
+            rev.points.append([revpoints, 'word', '%.f ord' % words])
 
-            # make a link to the revision
-            q = { 'title': article.name.encode('utf-8'), 'oldid': revid }
-            if not rev.new:
-                q['diff'] = 'prev'
-            link = 'http://' + article.site.host + article.site.site['script'] + '?' + urllib.urlencode(q)
-            
-            nwords = self.get_wordcount(rev.text)
-            nwords_p = self.get_wordcount(rev.parenttext)
-            rev_words = nwords - nwords_p
-            article_words += rev_words
-            if rev_words != 0:
-                if len(nbw) == 0:
-                    fortegn = '%s ' % ('' if rev_words > 0 else '-')
-                else:
-                    fortegn = '%s ' % ('+' if rev_words > 0 else '-')
-                nbw.append('[%s %s%d] ' % (link, fortegn, abs(rev_words)))
-        
-        p = article_words * self.points
-        if self.maxpoints != -1 and p > self.maxpoints:
-            p = self.maxpoints
-        
-        if len(nbw) > 1:
-            label = '%.1f p (<span class="uk-w">%s = </span><span class="uk-wt">%.f ord</span>)' % (p, ' '.join(nbw), article_words)
-        else:
-            label = '%.1f p (<span class="uk-we">%s ord</span>)' % (p, nbw[0])
-        
-        return p, label
 
 class ImageRule(Rule):
     
@@ -119,20 +89,20 @@ class ImageRule(Rule):
     def get_imagecount(self, txt):
         return len(re.findall(r'(?:\.svg|\.png|\.jpg)', txt, flags = re.IGNORECASE))
 
-    def test(self, article):
+    def test(self, rev):
        
-        article_imgs = 0
-        for revid, rev in article.revisions.iteritems():
-            nimages = self.get_imagecount(rev.text)
-            nimages_p = self.get_imagecount(rev.parenttext)
-            rev_imgs = nimages - nimages_p
-            article_imgs += rev_imgs
+        nimages = self.get_imagecount(rev.text)
+        nimages_p = self.get_imagecount(rev.parenttext)
+        imgs = nimages - nimages_p
 
-        p = article_imgs * self.points
-        if self.maxpoints != -1 and p > self.maxpoints:
-            p = self.maxpoints
-
-        return p, '%.f p (%d bilde%s)' % (p, article_imgs, 'r' if article_imgs > 1 else '')
+        revpoints = imgs * self.points
+        ab = rev.article.get_points('image')
+        if self.maxpoints > 0.0 and ab + revpoints > self.maxpoints:
+            revpoints = self.maxpoints - ab
+        
+        if not self.iszero(revpoints):
+            rev.points.append([revpoints, 'image', '%d bilde%s' % (imgs, 'r' if imgs > 1 else '')])
+ 
 
 class RefRule(Rule):
     
@@ -145,7 +115,7 @@ class RefRule(Rule):
         self.sourcepoints = float(sourcepoints)
         self.refpoints = float(refpoints)
             
-    def testrev(self, rev):
+    def test(self, rev):
         dp1 = DanmicholoParser(rev.parenttext)
         s1 = 0
         r1 = 0
@@ -158,29 +128,28 @@ class RefRule(Rule):
         if 'ref' in dp2.tags:
             s2 = len([r for r in dp2.tags['ref'] if 'content' in r])
             r2 = len([r for r in dp2.tags['ref'] if not 'content' in r])
-        return s2-s1, r2-r1, dp1.errors + dp2.errors
+        sources_added = s2 - s1
+        refs_added = r2 - r1
 
-    def test(self, article):
-        sources_added = 0
-        refs_added = 0
-        p = 0
-        for revid, rev in article.revisions.iteritems():
-            s, r, errors = self.testrev(rev)
-            self.errors.extend([{
-                'title': 'Problem ved parsing av [http://%s%s?olid=%d rev. %d]' % (article.site.host, article.site.site['script'], rev.revid, rev.revid), 
-                'text': e} for e in errors])
-            sources_added += s
-            refs_added += r
-        txt = ''
-        p = sources_added * self.sourcepoints + refs_added * self.refpoints
-        if p > 0.0:
+        errors = dp1.errors + dp2.errors
+        self.errors.extend([{
+            'title': 'Problem ved parsing av [http://%s%s?olid=%d rev. %d]' % (rev.article.site.host, rev.article.site.site['script'], rev.revid, rev.revid), 
+            'text': e} for e in errors])
+        
+        #p = sources_added * self.sourcepoints + refs_added * self.refpoints
+        if sources_added != 0 or refs_added != 0:
+            p = 0.
             s = []
             if sources_added > 0:
+                p += sources_added * self.sourcepoints
                 s.append('%d kilde%s' % (sources_added, 'r' if sources_added > 1 else ''))
             if refs_added > 0:
-                s.append('%d kildehenvisninge%s' % (refs_added, 'r' if refs_added > 1 else ''))
-            txt = '%.f p (%s)' % (p, ', '.join(s))
-        return p, txt
+                p += refs_added * self.refpoints
+                s.append('%d kildehenvisning%s' % (refs_added, 'er' if refs_added > 1 else ''))
+            txt = ', '.join(s)
+        
+            rev.points.append([p, 'ref', txt])
+
 
 class ByteBonusRule(Rule):
     
@@ -189,6 +158,12 @@ class ByteBonusRule(Rule):
         self.points = float(points)
         self.limit = float(limit)
 
-    def test(self, article):
-        if article.bytes > self.limit:
-            return self.points, '%.f p (&gt; %.f bytes)' % (self.points, self.limit)
+    def test(self, rev):
+        abytes = 0.
+        for rev in rev.article.revs:
+            abytes += rev.bytes
+            if rev == rev and abytes >= self.limit:
+                rev.points.append([self.points, 'bytebonus', '&gt; %.f bytes' % self.limit ])
+            elif abytes >= self.limit:
+                break
+

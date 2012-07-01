@@ -7,6 +7,7 @@ import re
 import sqlite3
 from odict import odict
 import mwclient
+import urllib
 
 from danmicholoparser import DanmicholoParser, DanmicholoParseError
 from ukrules import *
@@ -72,8 +73,6 @@ class Article(object):
         
         self.revisions = odict()
         self.redirect = False
-
-        self.points = 0
     
     def __repr__(self):
         return ("<Article %s:%s>" % (self.site_key, self.name)).encode('utf-8')
@@ -83,12 +82,19 @@ class Article(object):
         return self.revisions[self.revisions.firstkey()].new
 
     def add_revision(self, revid, **kwargs):
-        self.revisions[revid] = Revision(self.site_key, self.name, revid, **kwargs)
+        self.revisions[revid] = Revision(self.site_key, self, revid, **kwargs)
         return self.revisions[revid]
     
     @property
     def bytes(self):
-        return np.sum([rev.size - rev.parentsize for rev in self.revisions.itervalues()])
+        return np.sum([rev.bytes for rev in self.revisions.itervalues()])
+
+    @property
+    def points(self):
+        return np.sum([rev.get_points() for rev in self.revisions.values()])
+
+    def get_points(self, ptype = ''):
+        return np.sum([rev.get_points(ptype) for rev in self.revisions.values()])
 
 
 class Revision(object):
@@ -99,7 +105,7 @@ class Revision(object):
 
         Arguments:
           - site_key: (str) short site name
-          - article: (str) article title
+          - article: (Article) article object reference
           - revid: (int) revision id
         """
         self.site_key = site_key
@@ -113,8 +119,7 @@ class Revision(object):
         self.parentsize = 0
         self.parenttext = ''
 
-        self.points = 0
-        self.bytes = 0
+        self.points = []
         
         for k, v in kwargs.iteritems():
             if k == 'timestamp':
@@ -129,20 +134,35 @@ class Revision(object):
                 raise StandardError('add_revision got unknown argument %s' % k)
     
     def __repr__(self):
-        return ("<Revision %d for %s:%s>" % (self.revid, self.site_key, self.article)).encode('utf-8')
+        return ("<Revision %d for %s:%s>" % (self.revid, self.site_key, self.article.name)).encode('utf-8')
+
+    @property
+    def bytes(self):
+        return self.size - self.parentsize
 
     @property
     def new(self):
         return (self.parentid == 0)
-
+    
+    def get_link(self):
+        """ returns a link to revision """
+        q = { 'title': self.article.name.encode('utf-8'), 'oldid': self.revid }
+        if not self.new:
+            q['diff'] = 'prev'
+        return 'http://' + self.article.site.host + self.article.site.site['script'] + '?' + urllib.urlencode(q)
+    
+    def get_points(self, ptype = ''):
+        p = 0.0
+        for pnt in self.points:
+            if ptype == '' or pnt[1] == ptype:
+                p += pnt[0]
+        return p
 
 class User(object):
 
     def __init__(self, username, verbose = True):
         self.name = username
         self.articles = odict()
-        self.points = 0
-        self.bytes = 0
         self.verbose = verbose
 
     def __repr__(self):
@@ -375,43 +395,61 @@ class User(object):
                 print a
             print '----'
 
+    @property
+    def bytes(self):
+        return np.sum([a.bytes for a in self.articles.itervalues()])
+    
+    @property
+    def points(self):
+        return np.sum([a.points for a in self.articles.values()])
 
     def analyze(self, rules):
 
         self.plotdata = { 'x': [], 'y': [] }
-        self.points = 0.
-        self.bytes = 0.
         
         # loop over articles
         for article_key, article in self.articles.iteritems():
+            
+            # loop over revisions
+            for revid, rev in article.revisions.iteritems():
 
-            article.points = 0
-            article.points_breakdown = []
-            for rule in rules:
-                p, txt = rule.test(article)
-                if p != 0.0:
-                    article.points += p
-                    article.points_breakdown.append(txt)
+                rev.points = []
 
-            self.bytes += article.bytes
-            self.points += article.points
+                # loop over rules
+                for rule in rules:
+                    rule.test(rev)
 
             # Cumulative points
-            self.plotdata['x'].append(article.revisions[article.revisions.firstkey()].timestamp)
-            self.plotdata['y'].append(self.points)
+            #self.plotdata['x'].append(article.revisions[article.revisions.firstkey()].timestamp)
+            #self.plotdata['y'].append(self.points)
         
     def format_result(self):
         
-        # loop over articles
         entries = []
+
+        # loop over articles
         for article_key, article in self.articles.iteritems():
+            
             if article.points != 0.0:
-                out = '# [[%s|%s]] (%.1f p)' % (article_key, article.name, article.points)
-                out += '<div style="color:#888; font-size:smaller; line-height:100%%;">%s</div>' % ' + '.join(article.points_breakdown)
+                
+
+                # loop over revisions
+                revs = []
+                for revid, rev in article.revisions.iteritems():
+
+                    if len(rev.points) > 0:
+                        descr = ' + '.join(['%.1f p (%s)' % (p[0], p[2]) for p in rev.points])
+                        revs.append('[%s %d]: %s' % (rev.get_link(), revid, descr))
+                
+                titletxt = '<br />'.join(revs)
                 try:
-                    out += '<div style="color:#888; font-size:smaller; line-height:100%%;">%s</div>' % ' &gt; '.join(article.cat_path)
+                    titletxt += '<br />Kategoritreff: ' + ' &gt; '.join(article.cat_path)
                 except AttributeError:
                     pass
+                
+                out = '# [[%s|%s]] (<abbr class="uk-ap">%.1f p</abbr>)' % (article_key, article.name, article.points)
+                out += '<div class="uk-ap-title" style="font-size: smaller; color:#888; line-height:100%;">' + titletxt + '</div>'
+                
                 entries.append(out)
 
         out = '=== [[Bruker:%s|%s]] (%.f p) ===\n' % (self.name, self.name, self.points)
@@ -692,7 +730,7 @@ try:
 except ParseError as e:
     err = "\n* '''%s'''" % e.msg
     page = sites['no'].pages[konkurranseside]
-    out = '\n\n{{Ukens konkurranse robotinfo | error | %s }}' % err
+    out = '\n{{Ukens konkurranse robotinfo | error | %s }}' % err
     page.save('dummy', summary = 'Resultatboten støtte på et problem', appendtext = out)
     raise
 
@@ -726,7 +764,7 @@ if __name__ == '__main__':
         except ParseError as e:
             err = "\n* '''%s'''" % e.msg
             page = sites['no'].pages[konkurranseside]
-            out = '\n\n{{Ukens konkurranse robotinfo | error | %s }}' % err
+            out = '\n{{Ukens konkurranse robotinfo | error | %s }}' % err
             page.save('dummy', summary = 'Resultatboten støtte på et problem', appendtext = out)
             raise
 
@@ -734,7 +772,7 @@ if __name__ == '__main__':
     uk.users.sort( key = lambda x: x.points, reverse = True )
 
     # Plot
-    uk.plot()
+    #uk.plot()
 
     # Make outpage
     out = '== Resultater ==\n\n'
@@ -749,12 +787,13 @@ if __name__ == '__main__':
     for r in uk.rules:
         errors.extend(r.errors)
     if len(errors) == 0:
-        out += '\n\n{{Ukens konkurranse robotinfo | ok | %s }}' % now.strftime('%F %T')
+        out += '{{Ukens konkurranse robotinfo | ok | %s }}' % now.strftime('%F %T')
     else:
         err = ''.join("\n* %s:<br />%s" % (e['title'], e['text']) for e in errors)
-        out += '\n\n{{Ukens konkurranse robotinfo | 1=note | 2=%s | 3=%s }}' % ( now.strftime('%F %T'), err )
+        out += '{{Ukens konkurranse robotinfo | 1=note | 2=%s | 3=%s }}' % ( now.strftime('%F %T'), err )
 
     print " -> Updating wiki, section = %d " % (uk.results_section)
     page = sites['no'].pages[konkurranseside]
     page.save(out, summary = 'Oppdaterer resultater', section = uk.results_section)
+    #print out
 

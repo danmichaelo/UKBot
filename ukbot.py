@@ -580,43 +580,86 @@ class UK(object):
         else:
             raise ParseError('Fant ikke uke/år eller start/slutt i {{tl|infoboks ukens konkurranse}}.')
         
+        self.year= self.start.isocalendar()[0]
         self.week = self.start.isocalendar()[1]
 
         return rules, filters
 
+    def plot(self):
+        import matplotlib.pyplot as plt
 
-def makeplot(parts):
-    import matplotlib.pyplot as plt
+        w = 14/2.54
+        goldenratio = 1.61803399
+        h = w/goldenratio
+        fig = plt.figure( figsize=(w,h) )
 
-    fig = plt.figure()
-    ax = fig.add_subplot(1,1,1)
-    ax.grid(True, which = 'major', color = 'gray', alpha = 0.5)
-    fig.subplots_adjust(left=0.10, bottom=0.15, right=0.73, top=0.95)
+        ax = fig.add_subplot(1,1,1, frame_on = False)
+        ax.grid(True, which = 'major', color = 'gray', alpha = 0.5)
+        fig.subplots_adjust(left=0.11, bottom=0.10, right=0.65, top=0.94)
 
-    t0 = float(uk.start.strftime('%s'))
-    xt = t0 + np.arange(8) * 86400
+        t0 = float(self.start.strftime('%s'))
 
-    for points, b, txt, user, x, y in parts:
-        x.append(xt[-1])
-        y.append(y[-1])
-        ax.plot(x, y, 'x-', markersize = 3., label = user)
+        xt = t0 + np.arange(8) * 86400
+        xt_mid = t0 + 43200 + np.arange(7) * 86400
 
-    ax.set_xticks(xt, minor = False)
+        now = float(datetime.datetime.now().strftime('%s'))
 
-    ax.set_xlim(t0,xt[-1])
-    ax.set_xticklabels([], minor = False)
-    ax.set_xticklabels(['Mandag','Tirsdag','Onsdag','Torsdag','Fredag','Lørdag','Søndag'], minor = True)
+        yall = []
+        cnt = 0
+        for u in self.users:
+            if len(u.plotdata['x']) > 0:
+                cnt += 1
+                x = u.plotdata['x']
+                y = u.plotdata['y']
+                yall.extend(y)
+                x.insert(0,xt[0])
+                y.insert(0,0)
+                if now < xt[-1]:
+                    x.append(now)
+                    y.append(y[-1])
+                else:
+                    x.append(xt[-1])
+                    y.append(y[-1])
+                l = ax.plot(x, y, linewidth=2., alpha = 0.5, label = u.name) #, markerfacecolor='#FF8C00', markeredgecolor='#888888', label = u.name)
+                c = l[0].get_color()
+                ax.plot(x[1:-1], y[1:-1], marker='.', markersize = 4, markerfacecolor=c, markeredgecolor=c, linewidth=0., alpha = 0.5) #, markerfacecolor='#FF8C00', markeredgecolor='#888888', label = u.name)
+                if cnt >= 10:
+                    break
 
-    xt = t0 + 43200 + np.arange(7) * 86400
-    ax.set_xticks(xt, minor = True)
+        if now < xt[-1]:
+            ax.axvline(now, color='red')
 
-    plt.legend()
-    ax = plt.gca()
-    ax.legend( 
-        # ncol = 4, loc = 3, bbox_to_anchor = (0., 1.02, 1., .102), mode = "expand", borderaxespad = 0.
-        loc = 2, bbox_to_anchor = (1.0, 1.0), borderaxespad = 0., frameon = 0.
-    )
-    plt.savefig('ukens_konkurranse-%d.pdf' % uk.week)
+        ax.set_xticks(xt, minor = False)
+        ax.set_xticklabels([], minor = False)
+        
+        ax.set_xticks(xt_mid, minor = True)
+        ax.set_xticklabels(['Man','Tir','Ons','Tors','Fre','Lør','Søn'], minor = True)
+
+        for i in range(1,7,2):
+            ax.axvspan(xt[i], xt[i+1], facecolor='#000099', linewidth=0., alpha=0.03)
+
+        for i in range(0,7,2):
+            ax.axvspan(xt[i], xt[i+1], facecolor='#000099', linewidth=0., alpha=0.07)
+
+        for line in ax.xaxis.get_ticklines(minor = False):
+            line.set_markersize(0)
+
+        for line in ax.xaxis.get_ticklines(minor = True):
+            line.set_markersize(0)
+        
+        for line in ax.yaxis.get_ticklines(minor = False):
+            line.set_markersize(0)
+
+        ax.set_xlim(t0, xt[-1])
+        ax.set_ylim(0, 1.05*np.max(yall))
+
+        plt.legend()
+        ax = plt.gca()
+        ax.legend( 
+            # ncol = 4, loc = 3, bbox_to_anchor = (0., 1.02, 1., .102), mode = "expand", borderaxespad = 0.
+            loc = 2, bbox_to_anchor = (1.0, 1.0), borderaxespad = 0., frameon = 0.
+        )
+        plt.savefig('Nowp Ukens_konkurranse_%d-%d.png' % (self.year, self.week), dpi = 200)
 
 
 ############################################################################################################################
@@ -684,7 +727,7 @@ if __name__ == '__main__':
     uk.users.sort( key = lambda x: x.points, reverse = True )
 
     # Plot
-    #makeplot(parts)
+    uk.plot()
 
     # Make outpage
     out = '== Resultater ==\n\n'

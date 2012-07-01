@@ -8,7 +8,7 @@ from danmicholoparser import DanmicholoParser, DanmicholoParseError
 class Rule(object):
 
     def __init__(self):
-        self.errors = []
+        pass
 
     def iszero(self, f):
         f = float(f)
@@ -25,6 +25,29 @@ class NewPageRule(Rule):
         if rev.new and not rev.article.redirect:
             rev.points.append([self.points, 'newpage', 'ny side'])
 
+
+class StubRule(Rule):
+
+    def __init__(self, points):
+        Rule.__init__(self)
+        self.points = float(points)
+
+    def is_stub(self, text):
+        """ Checks if a given text is a stub """
+
+        dp = DanmicholoParser(text, debug = False)
+        for tname, templ in dp.templates.iteritems():
+            if tname.find('stubb') != -1 or tname.find('spire') != -1:
+                return True
+        return False
+
+    def test(self, rev):
+        try:
+            if self.is_stub(rev.parenttext) and not self.is_stub(rev.text):
+                rev.points.append([self.points, 'stub', 'avstubbing'])
+        except DanmicholoParseError as e:
+            rev.article.errors.append('Problem ved parsing av [%s rev. %d] : %s' % (rev.get_link(), rev.revid, e.msg))
+    
 
 class QualiRule(Rule):
 
@@ -131,10 +154,8 @@ class RefRule(Rule):
         sources_added = s2 - s1
         refs_added = r2 - r1
 
-        errors = dp1.errors + dp2.errors
-        self.errors.extend([{
-            'title': 'Problem ved parsing av [http://%s%s?olid=%d rev. %d]' % (rev.article.site.host, rev.article.site.site['script'], rev.revid, rev.revid), 
-            'text': e} for e in errors])
+        rev.article.errors.extend(['Problem ved parsing av [%s rev. %d] : %s' % (rev.get_parent_link(), rev.parentid, e) for e in dp1.errors])
+        rev.article.errors.extend(['Problem ved parsing av [%s rev. %d] : %s' % (rev.get_link(), rev.revid, e) for e in dp2.errors])
         
         #p = sources_added * self.sourcepoints + refs_added * self.refpoints
         if sources_added != 0 or refs_added != 0:

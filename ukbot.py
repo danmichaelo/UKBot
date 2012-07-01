@@ -8,6 +8,8 @@ import sqlite3
 from odict import odict
 import mwclient
 import urllib
+import argparse 
+import codecs
 
 from danmicholoparser import DanmicholoParser, DanmicholoParseError
 from ukrules import *
@@ -73,6 +75,7 @@ class Article(object):
         
         self.revisions = odict()
         self.redirect = False
+        self.errors = []
     
     def __repr__(self):
         return ("<Article %s:%s>" % (self.site_key, self.name)).encode('utf-8')
@@ -149,6 +152,11 @@ class Revision(object):
         q = { 'title': self.article.name.encode('utf-8'), 'oldid': self.revid }
         if not self.new:
             q['diff'] = 'prev'
+        return 'http://' + self.article.site.host + self.article.site.site['script'] + '?' + urllib.urlencode(q)
+    
+    def get_parent_link(self):
+        """ returns a link to parent revision """
+        q = { 'title': self.article.name.encode('utf-8'), 'oldid': self.parentid }
         return 'http://' + self.article.site.host + self.article.site.site['script'] + '?' + urllib.urlencode(q)
     
     def get_points(self, ptype = ''):
@@ -574,6 +582,9 @@ class UK(object):
 
             elif key == 'kvalifisert':
                 rules.append(QualiRule(anon[1]))
+            
+            elif key == 'stubb':
+                rules.append(StubRule(anon[1]))
 
             elif key == 'byte':
                 params = { 'points': anon[1] }
@@ -710,33 +721,42 @@ class UK(object):
 # Main 
 ############################################################################################################################
 
-from wp_private import ukbotlogin
-sites = {
-    'no': mwclient.Site('no.wikipedia.org'),
-    'nn': mwclient.Site('nn.wikipedia.org')
-}
-for site in sites.values():
-    # login increases api limit from 50 to 500 
-    site.login(*ukbotlogin)
-
-#konkurranseside = 'Wikipedia:Ukens konkurranse/Ukens konkurranse ' + year + '-' + week
-#konkurranseside = 'Wikipedia:Ukens konkurranse/Ukens konkurranse 2012-27'
-konkurranseside = 'Bruker:UKBot/Sandkasse1'
-kategoriside = 'Bruker:UKBot/cat-ignore'
-
-try:
-    uk = UK(sites['no'].pages[konkurranseside].edit(), sites['no'].pages[kategoriside].edit(), sites)
-except ParseError as e:
-    err = "\n* '''%s'''" % e.msg
-    page = sites['no'].pages[konkurranseside]
-    out = '\n{{Ukens konkurranse robotinfo | error | %s }}' % err
-    page.save('dummy', summary = 'Resultatboten støtte på et problem', appendtext = out)
-    raise
-
-sql = sqlite3.connect('uk.db')
-
-
 if __name__ == '__main__':
+
+    from wp_private import ukbotlogin
+    from wp_private import botlogin
+    sites = {
+        'no': mwclient.Site('no.wikipedia.org'),
+        'nn': mwclient.Site('nn.wikipedia.org')
+    }
+    for site in sites.values():
+        # login increases api limit from 50 to 500 
+        site.login(*botlogin)
+
+    #konkurranseside = 'Bruker:Danmichaelo/Sandkasse5'
+    #konkurranseside = 'Bruker:UKBot/Sandkasse2'
+    #konkurranseside = 'Wikipedia:Ukens konkurranse/Ukens konkurranse ' + year + '-' + week
+
+    parser = argparse.ArgumentParser( description = 'The UKBot' )
+    parser.add_argument('--page', required=True, help='The page to update')
+    args = parser.parse_args()
+
+    kpage = args.page
+    if not (re.match('^Wikipedia:Ukens konkurranse/Ukens konkurranse', kpage) or re.match('^Bruker:UKBot/Sandkasse', kpage)):
+        raise StandardError('I refuse to work with that page!')
+
+    cpage = 'Bruker:UKBot/cat-ignore'
+
+    try:
+        uk = UK(sites['no'].pages[kpage].edit(), sites['no'].pages[cpage].edit(), sites)
+    except ParseError as e:
+        err = "\n* '''%s'''" % e.msg
+        page = sites['no'].pages[kpage]
+        out = '\n{{Ukens konkurranse robotinfo | error | %s }}' % err
+        page.save('dummy', summary = 'Resultatboten støtte på et problem', appendtext = out)
+        raise
+
+    sql = sqlite3.connect('uk.db')
 
     # Loop over users
     for u in uk.users:
@@ -762,7 +782,7 @@ if __name__ == '__main__':
 
         except ParseError as e:
             err = "\n* '''%s'''" % e.msg
-            page = sites['no'].pages[konkurranseside]
+            page = sites['no'].pages[kpage]
             out = '\n{{Ukens konkurranse robotinfo | error | %s }}' % err
             page.save('dummy', summary = 'Resultatboten støtte på et problem', appendtext = out)
             raise
@@ -780,19 +800,30 @@ if __name__ == '__main__':
         out += u.format_result()
 
     now = datetime.datetime.now()
-    errors = []
-    for f in uk.filters:
-        errors.extend(f.errors)
-    for r in uk.rules:
-        errors.extend(r.errors)
+
+    errors = {}
+    for u in uk.users:
+        for article in u.articles.itervalues():
+            if len(article.errors) > 0:
+                errors[article.site_key+':'+article.name] = article.errors
+
     if len(errors) == 0:
         out += '{{Ukens konkurranse robotinfo | ok | %s }}' % now.strftime('%F %T')
     else:
-        err = ''.join("\n* %s:<br />%s" % (e['title'], e['text']) for e in errors)
-        out += '{{Ukens konkurranse robotinfo | 1=note | 2=%s | 3=%s }}' % ( now.strftime('%F %T'), err )
+        err = []
+        for art, errors in errors.iteritems():
+            if len(errors) > 8:
+                errors = errors[:8]
+                errors.append('(...)')
+            err.append('\n* Boten støtte på følgende problemer med artikkelen [[%s]]'%art + ''.join(['\n** %s' % e for e in errors]))
+
+        out += '{{Ukens konkurranse robotinfo | 1=note | 2=%s | 3=%s }}' % ( now.strftime('%F %T'), ''.join(err) )
 
     print " -> Updating wiki, section = %d " % (uk.results_section)
-    page = sites['no'].pages[konkurranseside]
+    page = sites['no'].pages[kpage]
     page.save(out, summary = 'Oppdaterer resultater', section = uk.results_section)
-    #print out
+
+    f = codecs.open('out.txt','w','utf-8')
+    f.write(out)
+    f.close()
 

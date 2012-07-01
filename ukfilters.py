@@ -9,7 +9,7 @@ from danmicholoparser import DanmicholoParser, DanmicholoParseError
 class Filter(object):
 
     def __init__(self):
-        self.errors = []
+        pass
 
 class StubFilter(Filter):
     """ Filters articles that was stubs, but is no more """
@@ -58,10 +58,7 @@ class StubFilter(Filter):
             except DanmicholoParseError as e:
                 print " >> DanmicholoParser failed to parse ", article_key
                 parentid = firstrev.parentid
-                self.errors.append({
-                    'title': 'Klarte ikke å tolke revisjonstekst',
-                    'text': 'Artikkelen [[%s]] kunne ikke analyseres fordi en av revisjone %d eller %d ikke kunne parses: %s' % (article_key, firstrev.parentid, lastrev.revid, e.msg)
-                })
+                article.errors.append('Artikkelen kunne ikke analyseres fordi en av revisjone %d eller %d ikke kunne parses: %s' % (article_key, firstrev.parentid, lastrev.revid, e.msg))
         
         print "  [+] Applying stub filter: %d -> %d" % (len(articles), len(out))
 
@@ -249,10 +246,7 @@ class CatFilter(Filter):
                         if i > 50:
                             raise CategoryLoopError(article.cat_path)
                 except CategoryLoopError as e:
-                    self.errors.append({
-                        'title': 'Havnet i en endeløs kategorisløyfe!',
-                        'text': ' → '.join(['[[:Kategori:'+c+'|'+c+']]' for c in e.catpath])
-                    })
+                    article.errors.append('Havnet i en endeløs kategorisløyfe : ' + ' → '.join(['[[:Kategori:'+c+'|'+c+']]' for c in e.catpath]))
 
                 out[article_key] = article
 

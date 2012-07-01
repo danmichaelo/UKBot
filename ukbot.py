@@ -474,7 +474,10 @@ class UK(object):
         if not 'infoboks ukens konkurranse' in dp.templates.keys():
             raise ParseError('Denne konkurransen mangler en {{tl|infoboks ukens konkurranse}}-mal.')
 
-        catignore = dp2.tags['pre'][0].split()
+        try:
+            catignore = dp2.tags['pre'][0]['content'].split()
+        except (IndexError, KeyError):
+            raise ParseError('Klarte ikke tolke catignore-siden')
 
         # Read filters
         for templ in dp.templates['ukens konkurranse kriterium']:
@@ -552,6 +555,10 @@ class UK(object):
                 if 'makspoeng' in named:
                     params['maxpoints'] = named['makspoeng']
                 rules.append(ImageRule(**params))
+            
+            elif key == 'ref':
+                params = { 'sourcepoints': anon[1], 'refpoints': anon[2] }
+                rules.append(RefRule(**params))
 
             elif key == 'bytebonus':
                 rules.append(ByteBonusRule(anon[1], anon[2]))
@@ -739,11 +746,13 @@ if __name__ == '__main__':
     errors = []
     for f in uk.filters:
         errors.extend(f.errors)
+    for r in uk.rules:
+        errors.extend(r.errors)
     if len(errors) == 0:
         out += '\n\n{{Ukens konkurranse robotinfo | ok | %s }}' % now.strftime('%F %T')
     else:
-        err = ''.join("\n* '''%s'''<br />%s" % (e['title'], e['text']) for e in errors)
-        out += '\n\n{{Ukens konkurranse robotinfo | note | %s | %s }}' % ( now.strftime('%F %T'), err )
+        err = ''.join("\n* %s:<br />%s" % (e['title'], e['text']) for e in errors)
+        out += '\n\n{{Ukens konkurranse robotinfo | 1=note | 2=%s | 3=%s }}' % ( now.strftime('%F %T'), err )
 
     print " -> Updating wiki, section = %d " % (uk.results_section)
     page = sites['no'].pages[konkurranseside]

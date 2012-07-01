@@ -739,6 +739,8 @@ if __name__ == '__main__':
 
     parser = argparse.ArgumentParser( description = 'The UKBot' )
     parser.add_argument('--page', required=True, help='The page to update')
+    parser.add_argument('--output', nargs='?', default='', help='Write to output file')
+    parser.add_argument('--simulate', action='store_true', default=False, help='Do not write to wiki')
     args = parser.parse_args()
 
     kpage = args.page
@@ -819,11 +821,13 @@ if __name__ == '__main__':
 
         out += '{{Ukens konkurranse robotinfo | 1=note | 2=%s | 3=%s }}' % ( now.strftime('%F %T'), ''.join(err) )
 
-    print " -> Updating wiki, section = %d " % (uk.results_section)
-    page = sites['no'].pages[kpage]
-    page.save(out, summary = 'Oppdaterer resultater', section = uk.results_section)
+    if not args.simulate:
+        print " -> Updating wiki, section = %d " % (uk.results_section)
+        page = sites['no'].pages[kpage]
+        page.save(out, summary = 'Oppdaterer resultater', section = uk.results_section)
 
-    f = codecs.open('out.txt','w','utf-8')
-    f.write(out)
-    f.close()
+    if args.output != '':
+        f = codecs.open(args.output,'w','utf-8')
+        f.write(out)
+        f.close()
 

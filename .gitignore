@@ -30,3 +30,4 @@ pip-log.txt
 wp_private.py
 *.swp
 uk.db
+.DS_Store

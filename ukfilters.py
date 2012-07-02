@@ -17,18 +17,18 @@ class StubFilter(Filter):
     def __init__(self):
         Filter.__init__(self)
 
-    def is_stub(self, text, verbose = False):
+    def is_stub(self, text, logf, verbose = False):
         """ Checks if a given text is a stub """
 
         dp = DanmicholoParser(text, debug = False)
         for tname, templ in dp.templates.iteritems():
             if tname.find('stubb') != -1 or tname.find('spire') != -1:
                 if verbose:
-                    sys.stdout.write(" >> %s " % (tname))
+                    logf.write(" >> %s " % (tname))
                 return True
         return False
 
-    def filter(self, articles, verbose = True):
+    def filter(self, articles, logf, verbose = True):
 
         out = odict()
         for article_key, article in articles.iteritems():
@@ -45,22 +45,22 @@ class StubFilter(Filter):
                 if article.new == False and article.redirect == False and len(firstrev.parenttext) < 20000:  
 
                     # Check if first revision is a stub
-                    if self.is_stub(firstrev.parenttext, verbose):
+                    if self.is_stub(firstrev.parenttext, logf, verbose):
 
                         # Check if last revision is a stub
-                        if not self.is_stub(lastrev.text, verbose):
+                        if not self.is_stub(lastrev.text, logf, verbose):
 
                             out[article_key] = article
 
                         if verbose:
-                            sys.stdout.write("\n")
+                            logf.write("\n")
                 
             except DanmicholoParseError as e:
-                print " >> DanmicholoParser failed to parse ", article_key
+                logf.write(" >> DanmicholoParser failed to parse " + article_key + '\n')
                 parentid = firstrev.parentid
                 article.errors.append('Artikkelen kunne ikke analyseres fordi en av revisjone %d eller %d ikke kunne parses: %s' % (article_key, firstrev.parentid, lastrev.revid, e.msg))
         
-        print "  [+] Applying stub filter: %d -> %d" % (len(articles), len(out))
+        logf.write("  [+] Applying stub filter: %d -> %d\n" % (len(articles), len(out)))
 
         return out
 
@@ -83,7 +83,7 @@ class CatFilter(Filter):
         self.verbose = True
 
  
-    def fetchcats(self, articles, debug=False):
+    def fetchcats(self, articles, logf, debug=False):
         """ Fetches categories an overcategories for a set of articles """
         
         # Make a list of the categories of a given article, with one list for each level
@@ -123,8 +123,8 @@ class CatFilter(Filter):
             # Titles of articles that belong to this site
             titles = [article.name for article in articles.itervalues() if article.site_key == site_key]
             
-            sys.stdout.write(' ['+site_key+':'+str(len(titles))+']')
-            sys.stdout.flush()
+            logf.write(' ['+site_key+':'+str(len(titles))+']')
+            #.flush()
             if len(titles) > 0:
         
                 for level in range(self.maxdepth):
@@ -135,9 +135,9 @@ class CatFilter(Filter):
                     nnc = 0
             
                     for s0 in range(0, len(titles0), apilim):
-                        if debug:
-                            print
-                            print "[%d] > Getting %d to %d of %d" % (level, s0, s0+apilim, len(titles0))
+                        #if debug:
+                        #print
+                        #print "[%d] > Getting %d to %d of %d" % (level, s0, s0+apilim, len(titles0))
                         ids = '|'.join(titles0[s0:s0+apilim])
 
                         cont = True
@@ -183,8 +183,8 @@ class CatFilter(Filter):
                                                         #    if not cat_short.encode('utf-8') in [i.name for i in node.get_children()]:
                                                         #        node.add_child(name = cat_short.encode('utf-8'))
                                         else:
-                                            if debug:
-                                                print "ignore",cat_title
+                                            #if debug:
+                                            #    print "ignore",cat_title
                                             nnc += 1
                             if 'query-continue' in q:
                                 clcont = q['query-continue']['categories']['clcontinue']
@@ -194,8 +194,8 @@ class CatFilter(Filter):
                     #if level == 0:
                     #    cattree = [p for p in titles]
                     if self.verbose:
-                        sys.stdout.write(' %d' % (len(titles)))
-                        sys.stdout.flush()
+                        logf.write(' %d' % (len(titles)))
+                        #.stdout.flush()
                         #print "Found %d unique categories (%d total) at level %d (skipped %d categories)" % (len(titles), nc, level, nnc)
 
 
@@ -210,25 +210,24 @@ class CatFilter(Filter):
                     return inc
         return None
     
-    def filter(self, articles, debug = False):
+    def filter(self, articles, logf, debug = False):
         
         if self.verbose:
-            sys.stdout.write("  [+] Applying category filter")
-            sys.stdout.flush()
+            logf.write("  [+] Applying category filter")
 
-        cats, parents = self.fetchcats(articles, debug=debug)
+        cats, parents = self.fetchcats(articles, logf, debug=debug)
 
         out = odict()
 
         # loop over articles
         for article_key, article_cats in cats.iteritems():
-            if debug:
-                print
+            #if debug:
+            #    print
             article = articles[article_key]
             if debug:
-                print ">>>",article.name
+                logf.write(">>> %s"%article.name)
                 for l,ca in enumerate(article_cats):
-                    print '[%d] ' % l, ', '.join(ca)
+                    logf.write('[%d] %s' % (l, ', '.join(ca)))
 
             catname = self.check_article_cats(article_cats)
             if catname:
@@ -251,8 +250,8 @@ class CatFilter(Filter):
                 out[article_key] = article
 
         if self.verbose:
-            sys.stdout.write(": %d -> %d\n" % (len(articles), len(out)))
-            sys.stdout.flush()
+            logf.write(": %d -> %d\n" % (len(articles), len(out)))
+            #sys.stdout.flush()
         return out
 
 class ByteFilter(Filter):
@@ -262,12 +261,12 @@ class ByteFilter(Filter):
         Filter.__init__(self)
         self.bytelimit = int(bytelimit)
 
-    def filter(self, articles):
+    def filter(self, articles, logf):
         out = odict()
         for article_key, article in articles.iteritems():
             if article.bytes >= self.bytelimit:
                 out[article_key] = article
-        print "  [+] Applying byte filter (%d bytes): %d -> %d" % (self.bytelimit, len(articles), len(out))
+        logf.write("  [+] Applying byte filter (%d bytes): %d -> %d\n" % (self.bytelimit, len(articles), len(out)))
         return out
 
 class NewPageFilter(Filter):
@@ -276,8 +275,8 @@ class NewPageFilter(Filter):
     def __init__(self):
         Filter.__init__(self)
 
-    def filter(self, articles):
-        print "  [+] Applying new page filter"
+    def filter(self, articles, logf):
+        logf.write("  [+] Applying new page filter\n")
         out = odict()
         for a, aa in articles.iteritems():
             if aa.new and not aa.redirect:
@@ -290,8 +289,8 @@ class ExistingPageFilter(Filter):
     def __init__(self):
         Filter.__init__(self)
 
-    def filter(self, articles):
-        print "  [+] Applying existing page filter"
+    def filter(self, articles, logf):
+        logf.write("  [+] Applying existing page filter\n")
         out = odict()
         for aname, article in articles.iteritems():
             if not article.new:

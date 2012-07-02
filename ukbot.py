@@ -168,10 +168,11 @@ class Revision(object):
 
 class User(object):
 
-    def __init__(self, username, verbose = True):
+    def __init__(self, username, uk, verbose = True):
         self.name = username
         self.articles = odict()
         self.verbose = verbose
+        self.uk = uk
 
     def __repr__(self):
         return ("<User %s>" % self.name).encode('utf-8')
@@ -232,7 +233,7 @@ class User(object):
         # Always sort after we've added contribs
         self.sort_contribs()
         if self.verbose and (len(new_revisions) > 0 or len(new_articles) > 0):
-            print " -> [%s] Added %d new revisions, %d new articles from API" % (site_key, len(new_revisions), len(new_articles))
+            self.uk.logf.write(" -> [%s] Added %d new revisions, %d new articles from API\n" % (site_key, len(new_revisions), len(new_articles)))
 
         # 2) Check if pages are redirects (this information can not be cached, because other users may make the page a redirect)
         #    If we fail to notice a redirect, the contributions to the page will be double-counted, so lets check
@@ -253,7 +254,7 @@ class User(object):
         parentids = []
         nr = 0
         for s0 in range(0, len(new_revisions), apilim):
-            print "API limit is ",apilim," getting ",s0
+            #print "API limit is ",apilim," getting ",s0
             ids = '|'.join(revids[s0:s0+apilim])
             for page in site.api('query', prop = 'revisions', rvprop = props, revids = ids)['query']['pages'].itervalues():
                 article_key = site_key + ':' + page['title']
@@ -267,7 +268,7 @@ class User(object):
                     if not rev.new:
                         parentids.append(rev.parentid)
         if self.verbose and nr > 0:
-            print " -> [%s] Checked %d of %d revisions, found %d parent revisions" % (site_key, nr, len(new_revisions), len(parentids))
+            self.uk.logf.write(" -> [%s] Checked %d of %d revisions, found %d parent revisions\n" % (site_key, nr, len(new_revisions), len(parentids)))
 
         if nr != len(new_revisions):
             raise StandardError("Did not get all revisions")
@@ -299,7 +300,7 @@ class User(object):
                     if '*' in apirev.keys():
                         rev.parenttext = apirev['*']
         if self.verbose and nr > 0:
-            print " -> [%s] Checked %d parent revisions" % (site_key, nr)
+            self.uk.logf.write(" -> [%s] Checked %d parent revisions\n" % (site_key, nr))
 
     
     def save_contribs_to_db(self, sql):
@@ -334,7 +335,7 @@ class User(object):
         sql.commit()
         cur.close()
         if self.verbose and (nrevs > 0 or ntexts > 0):
-            print " -> Wrote %d revisions and %d fulltexts to DB" % (nrevs, ntexts)
+            self.uk.logf.write(" -> Wrote %d revisions and %d fulltexts to DB\n" % (nrevs, ntexts))
     
     def add_contribs_from_db(self, sql, start, end, sites):
         """
@@ -385,23 +386,23 @@ class User(object):
         self.sort_contribs()
 
         if self.verbose and (nrevs > 0 or narts > 0):
-            print " -> Added %d revisions, %d articles from DB" % (nrevs, narts)
+            self.uk.logf.write(" -> Added %d revisions, %d articles from DB\n" % (nrevs, narts))
 
     def filter(self, filters, debug = False):
 
         for filter in filters:
-            self.articles = filter.filter(self.articles)
+            self.articles = filter.filter(self.articles, self.uk.logf)
 
         # We should re-sort afterwards since not all filters preserve the order (notably the CatFilter)
         self.sort_contribs()
 
         if self.verbose:
-            print " -> %d articles remain after filtering" % len(self.articles)
+            self.uk.logf.write(" -> %d articles remain after filtering\n" % len(self.articles))
         if debug:
-            print '----'
+            self.uk.logf.write('----\n')
             for a in self.articles.iterkeys():
-                print a
-            print '----'
+                self.uk.logf.write('%s\n' % a)
+            self.uk.logf.write('----\n')
 
     @property
     def bytes(self):
@@ -476,16 +477,17 @@ class User(object):
 
 class UK(object):
 
-    def __init__(self, txt, catignore, sites):
+    def __init__(self, txt, catignore, sites, logf):
 
+        self.logf = logf
         sections = [s.strip() for s in re.findall('^[\s]*==([^=]+)==', txt, flags = re.M)]
         self.results_section = sections.index('Resultater') + 1
 
         self.sites = sites
-        self.users = [User(n) for n in self.extract_userlist(txt)]
+        self.users = [User(n, self) for n in self.extract_userlist(txt)]
         self.rules, self.filters = self.extract_rules(txt, catignore)
         
-        print '== Uke %d == ' % self.week
+        self.logf.write('== Uke %d == \n' % self.week)
 
     def extract_userlist(self, txt):
         lst = []
@@ -501,7 +503,7 @@ class UK(object):
             q = re.search(r'\[\[([^:]+):([^|\]]+)', d)
             if q:
                 lst.append(q.group(2))
-        print " -> Fant %d deltakere" % (len(lst))
+        self.logf.write(" -> Fant %d deltakere\n" % (len(lst)))
         return lst
 
 
@@ -742,6 +744,7 @@ if __name__ == '__main__':
     parser.add_argument('--page', required=True, help='The page to update')
     parser.add_argument('--output', nargs='?', default='', help='Write to output file')
     parser.add_argument('--simulate', action='store_true', default=False, help='Do not write to wiki')
+    parser.add_argument('--log', nargs='?', default = '', help='Log file')
     args = parser.parse_args()
 
     kpage = args.page
@@ -750,8 +753,11 @@ if __name__ == '__main__':
 
     cpage = 'Bruker:UKBot/cat-ignore'
 
+    if args.log != '':
+        logf = codecs.open(args.log, 'a', 'utf-8')
+
     try:
-        uk = UK(sites['no'].pages[kpage].edit(), sites['no'].pages[cpage].edit(), sites)
+        uk = UK(sites['no'].pages[kpage].edit(), sites['no'].pages[cpage].edit(), sites, logf)
     except ParseError as e:
         err = "\n* '''%s'''" % e.msg
         page = sites['no'].pages[kpage]
@@ -763,7 +769,7 @@ if __name__ == '__main__':
 
     # Loop over users
     for u in uk.users:
-        print "=== %s ===" % u.name
+        logf.write("=== %s ===\n" % u.name)
         
         # First read contributions from db
         u.add_contribs_from_db(sql, uk.start, uk.end, sites)
@@ -825,7 +831,7 @@ if __name__ == '__main__':
     out += '\n{{ukens konkurranse %s}}\n[[Kategori:Artikkelkonkurranser]]\n' % (uk.year)
 
     if not args.simulate:
-        print " -> Updating wiki, section = %d " % (uk.results_section)
+        logf.write(" -> Updating wiki, section = %d " % (uk.results_section))
         page = sites['no'].pages[kpage]
         page.save(out, summary = 'Oppdaterer resultater', section = uk.results_section)
 

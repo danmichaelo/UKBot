@@ -447,7 +447,8 @@ class User(object):
 
                     if len(rev.points) > 0:
                         descr = ' + '.join(['%.1f p (%s)' % (p[0], p[2]) for p in rev.points])
-                        revs.append('[%s %d]: %s' % (rev.get_link(), revid, descr))
+                        ts = datetime.datetime.fromtimestamp(rev.timestamp).strftime('%A, %H:%M')
+                        revs.append('[%s %s]: %s' % (rev.get_link(), ts, descr))
                 
                 titletxt = '<br />'.join(revs)
                 try:
@@ -455,7 +456,7 @@ class User(object):
                 except AttributeError:
                     pass
                 
-                out = '# [[%s|%s]] (<abbr class="uk-ap">%.1f p</abbr>)' % (article_key, article.name, article.points)
+                out = '# [[:%s|%s]] (<abbr class="uk-ap">%.1f p</abbr>)' % (article_key, article.name, article.points)
                 out += '<div class="uk-ap-title" style="font-size: smaller; color:#888; line-height:100%;">' + titletxt + '</div>'
                 
                 entries.append(out)
@@ -820,6 +821,8 @@ if __name__ == '__main__':
             err.append('\n* Boten støtte på følgende problemer med artikkelen [[%s]]'%art + ''.join(['\n** %s' % e for e in errors]))
 
         out += '{{Ukens konkurranse robotinfo | 1=note | 2=%s | 3=%s }}' % ( now.strftime('%F %T'), ''.join(err) )
+
+    out += '\n{{ukens konkurranse %s}}\n[[Kategori:Artikkelkonkurranser]]\n' % (uk.year)
 
     if not args.simulate:
         print " -> Updating wiki, section = %d " % (uk.results_section)

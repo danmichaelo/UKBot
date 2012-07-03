@@ -432,7 +432,7 @@ class User(object):
                     rule.test(rev)
 
                 if rev.get_points() > 0:
-                    print self.name, rev.timestamp, rev.get_points()
+                    #print self.name, rev.timestamp, rev.get_points()
                     x.append(float(rev.timestamp))
                     y.append(float(rev.get_points()))
 

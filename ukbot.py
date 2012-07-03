@@ -446,7 +446,7 @@ class User(object):
         #pl.sort(axis = 0)
         y2 = np.array([np.sum(y[:q+1]) for q in range(len(y))])
         self.plotdata = np.column_stack((x,y2))
-        #np.savetxt('user-%s'%self.name, self.plotdata)
+        #np.savetxt('user-%s'%self.name, np.column_stack((x,y,y2)))
         
 
     def format_result(self):
@@ -820,7 +820,8 @@ if __name__ == '__main__':
 
 
     # Make outpage
-    out = '== Resultater ==\n\n'
+    out = '== Resultater ==\n'
+    out += '[[File:Nowp Ukens konkurranse %s.svg|thumb|400px|Resultater (oppdateres to ganger i døgnet)]]\n' % uk.start.strftime('%Y-%W')
     out += "''Konkurransen er åpen fra %s til %s.''\n\n" % (uk.start.strftime('%e. %B %Y, %H:%M'), uk.end.strftime('%e. %B %Y, %H:%M'))
     for u in uk.users:
         out += u.format_result()

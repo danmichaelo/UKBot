@@ -1,5 +1,7 @@
 #encoding=utf-8
 from __future__ import unicode_literals
+import matplotlib
+matplotlib.use('svg')
 
 import numpy as np
 import time, datetime
@@ -414,7 +416,8 @@ class User(object):
 
     def analyze(self, rules):
 
-        self.plotdata = { 'x': [], 'y': [] }
+        x = []
+        y = []
         
         # loop over articles
         for article_key, article in self.articles.iteritems():
@@ -428,10 +431,24 @@ class User(object):
                 for rule in rules:
                     rule.test(rev)
 
-            # Cumulative points
-            #self.plotdata['x'].append(article.revisions[article.revisions.firstkey()].timestamp)
-            #self.plotdata['y'].append(self.points)
+                if rev.get_points() > 0:
+                    print self.name, rev.timestamp, rev.get_points()
+                    x.append(float(rev.timestamp))
+                    y.append(float(rev.get_points()))
+
+        x = np.array(x)
+        y = np.array(y)
+
+        o = np.argsort(x)
+        x = x[o]
+        y = y[o]
+        #pl = np.array(pl, dtype=float)
+        #pl.sort(axis = 0)
+        y2 = np.array([np.sum(y[:q+1]) for q in range(len(y))])
+        self.plotdata = np.column_stack((x,y2))
+        #np.savetxt('user-%s'%self.name, self.plotdata)
         
+
     def format_result(self):
         
         entries = []
@@ -440,7 +457,6 @@ class User(object):
         for article_key, article in self.articles.iteritems():
             
             if article.points != 0.0:
-                
 
                 # loop over revisions
                 revs = []
@@ -653,7 +669,7 @@ class UK(object):
 
         ax = fig.add_subplot(1,1,1, frame_on = False)
         ax.grid(True, which = 'major', color = 'gray', alpha = 0.5)
-        fig.subplots_adjust(left=0.11, bottom=0.10, right=0.65, top=0.94)
+        fig.subplots_adjust(left=0.10, bottom=0.09, right=0.65, top=0.94)
 
         t0 = float(self.start.strftime('%s'))
 
@@ -665,10 +681,10 @@ class UK(object):
         yall = []
         cnt = 0
         for u in self.users:
-            if len(u.plotdata['x']) > 0:
+            if u.plotdata.shape[0] > 0:
                 cnt += 1
-                x = u.plotdata['x']
-                y = u.plotdata['y']
+                x = list(u.plotdata[:,0])
+                y = list(u.plotdata[:,1])
                 yall.extend(y)
                 x.insert(0,xt[0])
                 y.insert(0,0)
@@ -717,7 +733,7 @@ class UK(object):
             # ncol = 4, loc = 3, bbox_to_anchor = (0., 1.02, 1., .102), mode = "expand", borderaxespad = 0.
             loc = 2, bbox_to_anchor = (1.0, 1.0), borderaxespad = 0., frameon = 0.
         )
-        plt.savefig('Nowp Ukens_konkurranse_%d-%d.png' % (self.year, self.week), dpi = 200)
+        plt.savefig('Nowp Ukens_konkurranse_%d-%d.svg' % (self.year, self.week), dpi = 200)
 
 
 ############################################################################################################################
@@ -744,7 +760,7 @@ if __name__ == '__main__':
     parser.add_argument('--page', required=True, help='The page to update')
     parser.add_argument('--output', nargs='?', default='', help='Write to output file')
     parser.add_argument('--simulate', action='store_true', default=False, help='Do not write to wiki')
-    parser.add_argument('--log', nargs='?', default = '', help='Log file')
+    parser.add_argument('--log', nargs='?', default = 'ukbot.log', help='Log file')
     args = parser.parse_args()
 
     kpage = args.page
@@ -793,14 +809,15 @@ if __name__ == '__main__':
             err = "\n* '''%s'''" % e.msg
             page = sites['no'].pages[kpage]
             out = '\n{{Ukens konkurranse robotinfo | error | %s }}' % err
-            page.save('dummy', summary = 'Resultatboten støtte på et problem', appendtext = out)
+            if args.simulate:
+                print out
+            else:
+                page.save('dummy', summary = 'Resultatboten støtte på et problem', appendtext = out)
             raise
 
     # Sort users by points
     uk.users.sort( key = lambda x: x.points, reverse = True )
 
-    # Plot
-    #uk.plot()
 
     # Make outpage
     out = '== Resultater ==\n\n'
@@ -840,3 +857,5 @@ if __name__ == '__main__':
         f.write(out)
         f.close()
 
+    # Plot
+    uk.plot()

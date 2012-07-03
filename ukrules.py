@@ -2,6 +2,7 @@
 from __future__ import unicode_literals
 import re
 import urllib
+from bs4 import BeautifulSoup
 from danmicholoparser import DanmicholoParser, DanmicholoParseError
 
 
@@ -139,25 +140,43 @@ class RefRule(Rule):
         self.refpoints = float(refpoints)
             
     def test(self, rev):
-        dp1 = DanmicholoParser(rev.parenttext)
-        s1 = 0
-        r1 = 0
-        s2 = 0
-        r2 = 0
-        if 'ref' in dp1.tags:
-            s1 = len([r for r in dp1.tags['ref'] if 'content' in r])
-            r1 = len([r for r in dp1.tags['ref'] if not 'content' in r])
-        dp2 = DanmicholoParser(rev.text)
-        if 'ref' in dp2.tags:
-            s2 = len([r for r in dp2.tags['ref'] if 'content' in r])
-            r2 = len([r for r in dp2.tags['ref'] if not 'content' in r])
+        """
+        While BeautifulSoup and its parsers are robust, (unknown) tags with unquoted arguments seems to be an issue.
+
+        Let's first define a function to make things clearer:
+        >>> def f(str):
+        >>>     return ''.join([unicode(tag) for tag in BeautifulSoup(str, 'lxml').findAll('body')[0].contents])
+
+        Now, here is an unexpected result: the ref-tag is not read as closed and continue to eat the remaining text!
+        >>> f('<ref name=XYZ/>Mer tekst her')
+        <<< u'<ref name="XYZ/">Mer tekst her</ref>'
+
+        Add a space before / and we get the expected result:
+        >>> f('<ref name=XYZ />Mer tekst her')
+        <<< u'<ref name="XYZ"></ref>Mer tekst her'
+
+        Therefore we try to fix this before sending the text to BS
+        """
+
+        ptext = re.sub(r'name\s?=\s?([^"\s]+)/>', 'name=\1 />', rev.parenttext)
+        text = re.sub(r'name\s?=\s?([^"\s]+)/>', 'name=\1 />', rev.text)
+
+        parentsoup = BeautifulSoup(ptext, 'lxml')
+        soup = BeautifulSoup(text, 'lxml')
+
+        allref1 = parentsoup.findAll('ref')
+        s1 = len([r for r in allref1 if len(r.contents) > 0])
+        r1 = len([r for r in allref1 if len(r.contents) == 0])
+
+        allref2 = soup.findAll('ref')
+        s2 = len([r for r in allref2 if len(r.contents) > 0])
+        r2 = len([r for r in allref2 if len(r.contents) == 0])
+
+        print rev.article.name,len(allref1), len(allref2)
+
         sources_added = s2 - s1
         refs_added = r2 - r1
-
-        rev.article.errors.extend(['Problem ved parsing av [%s rev. %d] : %s' % (rev.get_parent_link(), rev.parentid, e) for e in dp1.errors])
-        rev.article.errors.extend(['Problem ved parsing av [%s rev. %d] : %s' % (rev.get_link(), rev.revid, e) for e in dp2.errors])
         
-        #p = sources_added * self.sourcepoints + refs_added * self.refpoints
         if sources_added != 0 or refs_added != 0:
             p = 0.
             s = []

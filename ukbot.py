@@ -733,7 +733,7 @@ class UK(object):
             # ncol = 4, loc = 3, bbox_to_anchor = (0., 1.02, 1., .102), mode = "expand", borderaxespad = 0.
             loc = 2, bbox_to_anchor = (1.0, 1.0), borderaxespad = 0., frameon = 0.
         )
-        plt.savefig('Nowp Ukens_konkurranse_%d-%d.svg' % (self.year, self.week), dpi = 200)
+        plt.savefig('Nowp Ukens konkurranse %d-%d.svg' % (self.year, self.week), dpi = 200)
 
 
 ############################################################################################################################

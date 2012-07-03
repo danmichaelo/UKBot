@@ -743,14 +743,13 @@ class UK(object):
 if __name__ == '__main__':
 
     from wp_private import ukbotlogin
-    from wp_private import botlogin
     sites = {
         'no': mwclient.Site('no.wikipedia.org'),
         'nn': mwclient.Site('nn.wikipedia.org')
     }
     for site in sites.values():
         # login increases api limit from 50 to 500 
-        site.login(*botlogin)
+        site.login(*ukbotlogin)
 
     #konkurranseside = 'Bruker:Danmichaelo/Sandkasse5'
     #konkurranseside = 'Bruker:UKBot/Sandkasse2'

@@ -4,7 +4,9 @@ import matplotlib
 matplotlib.use('svg')
 
 import numpy as np
-import time, datetime
+import time
+from datetime import datetime, timedelta
+import pytz
 import re
 import sqlite3
 from odict import odict
@@ -204,8 +206,8 @@ class User(object):
         Populates self.articles with entries from the API.
 
             site      : mwclient.client.Site object
-            start     : datetime.datetime object
-            end       : datetime.datetime object
+            start     : datetime object with timezone Europe/Oslo
+            end       : datetime object with timezone Europe/Oslo
             fulltext  : get revision fulltexts
             namespace : namespace ID
         """
@@ -215,8 +217,8 @@ class User(object):
 
         site_key = site.host.split('.')[0]
         
-        ts_start = start.isoformat()+'Z'
-        ts_end = end.isoformat()+'Z'
+        ts_start = start.astimezone(pytz.utc).isoformat()+'Z'
+        ts_end = end.astimezone(pytz.utc).isoformat()+'Z'
 
         # 1) Fetch user contributions
 
@@ -322,7 +324,7 @@ class User(object):
             site_key = article.site.key
 
             for revid, rev in article.revisions.iteritems():
-                ts = datetime.datetime.fromtimestamp(rev.timestamp).strftime('%F %T')
+                ts = datetime.fromtimestamp(rev.timestamp).strftime('%F %T')
                 
                 # Save revision if not already saved
                 if len( cur.execute(u'SELECT revid FROM contribs WHERE revid=? AND site=?', [revid, site_key]).fetchall() ) == 0:
@@ -350,13 +352,13 @@ class User(object):
         Populates self.articles with entries from SQLite DB
 
             sql   : sqlite3.Connection object
-            start : datetime.datetime object
-            end   : datetime.datetime object
+            start : datetime object
+            end   : datetime object
         """
         cur = sql.cursor()
         cur2 = sql.cursor()
-        ts_start = start.strftime('%F %T')
-        ts_end = end.strftime('%F %T')
+        ts_start = start.astimezone(pytz.utc).strftime('%F %T')
+        ts_end = end.astimezone(pytz.utc).strftime('%F %T')
         nrevs = 0
         narts = 0
         for row in cur.execute(u"""SELECT revid, site, parentid, page, timestamp, size, parentsize FROM contribs 
@@ -364,7 +366,7 @@ class User(object):
 
             rev_id, site_key, parent_id, article_title, ts, size, parentsize = row
             article_key = site_key + ':' + article_title
-            ts = datetime.datetime.strptime(ts, '%Y-%m-%d %H:%M:%S').strftime('%s')
+            ts = datetime.strptime(ts, '%Y-%m-%d %H:%M:%S').strftime('%s')
 
             # Add article if not present
             if not article_key in self.articles:
@@ -424,6 +426,8 @@ class User(object):
 
         x = []
         y = []
+        utc = pytz.utc
+        osl = pytz.timezone('Europe/Oslo')
         
         # loop over articles
         for article_key, article in self.articles.iteritems():
@@ -439,7 +443,8 @@ class User(object):
 
                 if rev.get_points() > 0:
                     #print self.name, rev.timestamp, rev.get_points()
-                    x.append(float(rev.timestamp))
+                    ts = float(utc.localize(datetime.fromtimestamp(rev.timestamp)).astimezone(osl).strftime('%s'))
+                    x.append(ts)
                     y.append(float(rev.get_points()))
 
         x = np.array(x)
@@ -459,6 +464,9 @@ class User(object):
         
         entries = []
 
+        utc = pytz.utc
+        osl = pytz.timezone('Europe/Oslo')
+
         # loop over articles
         for article_key, article in self.articles.iteritems():
             
@@ -470,8 +478,9 @@ class User(object):
 
                     if len(rev.points) > 0:
                         descr = ' + '.join(['%.1f p (%s)' % (p[0], p[2]) for p in rev.points])
-                        ts = datetime.datetime.fromtimestamp(rev.timestamp).strftime('%A, %H:%M')
-                        revs.append('[%s %s]: %s' % (rev.get_link(), ts, descr))
+                        dt = utc.localize(datetime.fromtimestamp(rev.timestamp))
+                        dt_str = dt.astimezone(osl).strftime('%A, %H:%M')
+                        revs.append('[%s %s]: %s' % (rev.get_link(), dt_str, descr))
                 
                 titletxt = '<br />'.join(revs)
                 try:
@@ -646,17 +655,20 @@ class UK(object):
             infoboks = dp.templates['infoboks ukens konkurranse'][0]
         except:
             raise ParseError('Klarte ikke å tolke innholdet i {{tl|infoboks ukens konkurranse}}-malen.')
+        
+        utc = pytz.utc
+        osl = pytz.timezone('Europe/Oslo')
 
         if 'år' in infoboks.parameters and 'uke' in infoboks.parameters:
             year = infoboks.parameters['år']
             week = infoboks.parameters['uke']
-            self.start = datetime.datetime.strptime(year+' '+week+' 1 00 00', '%Y %W %w %H %M')
-            self.end = datetime.datetime.strptime(year+' '+week+' 0 23 59', '%Y %W %w %H %M')
+            self.start = osl.localize(datetime.strptime(year+' '+week+' 1 00 00', '%Y %W %w %H %M'))
+            self.end = osl.localize(datetime.strptime(year+' '+week+' 0 23 59', '%Y %W %w %H %M'))
         elif 'start' in infoboks.parameters and 'slutt' in infoboks.parameters:
             startdt = infoboks.parameters['start']
             enddt = infoboks.parameters['slutt']
-            self.start = datetime.datetime.strptime(startdt + ' 00 00', '%Y-%m-%d %H %M')
-            self.end = datetime.datetime.strptime(enddt +' 23 59', '%Y-%m-%d %H %M')
+            self.start = osl.localize(datetime.strptime(startdt + ' 00 00', '%Y-%m-%d %H %M'))
+            self.end = osl.localize(datetime.strptime(enddt +' 23 59', '%Y-%m-%d %H %M'))
         else:
             raise ParseError('Fant ikke uke/år eller start/slutt i {{tl|infoboks ukens konkurranse}}.')
         
@@ -682,7 +694,7 @@ class UK(object):
         xt = t0 + np.arange(8) * 86400
         xt_mid = t0 + 43200 + np.arange(7) * 86400
 
-        now = float(datetime.datetime.now().strftime('%s'))
+        now = float(datetime.now().strftime('%s'))
 
         yall = []
         cnt = 0
@@ -833,7 +845,6 @@ if __name__ == '__main__':
     for u in uk.users:
         out += u.format_result()
 
-    now = datetime.datetime.now()
 
     article_errors = {}
     for u in uk.users:
@@ -852,6 +863,7 @@ if __name__ == '__main__':
         for error in site.errors:
             errors.append('\n* %s' % error)
     
+    now = datetime.now()
     if len(errors) == 0:
         out += '{{Ukens konkurranse robotinfo | ok | %s }}' % now.strftime('%F %T')
     else:

@@ -58,7 +58,7 @@ class StubFilter(Filter):
             except DanmicholoParseError as e:
                 logf.write(" >> DanmicholoParser failed to parse " + article_key + '\n')
                 parentid = firstrev.parentid
-                article.errors.append('Artikkelen kunne ikke analyseres fordi en av revisjone %d eller %d ikke kunne parses: %s' % (article_key, firstrev.parentid, lastrev.revid, e.msg))
+                article.site.errors.append('Artikkelen %s kunne ikke analyseres fordi en av revisjone %d eller %d ikke kunne parses: %s' % (article_key, firstrev.parentid, lastrev.revid, e.msg))
         
         logf.write("  [+] Applying stub filter: %d -> %d\n" % (len(articles), len(out)))
 
@@ -121,7 +121,7 @@ class CatFilter(Filter):
                 apilim = 50
 
             # Titles of articles that belong to this site
-            titles = [article.name for article in articles.itervalues() if article.site_key == site_key]
+            titles = [article.name for article in articles.itervalues() if article.site.key == site_key]
             
             logf.write(' ['+site_key+':'+str(len(titles))+']')
             #.flush()

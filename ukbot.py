@@ -64,6 +64,14 @@ class ParseError(Exception):
     def __init__(self, msg):
         self.msg = msg
 
+class Site(mwclient.Site):
+
+    def __init__(self, name):
+
+        self.errors = []
+        self.name = name
+        self.key = name.split('.')[0]
+        mwclient.Site.__init__(self, name)
 
 class Article(object):
     
@@ -72,7 +80,7 @@ class Article(object):
         An article is uniquely identified by its name and its site
         """
         self.site = site
-        self.site_key = site.host.split('.')[0]
+        #self.site_key = site.host.split('.')[0]
         self.name = name
         
         self.revisions = odict()
@@ -80,14 +88,14 @@ class Article(object):
         self.errors = []
     
     def __repr__(self):
-        return ("<Article %s:%s>" % (self.site_key, self.name)).encode('utf-8')
+        return ("<Article %s:%s>" % (self.site.key, self.name)).encode('utf-8')
 
     @property
     def new(self):
         return self.revisions[self.revisions.firstkey()].new
 
     def add_revision(self, revid, **kwargs):
-        self.revisions[revid] = Revision(self.site_key, self, revid, **kwargs)
+        self.revisions[revid] = Revision(self, revid, **kwargs)
         return self.revisions[revid]
     
     @property
@@ -104,16 +112,14 @@ class Article(object):
 
 class Revision(object):
     
-    def __init__(self, site_key, article, revid, **kwargs):
+    def __init__(self, article, revid, **kwargs):
         """
         A revision is uniquely identified by its revision id and its site
 
         Arguments:
-          - site_key: (str) short site name
           - article: (Article) article object reference
           - revid: (int) revision id
         """
-        self.site_key = site_key
         self.article = article
 
         self.revid = revid
@@ -139,7 +145,7 @@ class Revision(object):
                 raise StandardError('add_revision got unknown argument %s' % k)
     
     def __repr__(self):
-        return ("<Revision %d for %s:%s>" % (self.revid, self.site_key, self.article.name)).encode('utf-8')
+        return ("<Revision %d for %s:%s>" % (self.revid, self.site.key, self.article.name)).encode('utf-8')
 
     @property
     def bytes(self):
@@ -240,7 +246,7 @@ class User(object):
         # 2) Check if pages are redirects (this information can not be cached, because other users may make the page a redirect)
         #    If we fail to notice a redirect, the contributions to the page will be double-counted, so lets check
 
-        titles = [a.name for a in self.articles.values() if a.site_key == site_key]
+        titles = [a.name for a in self.articles.values() if a.site.key == site_key]
         for s0 in range(0, len(titles), apilim):
             ids = '|'.join(titles[s0:s0+apilim])
             for page in site.api('query', prop = 'info', titles = ids)['query']['pages'].itervalues():
@@ -313,7 +319,7 @@ class User(object):
         ntexts = 0
 
         for article_key, article in self.articles.iteritems():
-            site_key = article.site_key
+            site_key = article.site.key
 
             for revid, rev in article.revisions.iteritems():
                 ts = datetime.datetime.fromtimestamp(rev.timestamp).strftime('%F %T')
@@ -744,10 +750,12 @@ if __name__ == '__main__':
 
     from wp_private import ukbotlogin
     sites = {
-        'no': mwclient.Site('no.wikipedia.org'),
-        'nn': mwclient.Site('nn.wikipedia.org')
+        'no': Site('no.wikipedia.org'),
+        'nn': Site('nn.wikipedia.org')
     }
-    for site in sites.values():
+    #    'nn': mwclient.Site('nn.wikipedia.org')
+    #}
+    for site in sites.itervalues():
         # login increases api limit from 50 to 500 
         site.login(*ukbotlogin)
 
@@ -820,31 +828,35 @@ if __name__ == '__main__':
 
     # Make outpage
     out = '== Resultater ==\n'
-    out += '[[File:Nowp Ukens konkurranse %s.svg|thumb|400px|Resultater (oppdateres to ganger i døgnet)]]\n' % uk.start.strftime('%Y-%W')
+    out += '[[File:Nowp Ukens konkurranse %s.svg|thumb|400px|Resultater (oppdateres hver natt i halv ett-tiden, viser kun de ti med høyest poengsum)]]\n' % uk.start.strftime('%Y-%W')
     out += "''Konkurransen er åpen fra %s til %s.''\n\n" % (uk.start.strftime('%e. %B %Y, %H:%M'), uk.end.strftime('%e. %B %Y, %H:%M'))
     for u in uk.users:
         out += u.format_result()
 
     now = datetime.datetime.now()
 
-    errors = {}
+    article_errors = {}
     for u in uk.users:
         for article in u.articles.itervalues():
             if len(article.errors) > 0:
-                errors[article.site_key+':'+article.name] = article.errors
+                article_errors[article.site.key+':'+article.name] = article.errors
 
+    errors = []
+    for art, err in article_errors.iteritems():
+        if len(err) > 8:
+            err = err[:8]
+            err.append('(...)')
+        errors.append('\n* Boten støtte på følgende problemer med artikkelen [[%s]]'%art + ''.join(['\n** %s' % e for e in err]))
+    
+    for site in uk.sites.itervalues():
+        for error in site.errors:
+            errors.append('\n* %s' % error)
+    
     if len(errors) == 0:
         out += '{{Ukens konkurranse robotinfo | ok | %s }}' % now.strftime('%F %T')
     else:
-        err = []
-        for art, errors in errors.iteritems():
-            if len(errors) > 8:
-                errors = errors[:8]
-                errors.append('(...)')
-            err.append('\n* Boten støtte på følgende problemer med artikkelen [[%s]]'%art + ''.join(['\n** %s' % e for e in errors]))
-
-        out += '{{Ukens konkurranse robotinfo | 1=note | 2=%s | 3=%s }}' % ( now.strftime('%F %T'), ''.join(err) )
-
+        out += '{{Ukens konkurranse robotinfo | 1=note | 2=%s | 3=%s }}' % ( now.strftime('%F %T'), ''.join(errors) )
+    
     out += '\n{{ukens konkurranse %s}}\n[[Kategori:Artikkelkonkurranser]]\n' % (uk.year)
 
     if not args.simulate:
@@ -853,6 +865,7 @@ if __name__ == '__main__':
         page.save(out, summary = 'Oppdaterer resultater', section = uk.results_section)
 
     if args.output != '':
+        print "Writing output to file"
         f = codecs.open(args.output,'w','utf-8')
         f.write(out)
         f.close()

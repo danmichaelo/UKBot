@@ -172,7 +172,7 @@ class RefRule(Rule):
         s2 = len([r for r in allref2 if len(r.contents) > 0])
         r2 = len([r for r in allref2 if len(r.contents) == 0])
 
-        print rev.article.name,len(allref1), len(allref2)
+        #print rev.article.name,len(allref1), len(allref2)
 
         sources_added = s2 - s1
         refs_added = r2 - r1

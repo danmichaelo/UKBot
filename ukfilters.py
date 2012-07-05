@@ -20,12 +20,11 @@ class StubFilter(Filter):
     def is_stub(self, text, logf, verbose = False):
         """ Checks if a given text is a stub """
 
-        dp = DanmicholoParser(text, debug = False)
-        for tname, templ in dp.templates.iteritems():
-            if tname.find('stubb') != -1 or tname.find('spire') != -1:
-                if verbose:
-                    logf.write(" >> %s " % (tname))
-                return True
+        m = re.search(r'{{[^}]*(?:stubb|spire)[^}]*}}', text)
+        if m:
+            if verbose:
+                logf.write(" >> %s " % m.group(0))
+            return True
         return False
 
     def filter(self, articles, logf, verbose = True):

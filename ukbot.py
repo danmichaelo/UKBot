@@ -108,8 +108,8 @@ class Article(object):
     def points(self):
         return np.sum([rev.get_points() for rev in self.revisions.values()])
 
-    def get_points(self, ptype = ''):
-        return np.sum([rev.get_points(ptype) for rev in self.revisions.values()])
+    def get_points(self, ptype = '', ignore_max = False):
+        return np.sum([rev.get_points(ptype, ignore_max) for rev in self.revisions.values()])
 
 
 class Revision(object):
@@ -169,11 +169,14 @@ class Revision(object):
         q = { 'title': self.article.name.encode('utf-8'), 'oldid': self.parentid }
         return 'http://' + self.article.site.host + self.article.site.site['script'] + '?' + urllib.urlencode(q)
     
-    def get_points(self, ptype = ''):
+    def get_points(self, ptype = '', ignore_max = False):
         p = 0.0
         for pnt in self.points:
             if ptype == '' or pnt[1] == ptype:
-                p += pnt[0]
+                if ignore_max and len(pnt) > 3:
+                    p += pnt[3]
+                else:
+                    p += pnt[0]
         return p
 
 class User(object):
@@ -482,7 +485,7 @@ class User(object):
                         dt_str = dt.astimezone(osl).strftime('%A, %H:%M')
                         revs.append('[%s %s]: %s' % (rev.get_link(), dt_str, descr))
                 
-                titletxt = '<br />'.join(revs)
+                titletxt = 'Totalt %d bytes. Revisjoner:' % article.bytes + '<br />'.join(revs)
                 try:
                     titletxt += '<br />Kategoritreff: ' + ' &gt; '.join(article.cat_path)
                 except AttributeError:

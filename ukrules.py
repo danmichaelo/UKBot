@@ -71,11 +71,22 @@ class ByteRule(Rule):
     def test(self, rev):
         revpoints = rev.bytes * self.points
         ab = rev.article.get_points('byte')
-        if self.maxpoints > 0.0 and ab + revpoints > self.maxpoints:
-            revpoints = self.maxpoints - ab
-    
-        if not self.iszero(revpoints):
-            rev.points.append([revpoints, 'byte', '%.f bytes' % rev.bytes])
+        ab_raw = rev.article.get_points('byte', ignore_max = True)
+        
+        if self.maxpoints > 0.0 and self.iszero(ab - self.maxpoints) :
+            # we have reached max
+            if revpoints < 0.0 and  ab_raw + revpoints < self.maxpoints:
+                rev.points.append([self.maxpoints - ab_raw - revpoints, 'byte', '%.f bytes' % rev.bytes, revpoints])
+            else:
+                rev.points.append([0.0, 'byte', '%.f bytes' % rev.bytes, revpoints])
+
+        elif self.maxpoints > 0.0 and ab + revpoints > self.maxpoints:
+            # reaching max
+            rev.points.append([self.maxpoints - ab, 'byte', '&gt; %.f bytes (&gt; maks)' % rev.bytes, revpoints ])
+
+        #elif not self.iszero(revpoints):
+        else:
+            rev.points.append([revpoints, 'byte', '%.f bytes' % rev.bytes, revpoints])
 
 
 class WordRule(Rule):

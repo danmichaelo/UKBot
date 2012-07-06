@@ -14,6 +14,28 @@ class Rule(object):
     def iszero(self, f):
         f = float(f)
         return (f > -0.1 and f < 0.1)
+    
+    def add_points(self, rev, points, ptype, txt, pmax, include_zero = False):
+
+        ab = rev.article.get_points(ptype)
+        ab_raw = rev.article.get_points(ptype, ignore_max = True)
+        
+        if pmax > 0.0 and self.iszero(ab - pmax) :
+            # we have reached max
+            if points < 0.0 and  ab_raw + points < pmax:
+                rev.points.append([pmax - ab_raw - points, ptype, txt, points])
+            else:
+                rev.points.append([0.0, ptype, txt, points])
+
+        elif pmax > 0.0 and ab + points > pmax:
+            # reaching max
+            rev.points.append([pmax - ab, ptype, txt + ' (&gt; maks)', points])
+
+        #elif not self.iszero(revpoints):
+        else:
+            if self.iszero(points) and not include_zero:
+                return
+            rev.points.append([points, ptype, txt, points])
 
 
 class NewPageRule(Rule):
@@ -68,25 +90,10 @@ class ByteRule(Rule):
         self.points = float(points)
         self.maxpoints = float(maxpoints)
 
+
     def test(self, rev):
         revpoints = rev.bytes * self.points
-        ab = rev.article.get_points('byte')
-        ab_raw = rev.article.get_points('byte', ignore_max = True)
-        
-        if self.maxpoints > 0.0 and self.iszero(ab - self.maxpoints) :
-            # we have reached max
-            if revpoints < 0.0 and  ab_raw + revpoints < self.maxpoints:
-                rev.points.append([self.maxpoints - ab_raw - revpoints, 'byte', '%.f bytes' % rev.bytes, revpoints])
-            else:
-                rev.points.append([0.0, 'byte', '%.f bytes' % rev.bytes, revpoints])
-
-        elif self.maxpoints > 0.0 and ab + revpoints > self.maxpoints:
-            # reaching max
-            rev.points.append([self.maxpoints - ab, 'byte', '&gt; %.f bytes (&gt; maks)' % rev.bytes, revpoints ])
-
-        #elif not self.iszero(revpoints):
-        else:
-            rev.points.append([revpoints, 'byte', '%.f bytes' % rev.bytes, revpoints])
+        self.add_points(rev, revpoints, 'byte', '%.f bytes' % rev.bytes, self.maxpoints, include_zero = True)
 
 
 class WordRule(Rule):
@@ -106,12 +113,7 @@ class WordRule(Rule):
         words = nwords - nwords_p
         
         revpoints = words * self.points
-        ab = rev.article.get_points('word')
-        if self.maxpoints > 0.0 and ab + revpoints > self.maxpoints:
-            revpoints = self.maxpoints - ab
-        
-        if not self.iszero(revpoints):
-            rev.points.append([revpoints, 'word', '%.f ord' % words])
+        self.add_points(rev, revpoints, 'word', '%.f ord' % words, self.maxpoints)
 
 
 class ImageRule(Rule):
@@ -131,12 +133,7 @@ class ImageRule(Rule):
         imgs = nimages - nimages_p
 
         revpoints = imgs * self.points
-        ab = rev.article.get_points('image')
-        if self.maxpoints > 0.0 and ab + revpoints > self.maxpoints:
-            revpoints = self.maxpoints - ab
-        
-        if not self.iszero(revpoints):
-            rev.points.append([revpoints, 'image', '%d bilde%s' % (imgs, 'r' if imgs > 1 else '')])
+        self.add_points(rev, revpoints, 'image', '%d bilde%s' % (imgs, 'r' if imgs > 1 else ''), self.maxpoints)
  
 
 class RefRule(Rule):

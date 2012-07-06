@@ -485,7 +485,7 @@ class User(object):
                         dt_str = dt.astimezone(osl).strftime('%A, %H:%M')
                         revs.append('[%s %s]: %s' % (rev.get_link(), dt_str, descr))
                 
-                titletxt = 'Totalt %d bytes. Revisjoner:' % article.bytes + '<br />'.join(revs)
+                titletxt = 'Totalt %d bytes. Revisjoner:<br />' % article.bytes + '<br />'.join(revs)
                 try:
                     titletxt += '<br />Kategoritreff: ' + ' &gt; '.join(article.cat_path)
                 except AttributeError:

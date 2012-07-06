@@ -803,6 +803,8 @@ if __name__ == '__main__':
     sql = sqlite3.connect('uk.db')
 
     # Loop over users
+    narticles = 0
+    nbytes = 0
     for u in uk.users:
         logf.write("=== %s ===\n" % u.name)
         
@@ -824,6 +826,9 @@ if __name__ == '__main__':
             # And calculate points
             u.analyze(uk.rules)
 
+            narticles += len(u.articles)
+            nbytes += u.bytes
+
         except ParseError as e:
             err = "\n* '''%s'''" % e.msg
             page = sites['no'].pages[kpage]
@@ -841,6 +846,15 @@ if __name__ == '__main__':
     # Make outpage
     out = '== Resultater ==\n'
     out += '[[File:Nowp Ukens konkurranse %s.svg|thumb|400px|Resultater (oppdateres hver natt i halv ett-tiden, viser kun de ti med høyest poengsum)]]\n' % uk.start.strftime('%Y-%W')
+
+    sammen = []
+    if StubFilter in [type(f) for f in uk.filters]:
+        sammen.append("avstubbet<div style=\"padding:4px;font-size:2.0em;color:#fff;text-shadow:-1px -1px #bbb,1px 1px #bbb\">'''%d</div>artikler'''" % narticles)
+    
+    sammen.append("lagt til <div style=\"padding:4px;font-size:2.0em;color:#fff;text-shadow:-1px -1px #bbb,1px 1px #bbb\">'''%.f</div>kilobytes'''" % (nbytes/1000.))
+
+    out += "<div style=\"clear:right;float:right;width:14em;font-size:.9em; color:#fff;display:block;font-size:1.2em;padding:.3em;border-radius:5px;background:#ccdd00;border:2px solid #447744;text-align:center; box-shadow:0px 0px 5px #ccdd00;\">Til sammen har vi " + '\n'.join(["<div style=\"border-top:1px solid white;\">%s</div>" % s for s in sammen]) + "</div>"
+
     out += "''Konkurransen er åpen fra %s til %s.''\n\n" % (uk.start.strftime('%e. %B %Y, %H:%M'), uk.end.strftime('%e. %B %Y, %H:%M'))
     for u in uk.users:
         out += u.format_result()

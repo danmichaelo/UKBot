@@ -217,8 +217,8 @@ class User(object):
 
         site_key = site.host.split('.')[0]
         
-        ts_start = start.astimezone(pytz.utc).isoformat()+'Z'
-        ts_end = end.astimezone(pytz.utc).isoformat()+'Z'
+        ts_start = start.astimezone(pytz.utc).strftime('%FT%TZ')
+        ts_end = end.astimezone(pytz.utc).strftime('%FT%TZ')
 
         # 1) Fetch user contributions
 

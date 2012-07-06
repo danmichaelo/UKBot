@@ -845,7 +845,7 @@ if __name__ == '__main__':
 
     # Make outpage
     out = '== Resultater ==\n'
-    out += '[[File:Nowp Ukens konkurranse %s.svg|thumb|400px|Resultater (oppdateres hver natt i halv ett-tiden, viser kun de ti med høyest poengsum)]]\n' % uk.start.strftime('%Y-%W')
+    out += '[[File:Nowp Ukens konkurranse %s.svg|thumb|400px|Resultater (oppdateres normalt hver natt i halv ett-tiden, viser kun de ti med høyest poengsum)]]\n' % uk.start.strftime('%Y-%W')
 
     sammen = []
     if StubFilter in [type(f) for f in uk.filters]:

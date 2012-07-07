@@ -29,7 +29,7 @@ class Rule(object):
 
         elif pmax > 0.0 and ab + points > pmax:
             # reaching max
-            rev.points.append([pmax - ab, ptype, txt + ' (&gt; maks)', points])
+            rev.points.append([pmax - ab, ptype, txt + ' &gt; maks', points])
 
         #elif not self.iszero(revpoints):
         else:

@@ -108,12 +108,26 @@ class WordRule(Rule):
         return len(dp.maintext.split())
 
     def test(self, rev):
-        nwords = self.get_wordcount(rev.text)
-        nwords_p = self.get_wordcount(rev.parenttext)
-        words = nwords - nwords_p
+
+        try:
+            nwords = self.get_wordcount(rev.text)
+        except DanmicholoParseError as e:
+            rev.article.errors.append('Det oppstod et problem ved parsing av revisjon %d som kan ha påvirket ordtellingen for denne revisjonen: %s' % (rev.revid,e.msg))
+            nwords = -1
         
-        revpoints = words * self.points
-        self.add_points(rev, revpoints, 'word', '%.f ord' % words, self.maxpoints)
+        try:
+            nwords_p = self.get_wordcount(rev.parenttext)
+        except DanmicholoParseError as e:
+            rev.article.errors.append('Det oppstod et problem ved parsing av foreldrerevisjon %d som kan ha påvirket ordtellingen for denne revisjonen: %s' % (rev.parentid,e.msg))
+            nwords_p = -1
+
+        if nwords == -1 or nwords_p == -1:
+            # oh noes!
+            pass
+        else:
+            words = nwords - nwords_p
+            revpoints = words * self.points
+            self.add_points(rev, revpoints, 'word', '%.f ord' % words, self.maxpoints)
 
 
 class ImageRule(Rule):

@@ -482,7 +482,7 @@ class User(object):
                     if len(rev.points) > 0:
                         descr = ' + '.join(['%.1f p (%s)' % (p[0], p[2]) for p in rev.points])
                         dt = utc.localize(datetime.fromtimestamp(rev.timestamp))
-                        dt_str = dt.astimezone(osl).strftime('%A, %H:%M')
+                        dt_str = dt.astimezone(osl).strftime('%A, %H:%M').decode('utf-8')
                         revs.append('[%s %s]: %s' % (rev.get_link(), dt_str, descr))
                 
                 titletxt = 'Totalt %d bytes. Revisjoner:<br />' % article.bytes + '<br />'.join(revs)
@@ -858,7 +858,7 @@ if __name__ == '__main__':
 
     out += "<div style=\"clear:right;float:right;width:14em;font-size:.9em; color:#fff;display:block;font-size:1.2em;padding:.3em;border-radius:5px;background:#ccdd00;border:2px solid #447744;text-align:center; box-shadow:0px 0px 5px #ccdd00;\">Til sammen har vi " + '\n'.join(["<div style=\"border-top:1px solid white;\">%s</div>" % s for s in sammen]) + "</div>"
 
-    out += "''Konkurransen er åpen fra %s til %s.''\n\n" % (uk.start.strftime('%e. %B %Y, %H:%M'), uk.end.strftime('%e. %B %Y, %H:%M'))
+    out += "''Konkurransen er åpen fra %s til %s.''\n\n" % (uk.start.strftime('%e. %B %Y, %H:%M').decode('utf-8'), uk.end.strftime('%e. %B %Y, %H:%M').decode('utf-8'))
     for u in uk.users:
         out += u.format_result()
 

@@ -296,3 +296,64 @@ class ExistingPageFilter(Filter):
                 out[aname] = article
         return out
     
+class BackLinkFilter(Filter):
+    """Filters articles with backlinks to <name>"""
+
+    def __init__(self, sites, articles):
+        """
+        Arguments:
+            sites     : dict { 'no': <mwclient.client.Site>, ... }
+            articles  : list of article names
+        """
+        Filter.__init__(self)
+        self.sites = sites
+        self.articles = articles
+        self.links = []
+        
+        for site_key, site in self.sites.iteritems():
+            for aname in self.articles:
+                p = site.pages[aname]
+                if p.exists:
+                    for link in p.links(redirects = True):
+                        self.links.append(site_key+':'+link.name)
+
+        #print self.links
+
+    def filter(self, articles, logf):
+        out = odict()
+        for article_key, article in articles.iteritems():
+            if article_key in self.links:
+                out[article_key] = article
+        logf.write("  [+] Applying backlink filter (%s): %d -> %d\n" % (','.join(self.articles), len(articles), len(out)))
+        return out
+
+class ForwardLinkFilter(Filter):
+    """Filters articles with backlinks to <name>"""
+
+    def __init__(self, sites, articles):
+        """
+        Arguments:
+            sites     : dict { 'no': <mwclient.client.Site>, ... }
+            articles  : list of article names
+        """
+        Filter.__init__(self)
+        self.sites = sites
+        self.articles = articles
+        self.links = []
+        
+        for site_key, site in self.sites.iteritems():
+            for aname in self.articles:
+                p = site.pages[aname]
+                if p.exists:
+                    for link in p.backlinks(redirect = True):
+                        self.links.append(site_key+':'+link.name)
+
+        #print self.links
+
+    def filter(self, articles, logf):
+        out = odict()
+        for article_key, article in articles.iteritems():
+            if article_key in self.links:
+                out[article_key] = article
+        logf.write("  [+] Applying forward link filter (%s): %d -> %d\n" % (','.join(self.articles), len(articles), len(out)))
+        return out

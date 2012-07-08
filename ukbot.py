@@ -596,9 +596,13 @@ class UK(object):
                     params['maxdepth'] = int(named['maksdybde'])
                 filters.append(CatFilter(**params))
 
-            #elif key == 'tilbakelenke':
-            #    params = { 'title': anon[1] }
-            #    filters.append(BackLinkFilter(**params)
+            elif key == 'tilbakelenke':
+                params = { 'sites': self.sites, 'articles': anon[1:] }
+                filters.append(BackLinkFilter(**params))
+            
+            elif key == 'fremlenke':
+                params = { 'sites': self.sites, 'articles': anon[1:] }
+                filters.append(ForwardLinkFilter(**params))
 
             else: 
                 raise ParseError('Ukjent argument gitt til {{ml|ukens konkurranse kriterium}}: '+key)
@@ -674,9 +678,26 @@ class UK(object):
             self.end = osl.localize(datetime.strptime(enddt +' 23 59', '%Y-%m-%d %H %M'))
         else:
             raise ParseError('Fant ikke uke/år eller start/slutt i {{tl|infoboks ukens konkurranse}}.')
-        
+
         self.year= self.start.isocalendar()[0]
         self.week = self.start.isocalendar()[1]
+
+        self.ledere = re.findall(r'\[\[Bruker:([^\|\]]+)', infoboks.parameters['leder'])
+        if len(ledere) == 0:
+            raise ParseError('Fant ingen konkurranseorganisatorer i {{tl|infoboks ukens konkurranse}}.')
+
+        self.rosetter = []
+        for col in ['rød', 'blå', 'grå', 'lilla', 'brun']:
+            if col in infoboks.parameters.keys():
+                r = infoboks.parameters[col].strip().split()[0].lower()
+                if r == 'vinner':
+                    self.rosetter.append([col, 'winner'])
+                else:
+                    try:
+                        self.rosetter.append([col, 'pointlimit', int(r)])
+                    except ValueError:
+                        raise ParseError('Klarte ikke tolke verdien til parameteren %s gitt til {{tl|infoboks ukens konkurranse}}.' % col)
+        
 
         return rules, filters
 

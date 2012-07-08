@@ -33,7 +33,12 @@ rosettfiler = {
     'brun': 'Article brown.svg',
     'gul': 'Article yellow.svg'
 }
-
+#CREATE TABLE contests (
+#  name TEXT,
+#  ended INTEGER NOT NULL,
+#  closed INTEGER NOT NULL,
+#  PRIMARY KEY(name)  
+#);
 #CREATE TABLE contribs (
 #  revid INTEGER NOT NULL,
 #  site TEXT NOT NULL,
@@ -475,7 +480,7 @@ class User(object):
         #np.savetxt('user-%s'%self.name, np.column_stack((x,y,y2)))
         
 
-    def format_result(self, pos = -1, closing = False, rosetter = []):
+    def format_result(self, pos = -1, closing = False, prices= []):
         
         entries = []
 
@@ -511,13 +516,13 @@ class User(object):
         ros = ''
         if closing:
             if pos == 0:
-                for r in rosetter:
+                for r in prices:
                     if r[1] == 'winner':
-                        ros += '[[Fil:%s|20px]] ' % r[0]
+                        ros += '[[Fil:%s|20px]] ' % rosettfiler[r[0]]
                         break
-            for r in rosetter:
+            for r in prices:
                 if r[1] == 'pointlimit' and self.points >= r[2]:
-                    ros += '[[Fil:%s|20px]] ' % r[0]
+                    ros += '[[Fil:%s|20px]] ' % rosettfiler[r[0]]
                     break
         out = '=== %s [[Bruker:%s|%s]] (%.f p) ===\n' % (ros, self.name, self.name, self.points)
         if len(entries) == 0:
@@ -711,23 +716,23 @@ class UK(object):
             raise ParseError('Fant ingen konkurranseorganisatorer i {{tl|infoboks ukens konkurranse}}.')
 
 
-        self.rosetter = []
+        self.prices = []
         for col in ['rød', 'blå', 'grå', 'lilla', 'brun']:
             if col in infoboks.parameters.keys():
                 r = re.sub('<\!--.+?-->', '', infoboks.parameters[col]).strip() # strip comments, then whitespace
                 if r != '':
                     r = r.split()[0].lower()
-                    print col,r
+                    #print col,r
                     if r == 'vinner':
-                        self.rosetter.append([rosettfiler[col], 'winner', 0])
+                        self.prices.append([col, 'winner', 0])
                     elif r != '':
                         try:
-                            self.rosetter.append([rosettfiler[col], 'pointlimit', int(r)])
+                            self.prices.append([col, 'pointlimit', int(r)])
                         except ValueError:
                             pass
                             #raise ParseError('Klarte ikke tolke verdien til parameteren %s gitt til {{tl|infoboks ukens konkurranse}}.' % col)
 
-        self.rosetter.sort(key = lambda x: x[2], reverse = True)
+        self.prices.sort(key = lambda x: x[2], reverse = True)
 
         return rules, filters
 
@@ -806,6 +811,52 @@ class UK(object):
             loc = 2, bbox_to_anchor = (1.0, 1.0), borderaxespad = 0., frameon = 0.
         )
         plt.savefig('Nowp Ukens konkurranse %d-%d.svg' % (self.year, self.week), dpi = 200)
+
+    def deliver_prices(self):
+
+        heading = '== Ukens konkurranse uke %s == ' % self.week
+        for i, u in enumerate(self.users):
+
+            prizefound = False
+            if i == 0:
+                mld = ''
+                for r in self.prices:
+                    if r[1] == 'winner':
+                        prizefound = True
+                        mld += '{{UK vinner|visuk=nei|år=%s|uke=%s|%s=ja' % (self.year, self.week, r[0])
+                        break
+                for r in self.prices:
+                    if r[1] == 'pointlimit' and u.points >= r[2]:
+                        mld += '|%s=ja' % r[0]
+                        break
+                mld += '}}\n'
+            else:
+                mld = ''
+                for r in self.prices:
+                    if r[1] == 'pointlimit' and u.points >= r[2]:
+                        prizefound = True
+                        mld += '{{UK deltaker|visuk=nei|år=%s|uke=%s|%s=ja}}\n' % (self.year, self.week, r[0])
+                        break
+
+            now = datetime.now()
+            yearweek = now.strftime('%Y-%W')
+            mld += 'Husk at denne ukens konkurranse er [[Wikipedia:Ukens konkurranse/Ukens konkurranse %s|{{Ukens konkurranse liste|uke=%s}}]]. Lykke til! ' % (yearweek, yearweek)
+            mld += 'Hilsen ' + ', '.join(['[[Bruker:%s|%s]]'%(s,s) for s in self.ledere]) + ' og ~~~~'
+
+            if prizefound:
+                page = self.sites['no'].pages['Brukerdiskusjon:' + u.name]
+                self.logf.write(' -> Leverer melding til %s\n' % page.name)
+                page.save(text = mld, bot = False, section = 'new', summary = heading)
+
+        for u in self.ledere:
+            mld = '{{UK arrangør|visuk=nei|år=%s|uke=%s|gul=ja}}\n' % (self.year, self.week)
+            mld += 'Husk at denne ukens konkurranse er [[Wikipedia:Ukens konkurranse/Ukens konkurranse %s|{{Ukens konkurranse liste|uke=%s}}]]. Lykke til! ' % (yearweek, yearweek)
+            mld += 'Hilsen ~~~~'
+
+            page = self.sites['no'].pages['Brukerdiskusjon:' + u]
+            self.logf.write(' -> Leverer arrangørmelding til %s\n' % page.name)
+            page.save(text = mld, bot = False, section = 'new', summary = heading)
+
 
 
 ############################################################################################################################
@@ -940,7 +991,7 @@ if __name__ == '__main__':
         out += "''Sist oppdatert %s. Konkurransen er åpen fra %s til %s.''\n\n" % (now.strftime('%e. %B %Y, %H:%M').decode('utf-8'), uk.start.strftime('%e. %B %Y, %H:%M').decode('utf-8'), uk.end.strftime('%e. %B %Y, %H:%M').decode('utf-8'))
 
     for i,u in enumerate(uk.users):
-        out += u.format_result( pos = i, closing = args.close, rosetter = uk.rosetter )
+        out += u.format_result( pos = i, closing = args.close, prices = uk.prices)
 
 
     article_errors = {}
@@ -982,6 +1033,14 @@ if __name__ == '__main__':
         logf.write(" -> Ending contest\n")
         cur = sql.cursor()
         cur.execute(u'INSERT INTO contests (name, ended, closed) VALUES (?,1,0)', [kpage] )
+        sql.commit()
+        cur.close()
+    
+    if args.close:
+        uk.deliver_prices()
+        logf.write(" -> Closing contest\n")
+        cur = sql.cursor()
+        cur.execute(u'UPDATE contests SET closed=1 WHERE name=?', [kpage] )
         sql.commit()
         cur.close()
     

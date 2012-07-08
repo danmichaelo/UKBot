@@ -33,6 +33,20 @@ rosettfiler = {
     'brun': 'Article brown.svg',
     'gul': 'Article yellow.svg'
 }
+
+# Suggested crontab:
+## Oppdater resultater annenhver time mellom kl 8 og 22 samt kl 23 og 01...
+#0 8-22/2,23,1 * * * nice -n 11 /uio/arkimedes/s01/dmheggo/wikipedia/UKBot/bot.sh
+## ... og ved midnatt tirsdag til søndag (2-6,0)
+#0 0 * * 2-6,0 nice -n 11 /uio/arkimedes/s01/dmheggo/wikipedia/UKBot/bot.sh
+## Midnatt natt til mandag avslutter vi konkurransen
+#0 0 * * 1 nice -n 11 /uio/arkimedes/s01/dmheggo/wikipedia/UKBot/ended.sh
+## og så sjekker vi om det er klart for å sende ut resultater
+#20 8-23/1 * * 1-2 nice -n 11 /uio/arkimedes/s01/dmheggo/wikipedia/UKBot/close.sh
+#20 */12 * * 3-6 nice -n 11 /uio/arkimedes/s01/dmheggo/wikipedia/UKBot/close.sh
+## Hver natt kl 00.30 laster vi opp ny figur
+#30 0 * * * nice -n 11 /uio/arkimedes/s01/dmheggo/wikipedia/UKBot/uploadbot.sh
+
 #CREATE TABLE contests (
 #  name TEXT,
 #  ended INTEGER NOT NULL,
@@ -539,9 +553,10 @@ class User(object):
 
 class UK(object):
 
-    def __init__(self, txt, catignore, sites, logf):
+    def __init__(self, txt, catignore, sites, logf, sql):
 
         self.logf = logf
+        self.sql = sql
         sections = [s.strip() for s in re.findall('^[\s]*==([^=]+)==', txt, flags = re.M)]
         self.results_section = sections.index('Resultater') + 1
 
@@ -859,6 +874,24 @@ class UK(object):
             page = self.sites['no'].pages['Brukerdiskusjon:' + u]
             self.logf.write(' -> Leverer arrangørmelding til %s\n' % page.name)
             page.save(text = mld, bot = False, section = 'new', summary = heading)
+    
+    def delete_contribs_from_db(self):
+        """
+            sql   : sqlite3.Connection object
+            start : datetime object
+            end   : datetime object
+        """
+        cur = self.sql.cursor()
+        cur2 = self.sql.cursor()
+        ts_start = self.start.astimezone(pytz.utc).strftime('%F %T')
+        ts_end = self.end.astimezone(pytz.utc).strftime('%F %T')
+        for row in cur.execute(u"SELECT site,revid FROM contribs WHERE timestamp >= ? AND timestamp <= ?", (ts_start, ts_end)):
+            cur2.execute(u"DELETE FROM fulltexts WHERE site=? AND revid=?", row)
+
+        cur.execute(u"""DELETE FROM contribs WHERE timestamp >= ? AND timestamp <= ?""", (ts_start, ts_end))
+        cur.close()
+        cur2.close()
+        self.sql.commit()
 
 
 
@@ -933,7 +966,7 @@ if __name__ == '__main__':
         cur.close()
 
     try:
-        uk = UK(sites['no'].pages[kpage].edit(), sites['no'].pages[cpage].edit(), sites, logf)
+        uk = UK(sites['no'].pages[kpage].edit(), sites['no'].pages[cpage].edit(), sites, logf, sql)
     except ParseError as e:
         err = "\n* '''%s'''" % e.msg
         page = sites['no'].pages[kpage]
@@ -1066,6 +1099,9 @@ if __name__ == '__main__':
         cur.close()
         page = sites['no'].pages['Bruker:UKBot/Premieutsendelse']
         page.save(text = 'sendt ut', summary = 'Sendt ut', bot = True)
+
+        logf.write(" -> Cleaning DB\n")
+        uk.delete_contribs_from_db()
 
     # Plot
     uk.plot()

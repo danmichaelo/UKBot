@@ -463,7 +463,7 @@ class User(object):
         #np.savetxt('user-%s'%self.name, np.column_stack((x,y,y2)))
         
 
-    def format_result(self):
+    def format_result(self, closing = False, rosetter = []):
         
         entries = []
 
@@ -783,6 +783,8 @@ if __name__ == '__main__':
     parser.add_argument('--output', nargs='?', default='', help='Write to output file')
     parser.add_argument('--simulate', action='store_true', default=False, help='Do not write to wiki')
     parser.add_argument('--log', nargs='?', default = 'ukbot.log', help='Log file')
+    parser.add_argument('--end', action='store_true', help='End contest')
+    parser.add_argument('--close', action='store_true', help='Close contest')
     args = parser.parse_args()
 
     kpage = args.page
@@ -804,6 +806,16 @@ if __name__ == '__main__':
         raise
 
     sql = sqlite3.connect('uk.db')
+    
+    if args.close:
+        logf.write(" -> Closing contest\n")
+        cur = sql.cursor()
+        if len(cur.execute(u'SELECT FROM contests WHERE name=? AND ended=1', (kpage) ).fetchall()) != 1:
+            logf.write(" -> Feil: Ikke avsluttet enda!\n")
+            print "Konkurransen kunne ikke lukkes da den ikke er avsluttet enda"
+            sys.exit(1)
+
+        cur.close()
 
     # Loop over users
     narticles = 0
@@ -861,7 +873,7 @@ if __name__ == '__main__':
     now = datetime.now()
     out += "''Sist oppdatert %s. Konkurransen er åpen fra %s til %s.''\n\n" % (now.strftime('%e. %B %Y, %H:%M').decode('utf-8'), uk.start.strftime('%e. %B %Y, %H:%M').decode('utf-8'), uk.end.strftime('%e. %B %Y, %H:%M').decode('utf-8'))
     for u in uk.users:
-        out += u.format_result()
+        out += u.format_result( closing = args.close, rosetter = uk.rosetter )
 
 
     article_errors = {}
@@ -898,6 +910,14 @@ if __name__ == '__main__':
         f = codecs.open(args.output,'w','utf-8')
         f.write(out)
         f.close()
+
+    if args.end:
+        logf.write(" -> Ending contest\n")
+        cur = sql.cursor()
+        cur.execute(u'INSERT INTO contests (name, ended, closed) VALUES (?,1,0)', (kpage) )
+        cur.commit()
+        cur.close()
+    
 
     # Plot
     uk.plot()

@@ -848,9 +848,12 @@ class UK(object):
                 self.logf.write(' -> Leverer melding til %s\n' % page.name)
                 page.save(text = mld, bot = False, section = 'new', summary = heading)
 
+    def deliver_leader_notification(self, pagename):
+        heading = '== Ukens konkurranse uke %s == ' % self.week
+        link = 'http://no.wikipedia.org/w/index.php?title=Bruker:UKBot/Premieutsendelse&action=edit&section=new&preload=Bruker:UKBot/Premieutsendelse/Preload&preloadtitle=send%20ut'
         for u in self.ledere:
             mld = '{{UK arrangør|visuk=nei|år=%s|uke=%s|gul=ja}}\n' % (self.year, self.week)
-            mld += 'Husk at denne ukens konkurranse er [[Wikipedia:Ukens konkurranse/Ukens konkurranse %s|{{Ukens konkurranse liste|uke=%s}}]]. Lykke til! ' % (yearweek, yearweek)
+            mld += 'Du må nå sjekke resultatene. Hvis det er feilmeldinger nederst på [[%s|konkurransesiden]] må du sjekke om de relaterte bidragene har fått poengene de skal ha. Se også etter om det er kommentarer eller klager på diskusjonssiden. Hvis alt ser greit ut kan du trykke [%s her] (og lagre), så sender jeg ut rosetter ved første anledning. ' % (pagename, link)
             mld += 'Hilsen ~~~~'
 
             page = self.sites['no'].pages['Brukerdiskusjon:' + u]
@@ -881,7 +884,7 @@ if __name__ == '__main__':
     #konkurranseside = 'Wikipedia:Ukens konkurranse/Ukens konkurranse ' + year + '-' + week
 
     parser = argparse.ArgumentParser( description = 'The UKBot' )
-    parser.add_argument('--page', required=True, help='The page to update')
+    parser.add_argument('--page', required=False, help='The page to update')
     parser.add_argument('--output', nargs='?', default='', help='Write to output file')
     parser.add_argument('--simulate', action='store_true', default=False, help='Do not write to wiki')
     parser.add_argument('--log', nargs='?', default = 'ukbot.log', help='Log file')
@@ -889,25 +892,35 @@ if __name__ == '__main__':
     parser.add_argument('--close', action='store_true', help='Close contest')
     args = parser.parse_args()
 
-    kpage = args.page
-    if not (re.match('^Wikipedia:Ukens konkurranse/Ukens konkurranse', kpage) or re.match('^Bruker:UKBot/Sandkasse', kpage)):
-        raise StandardError('I refuse to work with that page!')
-
     cpage = 'Bruker:UKBot/cat-ignore'
 
     if args.log != '':
         logf = codecs.open(args.log, 'a', 'utf-8')
 
-    try:
-        uk = UK(sites['no'].pages[kpage].edit(), sites['no'].pages[cpage].edit(), sites, logf)
-    except ParseError as e:
-        err = "\n* '''%s'''" % e.msg
-        page = sites['no'].pages[kpage]
-        out = '\n{{Ukens konkurranse robotinfo | error | %s }}' % err
-        page.save('dummy', summary = 'Resultatboten støtte på et problem', appendtext = out)
-        raise
-
     sql = sqlite3.connect('uk.db')
+
+    if args.close:
+        # Check if there are contests to be closed
+        cur = sql.cursor()
+        rows = cur.execute(u'SELECT name FROM contests WHERE ended=1 AND closed=0 LIMIT 1').fetchall()
+        if len(rows) == 0:
+            logf.write(" -> Fant ingen konkurranser å avslutte!\n")
+            sys.exit(0)
+        cur.close()
+        kpage = rows[0][0]
+        logf.write(" -> Contest %s is to be closed\n" % rows[0])
+        lastrev = sites['no'].pages['Bruker:UKBot/Premieutsendelse'].revisions(prop='user|comment').next()
+        closeuser = lastrev['user']
+        revc = lastrev['comment']
+        if revc != 'Nytt avsnitt: /* send ut */':
+            logf.write('>> Ikke klar til utsendelse\n')
+            logf.close()
+            sys.exit(0)
+    else:
+        kpage = args.page
+
+    if not (re.match('^Wikipedia:Ukens konkurranse/Ukens konkurranse', kpage) or re.match('^Bruker:UKBot/Sandkasse', kpage)):
+        raise StandardError('I refuse to work with that page!')
     
     if args.end:
         logf.write(" -> Ending contest\n")
@@ -918,16 +931,20 @@ if __name__ == '__main__':
             sys.exit(1)
 
         cur.close()
-    
-    if args.close:
-        logf.write(" -> Closing contest\n")
-        cur = sql.cursor()
-        if len(cur.execute(u'SELECT ended FROM contests WHERE name=? AND ended=1', [kpage] ).fetchall()) != 1:
-            logf.write(" -> Feil: Ikke avsluttet enda!\n")
-            print "Konkurransen kunne ikke lukkes da den ikke er avsluttet enda"
-            sys.exit(1)
 
-        cur.close()
+    try:
+        uk = UK(sites['no'].pages[kpage].edit(), sites['no'].pages[cpage].edit(), sites, logf)
+    except ParseError as e:
+        err = "\n* '''%s'''" % e.msg
+        page = sites['no'].pages[kpage]
+        out = '\n{{Ukens konkurranse robotinfo | error | %s }}' % err
+        page.save('dummy', summary = 'Resultatboten støtte på et problem', appendtext = out)
+        raise
+    
+    if args.close and closeuser not in uk.ledere:
+        logf.write('!! Konkurransen ble forsøkt avsluttet av andre enn konkurranseleder\n')
+        print '!! Konkurransen ble forsokt avsluttet av andre enn konkurranseleder'
+        sys.exit(0)
 
     # Loop over users
     narticles = 0
@@ -1031,19 +1048,21 @@ if __name__ == '__main__':
 
     if args.end:
         logf.write(" -> Ending contest\n")
+        uk.deliver_leader_notification(kpage)
         cur = sql.cursor()
         cur.execute(u'INSERT INTO contests (name, ended, closed) VALUES (?,1,0)', [kpage] )
         sql.commit()
         cur.close()
     
     if args.close:
+        logf.write(" -> Delivering prices\n")
         uk.deliver_prices()
-        logf.write(" -> Closing contest\n")
         cur = sql.cursor()
         cur.execute(u'UPDATE contests SET closed=1 WHERE name=?', [kpage] )
         sql.commit()
         cur.close()
-    
+        page = sites['no'].pages['Bruker:UKBot/Premieutsendelse']
+        page.save(text = 'sendt ut', summary = 'Sendt ut', bot = True)
 
     # Plot
     uk.plot()

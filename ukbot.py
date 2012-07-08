@@ -22,6 +22,18 @@ from ukfilters import *
 import locale
 locale.setlocale(locale.LC_TIME, 'no_NO.utf-8'.encode('utf-8'))
 
+rosettfiler = {
+    'blå': 'Article blue.svg',
+    'rød': 'Article red.svg',
+    'oransj': 'Article orange.svg',
+    'orange': 'Article orange.svg',
+    'grønn': 'Article green.svg',
+    'grå': 'Article grey.svg',
+    'lilla': 'Article purple.svg',
+    'brun': 'Article brown.svg',
+    'gul': 'Article yellow.svg'
+}
+
 #CREATE TABLE contribs (
 #  revid INTEGER NOT NULL,
 #  site TEXT NOT NULL,
@@ -463,7 +475,7 @@ class User(object):
         #np.savetxt('user-%s'%self.name, np.column_stack((x,y,y2)))
         
 
-    def format_result(self, closing = False, rosetter = []):
+    def format_result(self, pos = -1, closing = False, rosetter = []):
         
         entries = []
 
@@ -496,7 +508,18 @@ class User(object):
                 
                 entries.append(out)
 
-        out = '=== [[Bruker:%s|%s]] (%.f p) ===\n' % (self.name, self.name, self.points)
+        ros = ''
+        if closing:
+            if pos == 0:
+                for r in rosetter:
+                    if r[1] == 'winner':
+                        ros += '[[Fil:%s|20px]] ' % r[0]
+                        break
+            for r in rosetter:
+                if r[1] == 'pointlimit' and self.points >= r[2]:
+                    ros += '[[Fil:%s|20px]] ' % r[0]
+                    break
+        out = '=== %s [[Bruker:%s|%s]] (%.f p) ===\n' % (ros, self.name, self.name, self.points)
         if len(entries) == 0:
             out += "''Ingen kvalifiserte bidrag registrert enda''"
         else:
@@ -551,8 +574,8 @@ class UK(object):
         if not 'ukens konkurranse poeng' in dp.templates.keys():
             raise ParseError('Denne konkurransen har ingen poengregler. Poengregler defineres med {{tl|ukens konkurranse poeng}}.')
         
-        if not 'ukens konkurranse kriterium' in dp.templates.keys():
-            raise ParseError('Denne konkurransen har ingen bidragskriterier. Kriterier defineres med {{tl|ukens konkurranse kriterium}}.')
+        #if not 'ukens konkurranse kriterium' in dp.templates.keys():
+        #    raise ParseError('Denne konkurransen har ingen bidragskriterier. Kriterier defineres med {{tl|ukens konkurranse kriterium}}.')
         
         if not 'infoboks ukens konkurranse' in dp.templates.keys():
             raise ParseError('Denne konkurransen mangler en {{tl|infoboks ukens konkurranse}}-mal.')
@@ -563,49 +586,50 @@ class UK(object):
             raise ParseError('Klarte ikke tolke catignore-siden')
 
         # Read filters
-        for templ in dp.templates['ukens konkurranse kriterium']:
-            p = templ.parameters
-            anon = [[k,p[k]] for k in p.keys() if type(k) == int]
-            anon = sorted(anon, key = lambda x: x[0])
-            anon = [a[1] for a in anon]
-            named = [[k,p[k]] for k in p.keys() if type(k) != int]
+        if 'ukens konkurranse kriterium' in dp.templates.keys():
+            for templ in dp.templates['ukens konkurranse kriterium']:
+                p = templ.parameters
+                anon = [[k,p[k]] for k in p.keys() if type(k) == int]
+                anon = sorted(anon, key = lambda x: x[0])
+                anon = [a[1] for a in anon]
+                named = [[k,p[k]] for k in p.keys() if type(k) != int]
 
-            named = odict(named)
-            key = anon[0].lower()
+                named = odict(named)
+                key = anon[0].lower()
 
-            if key == 'ny':
-                filters.append(NewPageFilter())
+                if key == 'ny':
+                    filters.append(NewPageFilter())
 
-            elif key == 'eksisterende':
-                filters.append(ExistingPageFilter())
+                elif key == 'eksisterende':
+                    filters.append(ExistingPageFilter())
 
-            elif key == 'stubb':
-                filters.append(StubFilter())
-            
-            elif key == 'bytes':
-                if len(anon) < 2:
-                    raise ParseError('Ingen bytesgrense (andre argument) ble gitt til {{mlp|ukens konkurranse kriterium|bytes}}')
-                params = { 'bytelimit': anon[1] }
-                filters.append(ByteFilter(**params))
+                elif key == 'stubb':
+                    filters.append(StubFilter())
+                
+                elif key == 'bytes':
+                    if len(anon) < 2:
+                        raise ParseError('Ingen bytesgrense (andre argument) ble gitt til {{mlp|ukens konkurranse kriterium|bytes}}')
+                    params = { 'bytelimit': anon[1] }
+                    filters.append(ByteFilter(**params))
 
-            elif key == 'kategori':
-                if len(anon) < 2:
-                    raise ParseError('Ingen kategori(er) ble gitt til {{mlp|ukens konkurranse kriterium|kategori}}')
-                params = { 'sites': self.sites, 'catnames': anon[1:], 'ignore': catignore }
-                if 'maksdybde' in named:
-                    params['maxdepth'] = int(named['maksdybde'])
-                filters.append(CatFilter(**params))
+                elif key == 'kategori':
+                    if len(anon) < 2:
+                        raise ParseError('Ingen kategori(er) ble gitt til {{mlp|ukens konkurranse kriterium|kategori}}')
+                    params = { 'sites': self.sites, 'catnames': anon[1:], 'ignore': catignore }
+                    if 'maksdybde' in named:
+                        params['maxdepth'] = int(named['maksdybde'])
+                    filters.append(CatFilter(**params))
 
-            elif key == 'tilbakelenke':
-                params = { 'sites': self.sites, 'articles': anon[1:] }
-                filters.append(BackLinkFilter(**params))
-            
-            elif key == 'fremlenke':
-                params = { 'sites': self.sites, 'articles': anon[1:] }
-                filters.append(ForwardLinkFilter(**params))
+                elif key == 'tilbakelenke':
+                    params = { 'sites': self.sites, 'articles': anon[1:] }
+                    filters.append(BackLinkFilter(**params))
+                
+                elif key == 'fremlenke':
+                    params = { 'sites': self.sites, 'articles': anon[1:] }
+                    filters.append(ForwardLinkFilter(**params))
 
-            else: 
-                raise ParseError('Ukjent argument gitt til {{ml|ukens konkurranse kriterium}}: '+key)
+                else: 
+                    raise ParseError('Ukjent argument gitt til {{ml|ukens konkurranse kriterium}}: '+key)
         
         # Read rules
         for templ in dp.templates['ukens konkurranse poeng']:
@@ -683,21 +707,27 @@ class UK(object):
         self.week = self.start.isocalendar()[1]
 
         self.ledere = re.findall(r'\[\[Bruker:([^\|\]]+)', infoboks.parameters['leder'])
-        if len(ledere) == 0:
+        if len(self.ledere) == 0:
             raise ParseError('Fant ingen konkurranseorganisatorer i {{tl|infoboks ukens konkurranse}}.')
+
 
         self.rosetter = []
         for col in ['rød', 'blå', 'grå', 'lilla', 'brun']:
             if col in infoboks.parameters.keys():
-                r = infoboks.parameters[col].strip().split()[0].lower()
-                if r == 'vinner':
-                    self.rosetter.append([col, 'winner'])
-                else:
-                    try:
-                        self.rosetter.append([col, 'pointlimit', int(r)])
-                    except ValueError:
-                        raise ParseError('Klarte ikke tolke verdien til parameteren %s gitt til {{tl|infoboks ukens konkurranse}}.' % col)
-        
+                r = re.sub('<\!--.+?-->', '', infoboks.parameters[col]).strip() # strip comments, then whitespace
+                if r != '':
+                    r = r.split()[0].lower()
+                    print col,r
+                    if r == 'vinner':
+                        self.rosetter.append([rosettfiler[col], 'winner', 0])
+                    elif r != '':
+                        try:
+                            self.rosetter.append([rosettfiler[col], 'pointlimit', int(r)])
+                        except ValueError:
+                            pass
+                            #raise ParseError('Klarte ikke tolke verdien til parameteren %s gitt til {{tl|infoboks ukens konkurranse}}.' % col)
+
+        self.rosetter.sort(key = lambda x: x[2], reverse = True)
 
         return rules, filters
 
@@ -828,10 +858,20 @@ if __name__ == '__main__':
 
     sql = sqlite3.connect('uk.db')
     
+    if args.end:
+        logf.write(" -> Ending contest\n")
+        cur = sql.cursor()
+        if len(cur.execute(u'SELECT ended FROM contests WHERE name=? AND ended=1', [kpage] ).fetchall()) == 1:
+            logf.write(" -> Feil: Konkurransen er allerede avsluttet!\n")
+            print "Konkurransen kunne ikke avsluttes da den allerede er avsluttet"
+            sys.exit(1)
+
+        cur.close()
+    
     if args.close:
         logf.write(" -> Closing contest\n")
         cur = sql.cursor()
-        if len(cur.execute(u'SELECT FROM contests WHERE name=? AND ended=1', (kpage) ).fetchall()) != 1:
+        if len(cur.execute(u'SELECT ended FROM contests WHERE name=? AND ended=1', [kpage] ).fetchall()) != 1:
             logf.write(" -> Feil: Ikke avsluttet enda!\n")
             print "Konkurransen kunne ikke lukkes da den ikke er avsluttet enda"
             sys.exit(1)
@@ -892,9 +932,15 @@ if __name__ == '__main__':
     out += "<div style=\"clear:right;float:right;width:14em;font-size:.9em; color:#fff;display:block;font-size:1.2em;padding:.3em;border-radius:5px;background:#ccdd00;border:2px solid #447744;text-align:center; box-shadow:0px 0px 5px #ccdd00;\">Til sammen har vi " + '\n'.join(["<div style=\"border-top:1px solid white;\">%s</div>" % s for s in sammen]) + "</div>"
 
     now = datetime.now()
-    out += "''Sist oppdatert %s. Konkurransen er åpen fra %s til %s.''\n\n" % (now.strftime('%e. %B %Y, %H:%M').decode('utf-8'), uk.start.strftime('%e. %B %Y, %H:%M').decode('utf-8'), uk.end.strftime('%e. %B %Y, %H:%M').decode('utf-8'))
-    for u in uk.users:
-        out += u.format_result( closing = args.close, rosetter = uk.rosetter )
+    if args.end:
+        out += "''Konkurransen er nå avsluttet – takk til alle som deltok! Rosetter vil bli delt ut så snart konkurransearrangøren(e) har sjekket resultatene.''\n\n"
+    elif args.close:
+        out += "''Konkurransen er nå avsluttet – takk til alle som deltok!''\n\n"
+    else:
+        out += "''Sist oppdatert %s. Konkurransen er åpen fra %s til %s.''\n\n" % (now.strftime('%e. %B %Y, %H:%M').decode('utf-8'), uk.start.strftime('%e. %B %Y, %H:%M').decode('utf-8'), uk.end.strftime('%e. %B %Y, %H:%M').decode('utf-8'))
+
+    for i,u in enumerate(uk.users):
+        out += u.format_result( pos = i, closing = args.close, rosetter = uk.rosetter )
 
 
     article_errors = {}
@@ -935,8 +981,8 @@ if __name__ == '__main__':
     if args.end:
         logf.write(" -> Ending contest\n")
         cur = sql.cursor()
-        cur.execute(u'INSERT INTO contests (name, ended, closed) VALUES (?,1,0)', (kpage) )
-        cur.commit()
+        cur.execute(u'INSERT INTO contests (name, ended, closed) VALUES (?,1,0)', [kpage] )
+        sql.commit()
         cur.close()
     
 

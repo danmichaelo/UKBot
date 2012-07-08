@@ -491,7 +491,7 @@ class User(object):
                 except AttributeError:
                     pass
                 
-                out = '# [[:%s|%s]] (<abbr class="uk-ap">%.1f p</abbr>)' % (article_key, article.name, article.points)
+                out = '# [[:%s|%s]] (<abbr class="uk-ap">%.1f p</abbr>)' % (article_key, article.name, article.points)
                 out += '<div class="uk-ap-title" style="font-size: smaller; color:#888; line-height:100%;">' + titletxt + '</div>'
                 
                 entries.append(out)
@@ -858,7 +858,8 @@ if __name__ == '__main__':
 
     out += "<div style=\"clear:right;float:right;width:14em;font-size:.9em; color:#fff;display:block;font-size:1.2em;padding:.3em;border-radius:5px;background:#ccdd00;border:2px solid #447744;text-align:center; box-shadow:0px 0px 5px #ccdd00;\">Til sammen har vi " + '\n'.join(["<div style=\"border-top:1px solid white;\">%s</div>" % s for s in sammen]) + "</div>"
 
-    out += "''Konkurransen er åpen fra %s til %s.''\n\n" % (uk.start.strftime('%e. %B %Y, %H:%M').decode('utf-8'), uk.end.strftime('%e. %B %Y, %H:%M').decode('utf-8'))
+    now = datetime.now()
+    out += "''Sist oppdatert %s. Konkurransen er åpen fra %s til %s.''\n\n" % (now.strftime('%e. %B %Y, %H:%M').decode('utf-8'), uk.start.strftime('%e. %B %Y, %H:%M').decode('utf-8'), uk.end.strftime('%e. %B %Y, %H:%M').decode('utf-8'))
     for u in uk.users:
         out += u.format_result()
 
@@ -880,7 +881,6 @@ if __name__ == '__main__':
         for error in site.errors:
             errors.append('\n* %s' % error)
     
-    now = datetime.now()
     if len(errors) == 0:
         out += '{{Ukens konkurranse robotinfo | ok | %s }}' % now.strftime('%F %T')
     else:

@@ -1038,7 +1038,10 @@ if __name__ == '__main__':
     if not args.simulate:
         logf.write(" -> Updating wiki, section = %d " % (uk.results_section))
         page = sites['no'].pages[kpage]
-        page.save(out, summary = 'Oppdaterer resultater', section = uk.results_section)
+        if args.end:
+            page.save(out, summary = 'Oppdaterer resultater og avslutter konkurransen', section = uk.results_section)
+        else:
+            page.save(out, summary = 'Oppdaterer resultater', section = uk.results_section)
 
     if args.output != '':
         print "Writing output to file"

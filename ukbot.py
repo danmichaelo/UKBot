@@ -29,6 +29,7 @@ rosettfiler = {
     'orange': 'Article orange.svg',
     'grønn': 'Article green.svg',
     'grå': 'Article grey.svg',
+    'lyslilla': 'Article MediumPurple.svg',
     'lilla': 'Article purple.svg',
     'brun': 'Article brown.svg',
     'gul': 'Article yellow.svg'
@@ -875,6 +876,23 @@ class UK(object):
             self.logf.write(' -> Leverer arrangørmelding til %s\n' % page.name)
             page.save(text = mld, bot = False, section = 'new', summary = heading)
     
+    def deliver_receipt_to_leaders(self):
+        heading = 'Ukens konkurranse uke %s' % self.week
+        mld = '\n:Rosetter er nå [http://no.wikipedia.org/w/index.php?title=Spesial%3ABidrag&contribs=user&target=UKBot&namespace=3 sendt ut]. ~~~~'
+        for u in self.ledere:
+            page = self.sites['no'].pages['Brukerdiskusjon:' + u]
+            self.logf.write(' -> Leverer kvittering til %s\n' % page.name)
+            
+            # Find section number
+            txt = page.edit()
+            sections = [s.strip() for s in re.findall('^[\s]*==([^=]+)==', txt, flags = re.M)]
+            csection = sections.index(heading) + 1
+
+            # Append text to section
+            txt = page.edit(section = csection)
+            page.save(appendtext = mld, bot = False, summary = heading)
+    
+    
     def delete_contribs_from_db(self):
         """
             sql   : sqlite3.Connection object
@@ -1085,6 +1103,10 @@ if __name__ == '__main__':
     if args.end:
         logf.write(" -> Ending contest\n")
         uk.deliver_leader_notification(kpage)
+
+        page = sites['no'].pages['Bruker:UKBot/Premieutsendelse']
+        page.save(text = 'venter', summary = 'Venter', bot = True)
+
         cur = sql.cursor()
         cur.execute(u'INSERT INTO contests (name, ended, closed) VALUES (?,1,0)', [kpage] )
         sql.commit()
@@ -1097,8 +1119,12 @@ if __name__ == '__main__':
         cur.execute(u'UPDATE contests SET closed=1 WHERE name=?', [kpage] )
         sql.commit()
         cur.close()
+
         page = sites['no'].pages['Bruker:UKBot/Premieutsendelse']
         page.save(text = 'sendt ut', summary = 'Sendt ut', bot = True)
+
+        uk.deliver_receipt_to_leaders()
+
 
         logf.write(" -> Cleaning DB\n")
         uk.delete_contribs_from_db()

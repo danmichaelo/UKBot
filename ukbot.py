@@ -454,6 +454,10 @@ class User(object):
         return np.sum([a.bytes for a in self.articles.itervalues()])
     
     @property
+    def newpages(self):
+        return np.sum([1 for a in self.articles.itervalues() if a.new and not a.redirect])
+    
+    @property
     def points(self):
         return np.sum([a.points for a in self.articles.values()])
 
@@ -714,13 +718,13 @@ class UK(object):
         if 'år' in infoboks.parameters and 'uke' in infoboks.parameters:
             year = infoboks.parameters['år']
             week = infoboks.parameters['uke']
-            self.start = osl.localize(datetime.strptime(year+' '+week+' 1 00 00', '%Y %W %w %H %M'))
-            self.end = osl.localize(datetime.strptime(year+' '+week+' 0 23 59', '%Y %W %w %H %M'))
+            self.start = osl.localize(datetime.strptime(year+' '+week+' 1 00 00 00', '%Y %W %w %H %M %S'))
+            self.end = osl.localize(datetime.strptime(year+' '+week+' 0 23 59 59', '%Y %W %w %H %M %S'))
         elif 'start' in infoboks.parameters and 'slutt' in infoboks.parameters:
             startdt = infoboks.parameters['start']
             enddt = infoboks.parameters['slutt']
-            self.start = osl.localize(datetime.strptime(startdt + ' 00 00', '%Y-%m-%d %H %M'))
-            self.end = osl.localize(datetime.strptime(enddt +' 23 59', '%Y-%m-%d %H %M'))
+            self.start = osl.localize(datetime.strptime(startdt + ' 00 00 00 00', '%Y-%m-%d %H %M %S'))
+            self.end = osl.localize(datetime.strptime(enddt +' 23 59 59 00', '%Y-%m-%d %H %M %S'))
         else:
             raise ParseError('Fant ikke uke/år eller start/slutt i {{tl|infoboks ukens konkurranse}}.')
 
@@ -1000,6 +1004,7 @@ if __name__ == '__main__':
     # Loop over users
     narticles = 0
     nbytes = 0
+    nnewpages = 0
     for u in uk.users:
         logf.write("=== %s ===\n" % u.name)
         
@@ -1023,6 +1028,7 @@ if __name__ == '__main__':
 
             narticles += len(u.articles)
             nbytes += u.bytes
+            nnewpages += u.newpages
 
         except ParseError as e:
             err = "\n* '''%s'''" % e.msg
@@ -1041,14 +1047,21 @@ if __name__ == '__main__':
     # Make outpage
     out = '== Resultater ==\n'
     out += '[[File:Nowp Ukens konkurranse %s.svg|thumb|400px|Resultater (oppdateres normalt hver natt i halv ett-tiden, viser kun de ti med høyest poengsum)]]\n' % uk.start.strftime('%Y-%W')
-
-    sammen = []
-    if StubFilter in [type(f) for f in uk.filters]:
-        sammen.append("avstubbet<div style=\"padding:4px;font-size:2.0em;color:#fff;text-shadow:-1px -1px #bbb,1px 1px #bbb\">'''%d</div>artikler'''" % narticles)
     
-    sammen.append("lagt til <div style=\"padding:4px;font-size:2.0em;color:#fff;text-shadow:-1px -1px #bbb,1px 1px #bbb\">'''%.f</div>kilobytes'''" % (nbytes/1000.))
 
-    out += "<div style=\"clear:right;float:right;width:14em;font-size:.9em; color:#fff;display:block;font-size:1.2em;padding:.3em;border-radius:5px;background:#ccdd00;border:2px solid #447744;text-align:center; box-shadow:0px 0px 5px #ccdd00;\">Til sammen har vi " + '\n'.join(["<div style=\"border-top:1px solid white;\">%s</div>" % s for s in sammen]) + "</div>"
+    sammen = '{{Ukens konkurranse status'
+    
+    if StubFilter in [type(f) for f in uk.filters]:
+        sammen += '|avstubbet=%d' % narticles
+    if nnewpages > 0:
+        sammen += '|nye=%d' % nnewpages
+    if nbytes >= 10000.:
+        sammen += '|kilobytes=%.f' % nbytes/1000.
+    else:
+        sammen += '|bytes=%d' % nbytes
+    sammen += '}}'
+
+    out += sammen + '\n'
 
     now = datetime.now()
     if args.end:

@@ -71,6 +71,16 @@ rosettfiler = {
 #  revtxt TEXT NOT NULL,
 #  PRIMARY KEY(revid, site)  
 #);
+#CREATE TABLE users (
+#  contest TEXT NOT NULL,
+#  user TEXT NOT NULL,
+#  week INTEGER NOT NULL,
+#  points REAL NOT NULL,
+#  bytes INTEGER NOT NULL,
+#  newpages INTEGER NOT NULL,
+#  PRIMARY KEY(contest, user)  
+#);
+
 
 #from ete2 import Tree
 
@@ -1128,7 +1138,13 @@ if __name__ == '__main__':
     if args.close:
         logf.write(" -> Delivering prices\n")
         uk.deliver_prices()
+
         cur = sql.cursor()
+        for u in uk.users:
+            arg = [kpage, u.name, int(uk.week), u.points, int(u.bytes), int(u.newpages)]
+            #print arg
+            cur.execute(u"INSERT INTO users (contest, user, week, points, bytes, newpages) VALUES (?,?,?,?,?,?)", arg )
+
         cur.execute(u'UPDATE contests SET closed=1 WHERE name=?', [kpage] )
         sql.commit()
         cur.close()

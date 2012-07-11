@@ -1065,10 +1065,10 @@ if __name__ == '__main__':
         sammen += '|avstubbet=%d' % narticles
     if nnewpages > 0:
         sammen += '|nye=%d' % nnewpages
-    if nbytes >= 10000.:
-        sammen += '|kilobytes=%.f' % nbytes/1000.
+    if nbytes >= 10000:
+        sammen += '|kilobytes=%.f' % (nbytes/1000.)
     else:
-        sammen += '|bytes=%d' % nbytes
+        sammen += '|bytes=%d' % (nbytes)
     sammen += '}}'
 
     out += sammen + '\n'
@@ -1110,10 +1110,12 @@ if __name__ == '__main__':
     out += '\n{{ukens konkurranse %s}}\n[[Kategori:Artikkelkonkurranser]]\n' % (uk.year)
 
     if not args.simulate:
-        logf.write(" -> Updating wiki, section = %d " % (uk.results_section))
+        logf.write(" -> Updating wiki, section = %d \n" % (uk.results_section))
         page = sites['no'].pages[kpage]
         if args.end:
-            page.save(out, summary = 'Oppdaterer resultater og avslutter konkurransen', section = uk.results_section)
+            page.save(out, summary = 'Oppdaterer med siste resultater og merker konkurransen som avsluttet', section = uk.results_section)
+        elif args.close:
+            page.save(out, summary = 'Kontrollerer og deler ut rosetter', section = uk.results_section)
         else:
             page.save(out, summary = 'Oppdaterer resultater', section = uk.results_section)
 

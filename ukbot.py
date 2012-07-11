@@ -204,12 +204,12 @@ class Revision(object):
         q = { 'title': self.article.name.encode('utf-8'), 'oldid': self.revid }
         if not self.new:
             q['diff'] = 'prev'
-        return 'http://' + self.article.site.host + self.article.site.site['script'] + '?' + urllib.urlencode(q)
+        return '//' + self.article.site.host + self.article.site.site['script'] + '?' + urllib.urlencode(q)
     
     def get_parent_link(self):
         """ returns a link to parent revision """
         q = { 'title': self.article.name.encode('utf-8'), 'oldid': self.parentid }
-        return 'http://' + self.article.site.host + self.article.site.site['script'] + '?' + urllib.urlencode(q)
+        return '//' + self.article.site.host + self.article.site.site['script'] + '?' + urllib.urlencode(q)
     
     def get_points(self, ptype = '', ignore_max = False):
         p = 0.0
@@ -880,7 +880,7 @@ class UK(object):
 
     def deliver_leader_notification(self, pagename):
         heading = '== Ukens konkurranse uke %s == ' % self.week
-        link = 'http://no.wikipedia.org/w/index.php?title=Bruker:UKBot/Premieutsendelse&action=edit&section=new&preload=Bruker:UKBot/Premieutsendelse/Preload&preloadtitle=send%20ut'
+        link = '//no.wikipedia.org/w/index.php?title=Bruker:UKBot/Premieutsendelse&action=edit&section=new&preload=Bruker:UKBot/Premieutsendelse/Preload&preloadtitle=send%20ut'
         for u in self.ledere:
             mld = '{{UK arrangør|visuk=nei|år=%s|uke=%s|gul=ja}}\n' % (self.year, self.week)
             mld += 'Du må nå sjekke resultatene. Hvis det er feilmeldinger nederst på [[%s|konkurransesiden]] må du sjekke om de relaterte bidragene har fått poengene de skal ha. Se også etter om det er kommentarer eller klager på diskusjonssiden. Hvis alt ser greit ut kan du trykke [%s her] (og lagre), så sender jeg ut rosetter ved første anledning. ' % (pagename, link)
@@ -892,7 +892,7 @@ class UK(object):
     
     def deliver_receipt_to_leaders(self):
         heading = 'Ukens konkurranse uke %s' % self.week
-        mld = '\n:Rosetter er nå [http://no.wikipedia.org/w/index.php?title=Spesial%3ABidrag&contribs=user&target=UKBot&namespace=3 sendt ut]. ~~~~'
+        mld = '\n:Rosetter er nå [//no.wikipedia.org/w/index.php?title=Spesial%3ABidrag&contribs=user&target=UKBot&namespace=3 sendt ut]. ~~~~'
         for u in self.ledere:
             page = self.sites['no'].pages['Brukerdiskusjon:' + u]
             self.logf.write(' -> Leverer kvittering til %s\n' % page.name)

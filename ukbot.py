@@ -159,8 +159,6 @@ class Article(object):
             dt = pytz.utc.localize(datetime.fromtimestamp(rev.timestamp))
             if include_suspension_period == True or self.user.suspended_since == None or dt < self.user.suspended_since:
                 p += rev.get_points(ptype, ignore_max)
-            else:
-                print "bidrag i suspenderingsperioden"
         return p
         #return np.sum([a.points for a in self.articles.values()])
 
@@ -495,8 +493,6 @@ class User(object):
                     dt = pytz.utc.localize(datetime.fromtimestamp(rev.timestamp))
                     if self.suspended_since == None or dt < self.suspended_since:
                         p += rev.get_points()
-                    else:
-                        print "bidrag i suspenderingsperioden"
         return p
         #return np.sum([a.points for a in self.articles.values()])
 
@@ -575,19 +571,20 @@ class User(object):
                 else:
                     cp = article.get_points(include_suspension_period = False)
 
-                out = '%.1f p' % ap
+                p = '%.1f p' % ap
                 if ap != cp:
-                    out = '<s>'+out+'</s>'
+                    p = '<s>'+p+'</s>'
                     if cp != 0.:
-                        out += '%.1f p' % cp
+                        p += '%.1f p' % cp
 
-                out = '[[:%s|%s]] (<abbr class="uk-ap">%s</abbr>)' % (article_key, article.name, out)
+                out = '[[:%s|%s]]' % (article_key, article.name)
                 if article_key in self.disqualified_articles:
                     out = '[[Fil:Qsicon Achtung.png|14px]] <s>' + out + '</s>'
                     titletxt += '<br /><strong>Merk:</strong> Bidragene til artikkelen fra denne brukeren er diskvalifisert og teller ikke i konkurransen'
                 elif cp != ap:
                     out = '[[Fil:Qsicon Achtung.png|14px]] ' + out
                     titletxt += '<br /><strong>Merk:</strong> En eller flere revisjoner er ikke talt med fordi de ble gjort mens brukeren var suspendert. Hvis suspenderingen oppheves vil bidragene telle med.'
+                out += ' (<abbr class="uk-ap">%s</abbr>)' % p
 
                 out = '# ' + out
                 out += '<div class="uk-ap-title" style="font-size: smaller; color:#888; line-height:100%;">' + titletxt + '</div>'
@@ -842,7 +839,7 @@ class UK(object):
                 ufound = False
                 for u in self.users:
                     if u.name == uname:
-                        print " > funnet"
+                        #print " > funnet"
                         u.suspended_since = sdate
                         ufound = True
                 if not ufound:
@@ -852,11 +849,11 @@ class UK(object):
             for templ in dp.templates['uk bidrag diskvalifisert']:
                 uname = templ.parameters[1]
                 aname = templ.parameters[2]
-                print 'Diskvalifiserte bidrag:',uname,aname
+                #print 'Diskvalifiserte bidrag:',uname,aname
                 ufound = False
                 for u in self.users:
                     if u.name == uname:
-                        print " > funnet"
+                        #print " > funnet"
                         u.disqualified_articles.append(aname)
                         ufound = True
                 if not ufound:

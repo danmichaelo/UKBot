@@ -119,20 +119,22 @@ class Site(mwclient.Site):
 
 class Article(object):
     
-    def __init__(self, site, name):
+    def __init__(self, site, user, name):
         """
         An article is uniquely identified by its name and its site
         """
         self.site = site
+        self.user = user
         #self.site_key = site.host.split('.')[0]
         self.name = name
+        self.disqualified = False
         
         self.revisions = odict()
         self.redirect = False
         self.errors = []
     
     def __repr__(self):
-        return ("<Article %s:%s>" % (self.site.key, self.name)).encode('utf-8')
+        return ("<Article %s:%s for user %s>" % (self.site.key, self.name, self.user.name)).encode('utf-8')
 
     @property
     def new(self):
@@ -148,10 +150,19 @@ class Article(object):
 
     @property
     def points(self):
+        """ The article score is the sum of the score for its revisions, independent of whether the article is disqualified or not """
         return np.sum([rev.get_points() for rev in self.revisions.values()])
 
-    def get_points(self, ptype = '', ignore_max = False):
-        return np.sum([rev.get_points(ptype, ignore_max) for rev in self.revisions.values()])
+    def get_points(self, ptype = '', ignore_max = False, include_suspension_period = True):
+        p = 0.
+        for revid, rev in self.revisions.iteritems():
+            dt = pytz.utc.localize(datetime.fromtimestamp(rev.timestamp))
+            if include_suspension_period == True or self.user.suspended_since == None or dt < self.user.suspended_since:
+                p += rev.get_points(ptype, ignore_max)
+            else:
+                print "bidrag i suspenderingsperioden"
+        return p
+        #return np.sum([a.points for a in self.articles.values()])
 
 
 class Revision(object):
@@ -228,6 +239,8 @@ class User(object):
         self.articles = odict()
         self.verbose = verbose
         self.uk = uk
+        self.suspended_since = None
+        self.disqualified_articles = []
 
     def __repr__(self):
         return ("<User %s>" % self.name).encode('utf-8')
@@ -276,7 +289,10 @@ class User(object):
             article_key = site_key + ':' + article_title
             
             if not article_key in self.articles:
-                self.articles[article_key] = Article(site, article_title) 
+                self.articles[article_key] = Article(site, self, article_title)
+                if article_key in self.disqualified_articles:
+                    self.articles[article_key].disqualified = True
+
                 new_articles.append(self.articles[article_key])
             
             article = self.articles[article_key]
@@ -416,7 +432,9 @@ class User(object):
             # Add article if not present
             if not article_key in self.articles:
                 narts +=1
-                self.articles[article_key] = Article(sites[site_key], article_title) 
+                self.articles[article_key] = Article(sites[site_key], self, article_title) 
+                if article_key in self.disqualified_articles:
+                    self.articles[article_key].disqualified = True
             article = self.articles[article_key]
             
             # Add revision if not present
@@ -469,7 +487,18 @@ class User(object):
     
     @property
     def points(self):
-        return np.sum([a.points for a in self.articles.values()])
+        """ The points for all the user's articles, excluding disqualified ones """
+        p = 0.
+        for article_key, article in self.articles.iteritems():
+            if not article_key in self.disqualified_articles:
+                for revid, rev in article.revisions.iteritems():
+                    dt = pytz.utc.localize(datetime.fromtimestamp(rev.timestamp))
+                    if self.suspended_since == None or dt < self.suspended_since:
+                        p += rev.get_points()
+                    else:
+                        print "bidrag i suspenderingsperioden"
+        return p
+        #return np.sum([a.points for a in self.articles.values()])
 
     def analyze(self, rules):
 
@@ -529,7 +558,10 @@ class User(object):
                         descr = ' + '.join(['%.1f p (%s)' % (p[0], p[2]) for p in rev.points])
                         dt = utc.localize(datetime.fromtimestamp(rev.timestamp))
                         dt_str = dt.astimezone(osl).strftime('%A, %H:%M').decode('utf-8')
-                        revs.append('[%s %s]: %s' % (rev.get_link(), dt_str, descr))
+                        out = '[%s %s]: %s' % (rev.get_link(), dt_str, descr)
+                        if self.suspended_since != None and dt > self.suspended_since:
+                            out = '<s>' + out + '</s>'
+                        revs.append(out)
                 
                 titletxt = 'Totalt %d bytes. Revisjoner:<br />' % article.bytes + '<br />'.join(revs)
                 try:
@@ -537,7 +569,27 @@ class User(object):
                 except AttributeError:
                     pass
                 
-                out = '# [[:%s|%s]] (<abbr class="uk-ap">%.1f p</abbr>)' % (article_key, article.name, article.points)
+                ap = article.points
+                if article_key in self.disqualified_articles:
+                    cp = 0.
+                else:
+                    cp = article.get_points(include_suspension_period = False)
+
+                out = '%.1f p' % ap
+                if ap != cp:
+                    out = '<s>'+out+'</s>'
+                    if cp != 0.:
+                        out += '%.1f p' % cp
+
+                out = '[[:%s|%s]] (<abbr class="uk-ap">%s</abbr>)' % (article_key, article.name, out)
+                if article_key in self.disqualified_articles:
+                    out = '[[Fil:Qsicon Achtung.png|14px]] <s>' + out + '</s>'
+                    titletxt += '<br /><strong>Merk:</strong> Bidragene til artikkelen fra denne brukeren er diskvalifisert og teller ikke i konkurransen'
+                elif cp != ap:
+                    out = '[[Fil:Qsicon Achtung.png|14px]] ' + out
+                    titletxt += '<br /><strong>Merk:</strong> En eller flere revisjoner er ikke talt med fordi de ble gjort mens brukeren var suspendert. Hvis suspenderingen oppheves vil bidragene telle med.'
+
+                out = '# ' + out
                 out += '<div class="uk-ap-title" style="font-size: smaller; color:#888; line-height:100%;">' + titletxt + '</div>'
                 
                 entries.append(out)
@@ -568,7 +620,17 @@ class User(object):
 
 class UK(object):
 
-    def __init__(self, txt, catignore, sites, logf, sql):
+    def __init__(self, page, catignore, sites, logf, sql):
+        """
+            page: mwclient.Page object
+            catignore: string
+            sites: list
+            logf: file object
+            sql: sqlite3 object
+        """
+        self.page = page
+        self.name = self.page.name
+        txt = page.edit(readonly = True)
 
         self.logf = logf
         self.sql = sql
@@ -621,6 +683,7 @@ class UK(object):
             raise ParseError('Klarte ikke tolke catignore-siden')
 
         # Read filters
+
         if 'ukens konkurranse kriterium' in dp.templates.keys():
             for templ in dp.templates['ukens konkurranse kriterium']:
                 p = templ.parameters
@@ -667,6 +730,7 @@ class UK(object):
                     raise ParseError('Ukjent argument gitt til {{ml|ukens konkurranse kriterium}}: '+key)
         
         # Read rules
+
         for templ in dp.templates['ukens konkurranse poeng']:
             p = templ.parameters
             anon = [[k,p[k]] for k in p.keys() if type(k) == int]
@@ -715,7 +779,7 @@ class UK(object):
                 raise ParseError('Ukjent argument gitt til {{ml|ukens konkurranse poeng}}: '+key)
         
         
-        # Read status
+        # Read infobox 
 
         try:
             infoboks = dp.templates['infoboks ukens konkurranse'][0]
@@ -738,14 +802,14 @@ class UK(object):
         else:
             raise ParseError('Fant ikke uke/år eller start/slutt i {{tl|infoboks ukens konkurranse}}.')
 
-        self.year= self.start.isocalendar()[0]
+        self.year = self.start.isocalendar()[0]
         self.week = self.start.isocalendar()[1]
 
         self.ledere = re.findall(r'\[\[Bruker:([^\|\]]+)', infoboks.parameters['leder'])
         if len(self.ledere) == 0:
             raise ParseError('Fant ingen konkurranseorganisatorer i {{tl|infoboks ukens konkurranse}}.')
 
-
+        
         self.prices = []
         for col in ['rød', 'blå', 'grå', 'lilla', 'brun']:
             if col in infoboks.parameters.keys():
@@ -763,6 +827,35 @@ class UK(object):
                             #raise ParseError('Klarte ikke tolke verdien til parameteren %s gitt til {{tl|infoboks ukens konkurranse}}.' % col)
 
         self.prices.sort(key = lambda x: x[2], reverse = True)
+        
+        # Read disqualifications
+
+        if 'uk bruker suspendert' in dp.templates:
+            for templ in dp.templates['uk bruker suspendert']:
+                uname = templ.parameters[1]
+                sdate = osl.localize(datetime.strptime(templ.parameters[2], '%Y-%m-%d %H:%M'))
+                print 'Suspendert bruker:',uname,sdate
+                for u in self.users:
+                    if u.name == uname:
+                        print " > funnet"
+                        u.suspended_since = sdate
+        
+        if 'uk bidrag diskvalifisert' in dp.templates:
+            for templ in dp.templates['uk bidrag diskvalifisert']:
+                uname = templ.parameters[1]
+                aname = templ.parameters[2]
+                print 'Diskvalifiserte bidrag:',uname,aname
+                for u in self.users:
+                    if u.name == uname:
+                        print " > funnet"
+                        u.disqualified_articles.append(aname)
+
+        print "ferdig"
+
+        try:
+            infoboks = dp.templates['infoboks ukens konkurranse'][0]
+        except:
+            raise ParseError('Klarte ikke å tolke innholdet i {{tl|infoboks ukens konkurranse}}-malen.')
 
         return rules, filters
 
@@ -908,11 +1001,6 @@ class UK(object):
     
     
     def delete_contribs_from_db(self):
-        """
-            sql   : sqlite3.Connection object
-            start : datetime object
-            end   : datetime object
-        """
         cur = self.sql.cursor()
         cur2 = self.sql.cursor()
         ts_start = self.start.astimezone(pytz.utc).strftime('%F %T')
@@ -925,6 +1013,39 @@ class UK(object):
         cur2.close()
         self.sql.commit()
 
+    def deliver_warnings(self):
+        """
+        Inform users about problems with their contribution(s)
+        """
+        cur = self.sql.cursor()
+        for u in self.users:
+            msgs = []
+            if u.suspended_since != None:
+                d = [self.name, u.name, 'suspension', '']
+                if len( cur.execute(u'SELECT id FROM notifications WHERE contest=? AND user=? AND class=? AND args=?', d).fetchall() ) == 0:
+                    msgs.append('Du er inntil videre suspendert fra konkurransen med virkning fra %s. Dette innebærer at dine bidrag gjort etter dette tidspunkt ikke teller i konkurransen, men alle bidrag blir registrert og skulle suspenderingen oppheves i løpet av konkurranseperioden vil også bidrag gjort i suspenderingsperioden telle med. Vi oppfordrer deg derfor til å arbeide med problemene som førte til suspenderingen slik at den kan oppheves.' % u.suspended_since.strftime('%e. %B %Y, %H:%M').decode('utf-8'))
+                    cur.execute(u'INSERT INTO notifications (contest, user, class, args) VALUES (?,?,?,?)', d)
+            for article_key, article in u.articles.iteritems():
+                if article.disqualified:
+                    d = [self.name, u.name, 'disqualified', article_key]
+                    if len( cur.execute(u'SELECT id FROM notifications WHERE contest=? AND user=? AND class=? AND args=?', d).fetchall() ) == 0:
+                        msgs.append('Bidragene dine til artikkelen [[%s|%s]] er diskvalifisert fra konkurransen. En diskvalifisering kan oppheves hvis du selv ordner opp i problemet som førte til diskvalifiseringen. Hvis andre brukere ordner opp i problemet er det ikke sikkert at den vil kunne oppheves.' % (':'+article_key, article.name))
+                        cur.execute(u'INSERT INTO notifications (contest, user, class, args) VALUES (?,?,?,?)', d)
+            
+            if len(msgs) > 0:
+                heading = '== Viktig informasjon angående Ukens konkurranse uke %s ==' % self.week
+                msg = 'Takk for innsatsen din i [[%(pagename)s|Ukens konkurranse uke %(week)s]] så langt. Det er dessverre registrert problemer med enkelte av dine bidrag som medfører at vi er nødt til å informere deg om følgende:\n' % { 'week': self.week, 'pagename': self.name }
+                for m in msgs:
+                    msg += '* %s\n' % m
+                msg += 'Hvordan problemene kan løses kan diskuteres på konkurransens diskusjonsside. ~~~~'
+                #print '------------------------------',u.name
+                #print msg
+                #print '------------------------------'
+
+                page = self.sites['no'].pages['Brukerdiskusjon:' + u.name]
+                self.logf.write(' -> Leverer advarsel til %s\n' % page.name)
+                page.save(text = msg, bot = False, section = 'new', summary = heading)
+            self.sql.commit()
 
 
 ############################################################################################################################
@@ -998,7 +1119,7 @@ if __name__ == '__main__':
         cur.close()
 
     try:
-        uk = UK(sites['no'].pages[kpage].edit(), sites['no'].pages[cpage].edit(), sites, logf, sql)
+        uk = UK(sites['no'].pages[kpage], sites['no'].pages[cpage].edit(), sites, logf, sql)
     except ParseError as e:
         err = "\n* '''%s'''" % e.msg
         page = sites['no'].pages[kpage]
@@ -1160,5 +1281,11 @@ if __name__ == '__main__':
         logf.write(" -> Cleaning DB\n")
         uk.delete_contribs_from_db()
 
-    # Plot
+    # Notify users about issues
+
+    if not args.simulate:
+        uk.deliver_warnings()
+
+    # Make a nice plot
+
     uk.plot()

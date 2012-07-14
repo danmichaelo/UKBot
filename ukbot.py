@@ -833,24 +833,34 @@ class UK(object):
         if 'uk bruker suspendert' in dp.templates:
             for templ in dp.templates['uk bruker suspendert']:
                 uname = templ.parameters[1]
-                sdate = osl.localize(datetime.strptime(templ.parameters[2], '%Y-%m-%d %H:%M'))
-                print 'Suspendert bruker:',uname,sdate
+                try:
+                    sdate = osl.localize(datetime.strptime(templ.parameters[2], '%Y-%m-%d %H:%M'))
+                except ValueError:
+                    raise ParseError('Klarte ikke å tolke datoen gitt til {{ml|UK bruker suspendert}}-malen.')
+
+                #print 'Suspendert bruker:',uname,sdate
+                ufound = False
                 for u in self.users:
                     if u.name == uname:
                         print " > funnet"
                         u.suspended_since = sdate
+                        ufound = True
+                if not ufound:
+                    raise ParseError('Fant ikke brukeren %s gitt til {{ml|UK bruker suspendert}}-malen.' % uname)
         
         if 'uk bidrag diskvalifisert' in dp.templates:
             for templ in dp.templates['uk bidrag diskvalifisert']:
                 uname = templ.parameters[1]
                 aname = templ.parameters[2]
                 print 'Diskvalifiserte bidrag:',uname,aname
+                ufound = False
                 for u in self.users:
                     if u.name == uname:
                         print " > funnet"
                         u.disqualified_articles.append(aname)
-
-        print "ferdig"
+                        ufound = True
+                if not ufound:
+                    raise ParseError('Fant ikke brukeren %s gitt til {{ml|UK bidrag diskvalifisert}}-malen.' % uname)
 
         try:
             infoboks = dp.templates['infoboks ukens konkurranse'][0]

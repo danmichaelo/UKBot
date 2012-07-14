@@ -811,7 +811,7 @@ class UK(object):
 
         
         self.prices = []
-        for col in ['rød', 'blå', 'grå', 'lilla', 'brun']:
+        for col in rosettfiler.keys():
             if col in infoboks.parameters.keys():
                 r = re.sub('<\!--.+?-->', '', infoboks.parameters[col]).strip() # strip comments, then whitespace
                 if r != '':

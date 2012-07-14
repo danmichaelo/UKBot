@@ -1130,6 +1130,14 @@ if __name__ == '__main__':
 
         cur.close()
 
+    # Check redirect page
+
+    if not args.simulate and not args.close and not args.end:
+        page = sites['no'].pages['WP:UK']
+        txt = '[[Omdirigering:%s]]' % kpage
+        if page.edit() != txt:
+            page.save(txt, summary = 'Omdirigering til '+kpage)
+
     try:
         uk = UK(sites['no'].pages[kpage], sites['no'].pages[cpage].edit(), sites, logf, sql)
     except ParseError as e:

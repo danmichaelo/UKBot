@@ -20,7 +20,7 @@ class StubFilter(Filter):
     def is_stub(self, text, logf, verbose = False):
         """ Checks if a given text is a stub """
 
-        m = re.search(r'{{[^}]*(?:stubb|spire)[^}]*}}', text)
+        m = re.search(r'{{[^}]*(?:stubb|spire)[^}]*}}', text, re.IGNORECASE)
         if m:
             if verbose:
                 logf.write(" >> %s " % m.group(0))

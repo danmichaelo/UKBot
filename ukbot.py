@@ -505,21 +505,26 @@ class User(object):
         
         # loop over articles
         for article_key, article in self.articles.iteritems():
+
+            if not article.disqualified:
             
-            # loop over revisions
-            for revid, rev in article.revisions.iteritems():
+                # loop over revisions
+                for revid, rev in article.revisions.iteritems():
 
-                rev.points = []
+                    rev.points = []
 
-                # loop over rules
-                for rule in rules:
-                    rule.test(rev)
+                    # loop over rules
+                    for rule in rules:
+                        rule.test(rev)
 
-                if rev.get_points() > 0:
-                    #print self.name, rev.timestamp, rev.get_points()
-                    ts = float(utc.localize(datetime.fromtimestamp(rev.timestamp)).astimezone(osl).strftime('%s'))
-                    x.append(ts)
-                    y.append(float(rev.get_points()))
+                    dt = pytz.utc.localize(datetime.fromtimestamp(rev.timestamp))
+                    if self.suspended_since == None or dt < self.suspended_since:
+
+                        if rev.get_points() > 0:
+                            #print self.name, rev.timestamp, rev.get_points()
+                            ts = float(utc.localize(datetime.fromtimestamp(rev.timestamp)).astimezone(osl).strftime('%s'))
+                            x.append(ts)
+                            y.append(float(rev.get_points()))
 
         x = np.array(x)
         y = np.array(y)

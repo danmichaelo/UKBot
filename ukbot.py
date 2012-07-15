@@ -235,10 +235,9 @@ class Revision(object):
 
 class User(object):
 
-    def __init__(self, username, contest, verbose = True):
+    def __init__(self, username, contest):
         self.name = username
         self.articles = odict()
-        self.verbose = verbose
         self.contest = contest
         self.suspended_since = None
         self.disqualified_articles = []
@@ -304,7 +303,7 @@ class User(object):
             
         # Always sort after we've added contribs
         self.sort_contribs()
-        if self.verbose and (len(new_revisions) > 0 or len(new_articles) > 0):
+        if len(new_revisions) > 0 or len(new_articles) > 0:
             self.contest.log.write(" -> [%s] Added %d new revisions, %d new articles from API\n" % (site_key, len(new_revisions), len(new_articles)))
 
         # 2) Check if pages are redirects (this information can not be cached, because other users may make the page a redirect)
@@ -339,7 +338,7 @@ class User(object):
                         rev.text = apirev['*']
                     if not rev.new:
                         parentids.append(rev.parentid)
-        if self.verbose and nr > 0:
+        if nr > 0:
             self.contest.log.write(" -> [%s] Checked %d of %d revisions, found %d parent revisions\n" % (site_key, nr, len(new_revisions), len(parentids)))
 
         if nr != len(new_revisions):
@@ -371,7 +370,7 @@ class User(object):
                     rev.parentsize = apirev['size']
                     if '*' in apirev.keys():
                         rev.parenttext = apirev['*']
-        if self.verbose and nr > 0:
+        if nr > 0:
             self.contest.log.write(" -> [%s] Checked %d parent revisions\n" % (site_key, nr))
 
     
@@ -406,7 +405,7 @@ class User(object):
 
         sql.commit()
         cur.close()
-        if self.verbose and (nrevs > 0 or ntexts > 0):
+        if nrevs > 0 or ntexts > 0:
             self.contest.log.write(" -> Wrote %d revisions and %d fulltexts to DB\n" % (nrevs, ntexts))
     
     def add_contribs_from_db(self, sql, start, end, sites):
@@ -459,7 +458,7 @@ class User(object):
         # Always sort after we've added contribs
         self.sort_contribs()
 
-        if self.verbose and (nrevs > 0 or narts > 0):
+        if nrevs > 0 or narts > 0:
             self.contest.log.write(" -> Added %d revisions, %d articles from DB\n" % (nrevs, narts))
 
     def filter(self, filters):
@@ -477,7 +476,7 @@ class User(object):
         self.sort_contribs()
 
         self.contest.log.write(" -> %d articles remain after filtering\n" % len(self.articles))
-        if self.verbose:
+        if self.contest.verbose:
             self.contest.log.write('----\n')
             for a in self.articles.iterkeys():
                 self.contest.log.write('%s\n' % a)
@@ -1111,7 +1110,8 @@ if __name__ == '__main__':
     cpage = 'Bruker:UKBot/cat-ignore'
 
     if args.log == '':
-        # note that this may fail if terminal encoding is not found!
+        # note that this may fail if terminal encoding is not found
+        # UnicodeEncodeError: 'ascii' codec can't encode character u'???' in position ??: ordinal not in range(128)
         logf = sys.stdout
     else:
         logf = codecs.open(args.log, 'a', 'utf-8')

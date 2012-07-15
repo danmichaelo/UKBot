@@ -192,10 +192,10 @@ class CatFilter(Filter):
                     titles = list(set(titles)) # to remove duplicates (not order preserving)
                     #if level == 0:
                     #    cattree = [p for p in titles]
-                    if self.verbose:
-                        self.log.write(' %d' % (len(titles)))
-                        #.stdout.flush()
-                        #print "Found %d unique categories (%d total) at level %d (skipped %d categories)" % (len(titles), nc, level, nnc)
+                    #if self.verbose:
+                    self.log.write(' %d' % (len(titles)))
+                    #.stdout.flush()
+                    #print "Found %d unique categories (%d total) at level %d (skipped %d categories)" % (len(titles), nc, level, nnc)
 
 
         return cats, parents 
@@ -211,8 +211,8 @@ class CatFilter(Filter):
     
     def filter(self, articles, debug = False):
         
-        if self.verbose:
-            self.log.write("  [+] Applying category filter")
+        #if self.verbose:
+        self.log.write("  [+] Applying category filter")
 
         cats, parents = self.fetchcats(articles, debug=debug)
 
@@ -248,9 +248,8 @@ class CatFilter(Filter):
 
                 out[article_key] = article
 
-        if self.verbose:
-            self.log.write(": %d -> %d\n" % (len(articles), len(out)))
-            #sys.stdout.flush()
+        #if self.verbose:
+        self.log.write(": %d -> %d\n" % (len(articles), len(out)))
         return out
 
 class ByteFilter(Filter):

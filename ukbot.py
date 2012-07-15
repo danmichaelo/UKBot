@@ -1134,7 +1134,7 @@ if __name__ == '__main__':
 
     if not args.simulate and not args.close and not args.end:
         page = sites['no'].pages['WP:UK']
-        txt = '[[#OMDIRIGERING:%s]]' % kpage
+        txt = '#OMDIRIGERING [[%s]]' % kpage
         if page.edit() != txt:
             page.save(txt, summary = 'Omdirigering til '+kpage)
 

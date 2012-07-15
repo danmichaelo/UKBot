@@ -159,6 +159,9 @@ class Article(object):
             dt = pytz.utc.localize(datetime.fromtimestamp(rev.timestamp))
             if include_suspension_period == True or self.user.suspended_since == None or dt < self.user.suspended_since:
                 p += rev.get_points(ptype, ignore_max)
+            else:
+                if self.user.contest.verbose:
+                    self.user.contest.log.write('!! Skipping revision %d in suspension period\n' % revid)
         return p
         #return np.sum([a.points for a in self.articles.values()])
 
@@ -232,11 +235,11 @@ class Revision(object):
 
 class User(object):
 
-    def __init__(self, username, uk, verbose = True):
+    def __init__(self, username, contest, verbose = True):
         self.name = username
         self.articles = odict()
         self.verbose = verbose
-        self.uk = uk
+        self.contest = contest
         self.suspended_since = None
         self.disqualified_articles = []
 
@@ -302,7 +305,7 @@ class User(object):
         # Always sort after we've added contribs
         self.sort_contribs()
         if self.verbose and (len(new_revisions) > 0 or len(new_articles) > 0):
-            self.uk.logf.write(" -> [%s] Added %d new revisions, %d new articles from API\n" % (site_key, len(new_revisions), len(new_articles)))
+            self.contest.log.write(" -> [%s] Added %d new revisions, %d new articles from API\n" % (site_key, len(new_revisions), len(new_articles)))
 
         # 2) Check if pages are redirects (this information can not be cached, because other users may make the page a redirect)
         #    If we fail to notice a redirect, the contributions to the page will be double-counted, so lets check
@@ -337,7 +340,7 @@ class User(object):
                     if not rev.new:
                         parentids.append(rev.parentid)
         if self.verbose and nr > 0:
-            self.uk.logf.write(" -> [%s] Checked %d of %d revisions, found %d parent revisions\n" % (site_key, nr, len(new_revisions), len(parentids)))
+            self.contest.log.write(" -> [%s] Checked %d of %d revisions, found %d parent revisions\n" % (site_key, nr, len(new_revisions), len(parentids)))
 
         if nr != len(new_revisions):
             raise StandardError("Did not get all revisions")
@@ -369,7 +372,7 @@ class User(object):
                     if '*' in apirev.keys():
                         rev.parenttext = apirev['*']
         if self.verbose and nr > 0:
-            self.uk.logf.write(" -> [%s] Checked %d parent revisions\n" % (site_key, nr))
+            self.contest.log.write(" -> [%s] Checked %d parent revisions\n" % (site_key, nr))
 
     
     def save_contribs_to_db(self, sql):
@@ -404,7 +407,7 @@ class User(object):
         sql.commit()
         cur.close()
         if self.verbose and (nrevs > 0 or ntexts > 0):
-            self.uk.logf.write(" -> Wrote %d revisions and %d fulltexts to DB\n" % (nrevs, ntexts))
+            self.contest.log.write(" -> Wrote %d revisions and %d fulltexts to DB\n" % (nrevs, ntexts))
     
     def add_contribs_from_db(self, sql, start, end, sites):
         """
@@ -457,23 +460,28 @@ class User(object):
         self.sort_contribs()
 
         if self.verbose and (nrevs > 0 or narts > 0):
-            self.uk.logf.write(" -> Added %d revisions, %d articles from DB\n" % (nrevs, narts))
+            self.contest.log.write(" -> Added %d revisions, %d articles from DB\n" % (nrevs, narts))
 
-    def filter(self, filters, debug = False):
+    def filter(self, filters):
 
         for filter in filters:
-            self.articles = filter.filter(self.articles, self.uk.logf)
+            if self.contest.verbose:
+                self.contest.log.write('>> Before %s (%d) : %s\n' % (type(filter).__name__, len(self.articles), ', '.join(self.articles.keys())))
+
+            self.articles = filter.filter(self.articles)
+            
+            if self.contest.verbose:
+                self.contest.log.write('>> After %s (%d) : %s\n' % (type(filter).__name__, len(self.articles), ', '.join(self.articles.keys())))
 
         # We should re-sort afterwards since not all filters preserve the order (notably the CatFilter)
         self.sort_contribs()
 
+        self.contest.log.write(" -> %d articles remain after filtering\n" % len(self.articles))
         if self.verbose:
-            self.uk.logf.write(" -> %d articles remain after filtering\n" % len(self.articles))
-        if debug:
-            self.uk.logf.write('----\n')
+            self.contest.log.write('----\n')
             for a in self.articles.iterkeys():
-                self.uk.logf.write('%s\n' % a)
-            self.uk.logf.write('----\n')
+                self.contest.log.write('%s\n' % a)
+            self.contest.log.write('----\n')
 
     @property
     def bytes(self):
@@ -546,10 +554,17 @@ class User(object):
         utc = pytz.utc
         osl = pytz.timezone('Europe/Oslo')
 
+        if self.contest.verbose:
+            self.contest.log.write('Formatting results for user %s\n' % self.name)
         # loop over articles
         for article_key, article in self.articles.iteritems():
             
-            if article.points != 0.0:
+            if article.points == 0.0:
+
+                if self.contest.verbose:
+                    self.contest.log.write('    %s: skipped (0 points)\n' % article_key)
+
+            else:
 
                 # loop over revisions
                 revs = []
@@ -595,6 +610,8 @@ class User(object):
                 out += '<div class="uk-ap-title" style="font-size: smaller; color:#888; line-height:100%;">' + titletxt + '</div>'
                 
                 entries.append(out)
+                self.contest.log.write('    %s: %.f / %.f points' % (article_key, cp, ap) )
+                self.contest.log.write('    -- %.f / %.f points\n' % (article.get_points(include_suspension_period = False), article.get_points(include_suspension_period = True)))
 
         ros = ''
         if closing:
@@ -622,19 +639,20 @@ class User(object):
 
 class UK(object):
 
-    def __init__(self, page, catignore, sites, logf, sql):
+    def __init__(self, page, catignore, sites, log, sql, verbose = False):
         """
             page: mwclient.Page object
             catignore: string
             sites: list
-            logf: file object
+            log: file object
             sql: sqlite3 object
         """
         self.page = page
         self.name = self.page.name
         txt = page.edit(readonly = True)
 
-        self.logf = logf
+        self.log = log
+        self.verbose = verbose
         self.sql = sql
         sections = [s.strip() for s in re.findall('^[\s]*==([^=]+)==', txt, flags = re.M)]
         self.results_section = sections.index('Resultater') + 1
@@ -643,7 +661,7 @@ class UK(object):
         self.users = [User(n, self) for n in self.extract_userlist(txt)]
         self.rules, self.filters = self.extract_rules(txt, catignore)
         
-        self.logf.write('== Uke %d == \n' % self.week)
+        self.log.write('== Uke %d == \n' % self.week)
 
     def extract_userlist(self, txt):
         lst = []
@@ -659,7 +677,7 @@ class UK(object):
             q = re.search(r'\[\[([^:]+):([^|\]]+)', d)
             if q:
                 lst.append(q.group(2))
-        self.logf.write(" -> Fant %d deltakere\n" % (len(lst)))
+        self.log.write(" -> Fant %d deltakere\n" % (len(lst)))
         return lst
 
 
@@ -697,35 +715,40 @@ class UK(object):
                 named = odict(named)
                 key = anon[0].lower()
 
+                params = { 'log': self.log, 'verbose': self.verbose }
                 if key == 'ny':
-                    filters.append(NewPageFilter())
+                    filters.append(NewPageFilter(**params))
 
                 elif key == 'eksisterende':
-                    filters.append(ExistingPageFilter())
+                    filters.append(ExistingPageFilter(**params))
 
                 elif key == 'stubb':
-                    filters.append(StubFilter())
+                    filters.append(StubFilter(**params))
                 
                 elif key == 'bytes':
                     if len(anon) < 2:
                         raise ParseError('Ingen bytesgrense (andre argument) ble gitt til {{mlp|ukens konkurranse kriterium|bytes}}')
-                    params = { 'bytelimit': anon[1] }
+                    params['bytelimit'] = anon[1]
                     filters.append(ByteFilter(**params))
 
                 elif key == 'kategori':
                     if len(anon) < 2:
                         raise ParseError('Ingen kategori(er) ble gitt til {{mlp|ukens konkurranse kriterium|kategori}}')
-                    params = { 'sites': self.sites, 'catnames': anon[1:], 'ignore': catignore }
+                    params['sites'] = self.sites
+                    params['catnames'] = anon[1:]
+                    params['ignore'] = catignore
                     if 'maksdybde' in named:
                         params['maxdepth'] = int(named['maksdybde'])
                     filters.append(CatFilter(**params))
 
                 elif key == 'tilbakelenke':
-                    params = { 'sites': self.sites, 'articles': anon[1:] }
+                    params['sites'] = self.sites
+                    params['articles'] = anon[1:]
                     filters.append(BackLinkFilter(**params))
                 
                 elif key == 'fremlenke':
-                    params = { 'sites': self.sites, 'articles': anon[1:] }
+                    params['sites'] = self.sites
+                    params['articles'] = anon[1:]
                     filters.append(ForwardLinkFilter(**params))
 
                 else: 
@@ -980,7 +1003,7 @@ class UK(object):
 
             if prizefound:
                 page = self.sites['no'].pages['Brukerdiskusjon:' + u.name]
-                self.logf.write(' -> Leverer melding til %s\n' % page.name)
+                self.log.write(' -> Leverer melding til %s\n' % page.name)
                 page.save(text = mld, bot = False, section = 'new', summary = heading)
 
     def deliver_leader_notification(self, pagename):
@@ -992,7 +1015,7 @@ class UK(object):
             mld += 'Hilsen ~~~~'
 
             page = self.sites['no'].pages['Brukerdiskusjon:' + u]
-            self.logf.write(' -> Leverer arrangørmelding til %s\n' % page.name)
+            self.log.write(' -> Leverer arrangørmelding til %s\n' % page.name)
             page.save(text = mld, bot = False, section = 'new', summary = heading)
     
     def deliver_receipt_to_leaders(self):
@@ -1000,7 +1023,7 @@ class UK(object):
         mld = '\n:Rosetter er nå [//no.wikipedia.org/w/index.php?title=Spesial%3ABidrag&contribs=user&target=UKBot&namespace=3 sendt ut]. ~~~~'
         for u in self.ledere:
             page = self.sites['no'].pages['Brukerdiskusjon:' + u]
-            self.logf.write(' -> Leverer kvittering til %s\n' % page.name)
+            self.log.write(' -> Leverer kvittering til %s\n' % page.name)
             
             # Find section number
             txt = page.edit()
@@ -1055,7 +1078,7 @@ class UK(object):
                 #print '------------------------------'
 
                 page = self.sites['no'].pages['Brukerdiskusjon:' + u.name]
-                self.logf.write(' -> Leverer advarsel til %s\n' % page.name)
+                self.log.write(' -> Leverer advarsel til %s\n' % page.name)
                 page.save(text = msg, bot = False, section = 'new', summary = heading)
             self.sql.commit()
 
@@ -1071,28 +1094,26 @@ if __name__ == '__main__':
         'no': Site('no.wikipedia.org'),
         'nn': Site('nn.wikipedia.org')
     }
-    #    'nn': mwclient.Site('nn.wikipedia.org')
-    #}
     for site in sites.itervalues():
         # login increases api limit from 50 to 500 
         site.login(*ukbotlogin)
 
-    #konkurranseside = 'Bruker:Danmichaelo/Sandkasse5'
-    #konkurranseside = 'Bruker:UKBot/Sandkasse2'
-    #konkurranseside = 'Wikipedia:Ukens konkurranse/Ukens konkurranse ' + year + '-' + week
-
     parser = argparse.ArgumentParser( description = 'The UKBot' )
-    parser.add_argument('--page', required=False, help='The page to update')
-    parser.add_argument('--output', nargs='?', default='', help='Write to output file')
-    parser.add_argument('--simulate', action='store_true', default=False, help='Do not write to wiki')
-    parser.add_argument('--log', nargs='?', default = 'ukbot.log', help='Log file')
+    parser.add_argument('--page', required=False, help='Name of the contest page to work with')
+    parser.add_argument('--simulate', action='store_true', default=False, help='Do not write results to wiki')
+    parser.add_argument('--output', nargs='?', default='', help='Write results to file')
+    parser.add_argument('--log', nargs='?', default = '', help='Log file')
+    parser.add_argument('--verbose', action='store_true', default=False, help='More verbose logging')
     parser.add_argument('--end', action='store_true', help='End contest')
     parser.add_argument('--close', action='store_true', help='Close contest')
     args = parser.parse_args()
 
     cpage = 'Bruker:UKBot/cat-ignore'
 
-    if args.log != '':
+    if args.log == '':
+        # note that this may fail if terminal encoding is not found!
+        logf = sys.stdout
+    else:
         logf = codecs.open(args.log, 'a', 'utf-8')
 
     sql = sqlite3.connect('uk.db')
@@ -1139,7 +1160,7 @@ if __name__ == '__main__':
             page.save(txt, summary = 'Omdirigering til '+kpage)
 
     try:
-        uk = UK(sites['no'].pages[kpage], sites['no'].pages[cpage].edit(), sites, logf, sql)
+        uk = UK(sites['no'].pages[kpage], sites['no'].pages[cpage].edit(), sites, logf, sql, verbose = args.verbose)
     except ParseError as e:
         err = "\n* '''%s'''" % e.msg
         page = sites['no'].pages[kpage]

@@ -222,8 +222,8 @@ class ByteBonusRule(Rule):
 
     def test(self, rev):
         abytes = 0.
-        for r in rev.article.revisions:
-            abytes += rev.bytes
+        for r in rev.article.revisions.itervalues():
+            abytes += r.bytes
             if r == rev and abytes >= self.limit:
                 rev.points.append([self.points, 'bytebonus', '&gt; %.f bytes' % self.limit ])
             elif abytes >= self.limit:
@@ -238,13 +238,13 @@ class WordBonusRule(Rule):
 
     def test(self, rev):
         awords = 0.
-        try:
-            for r in rev.article.revs:
-                awords += rev.get_wordcount()
-                if r == rev and awords >= self.limit:
-                    rev.points.append([self.points, 'wordbonus', '&gt; %d ord' % self.limit ])
-                elif awords >= self.limit:
-                    break
+        for r in rev.article.revisions.itervalues():
+            try:
+                awords += r.get_wordcount()
+            except DanmicholoParseError as e:
+                rev.article.errors.append('Det oppstod et problem ved parsing av revisjonen %d som kan ha påvirket ordtellingen for denne revisjonen: %s' % (r.revid, e.msg))
+            if r == rev and awords >= self.limit:
+                rev.points.append([self.points, 'wordbonus', '&gt; %d ord' % self.limit ])
+            elif awords >= self.limit:
+                break
         
-        except DanmicholoParseError as e:
-            rev.article.errors.append('Det oppstod et problem ved parsing av foreldrerevisjon %d som kan ha påvirket ordtellingen for denne revisjonen: %s' % (rev.parentid,e.msg))

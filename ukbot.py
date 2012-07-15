@@ -233,6 +233,12 @@ class Revision(object):
                     p += pnt[0]
         return p
 
+    def get_wordcount(self):
+        dp = DanmicholoParser(self.text)
+        dp2 = DanmicholoParser(self.parenttext)
+        return len(dp.maintext.split()) - len(dp2.maintext.split())
+
+
 class User(object):
 
     def __init__(self, username, contest):
@@ -798,6 +804,9 @@ class UK(object):
 
             elif key == 'bytebonus':
                 rules.append(ByteBonusRule(anon[1], anon[2]))
+
+            elif key == 'ordbonus':
+                rules.append(WordBonusRule(anon[1], anon[2]))
 
             else:
                 raise ParseError('Ukjent argument gitt til {{ml|ukens konkurranse poeng}}: '+key)

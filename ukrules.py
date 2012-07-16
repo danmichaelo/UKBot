@@ -3,7 +3,7 @@ from __future__ import unicode_literals
 import re
 import urllib
 from bs4 import BeautifulSoup
-from danmicholoparser import DanmicholoParser, DanmicholoParseError
+from danmicholoparser import DanmicholoParser, DanmicholoParseError, condition_for_soup
 
 
 class Rule(object):
@@ -163,29 +163,9 @@ class RefRule(Rule):
         self.refpoints = float(refpoints)
             
     def test(self, rev):
-        """
-        While BeautifulSoup and its parsers are robust, (unknown) tags with unquoted arguments seems to be an issue.
 
-        Let's first define a function to make things clearer:
-        >>> def f(str):
-        >>>     return ''.join([unicode(tag) for tag in BeautifulSoup(str, 'lxml').findAll('body')[0].contents])
-
-        Now, here is an unexpected result: the ref-tag is not read as closed and continue to eat the remaining text!
-        >>> f('<ref name=XYZ/>Mer tekst her')
-        <<< u'<ref name="XYZ/">Mer tekst her</ref>'
-
-        Add a space before / and we get the expected result:
-        >>> f('<ref name=XYZ />Mer tekst her')
-        <<< u'<ref name="XYZ"></ref>Mer tekst her'
-
-        Therefore we try to fix this before sending the text to BS
-        """
-
-        ptext = re.sub(r'name\s?=\s?([^"\s]+)/>', 'name=\1 />', rev.parenttext)
-        text = re.sub(r'name\s?=\s?([^"\s]+)/>', 'name=\1 />', rev.text)
-
-        parentsoup = BeautifulSoup(ptext, 'lxml')
-        soup = BeautifulSoup(text, 'lxml')
+        parentsoup = BeautifulSoup(condition_for_soup(ptext), 'lxml')
+        soup = BeautifulSoup(condition_for_soup(text), 'lxml')
 
         allref1 = parentsoup.findAll('ref')
         s1 = len([r for r in allref1 if len(r.contents) > 0])

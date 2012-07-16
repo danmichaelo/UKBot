@@ -1052,10 +1052,21 @@ class UK(object):
         cur2 = self.sql.cursor()
         ts_start = self.start.astimezone(pytz.utc).strftime('%F %T')
         ts_end = self.end.astimezone(pytz.utc).strftime('%F %T')
-        for row in cur.execute(u"SELECT site,revid FROM contribs WHERE timestamp >= ? AND timestamp <= ?", (ts_start, ts_end)):
-            cur2.execute(u"DELETE FROM fulltexts WHERE site=? AND revid=?", row)
+        ndel = 0
+        for row in cur.execute(u"SELECT site,revid,parentid FROM contribs WHERE timestamp >= ? AND timestamp <= ?", (ts_start, ts_end)):
+            row2 = cur2.execute(u"DELETE FROM fulltexts WHERE site=? AND revid=?", [row[0],row[1]])
+            ndel += row2.rowcount
+            row2 = cur2.execute(u"DELETE FROM fulltexts WHERE site=? AND revid=?", [row[0],row[2]])
+            ndel += row2.rowcount
+        
+        nremain = cur.execute('SELECT COUNT(*) FROM fulltexts').fetchone()[0]
+        self.log.write('> Cleaned %d rows from fulltexts-table. %d rows remain\n' % (ndel, nremain))
 
-        cur.execute(u"""DELETE FROM contribs WHERE timestamp >= ? AND timestamp <= ?""", (ts_start, ts_end))
+        row = cur.execute(u"""DELETE FROM contribs WHERE timestamp >= ? AND timestamp <= ?""", (ts_start, ts_end))
+        ndel = row.rowcount
+        nremain = cur.execute('SELECT COUNT(*) FROM contribs').fetchone()[0]
+        self.log.write('> Cleaned %d rows from contribs-table. %d rows remain\n' % (ndel, nremain))
+
         cur.close()
         cur2.close()
         self.sql.commit()

@@ -146,8 +146,9 @@ class ImageRule(Rule):
         nimages_p = self.get_imagecount(rev.parenttext)
         imgs = nimages - nimages_p
 
-        revpoints = imgs * self.points
-        self.add_points(rev, revpoints, 'image', '%d bilde%s' % (imgs, 'r' if imgs > 1 else ''), self.maxpoints)
+        if imgs > 0:
+            revpoints = imgs * self.points
+            self.add_points(rev, revpoints, 'image', '%d bilde%s' % (imgs, 'r' if imgs > 1 else ''), self.maxpoints)
  
 
 class RefRule(Rule):

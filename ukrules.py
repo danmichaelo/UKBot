@@ -164,8 +164,8 @@ class RefRule(Rule):
             
     def test(self, rev):
 
-        parentsoup = BeautifulSoup(condition_for_soup(ptext), 'lxml')
-        soup = BeautifulSoup(condition_for_soup(text), 'lxml')
+        parentsoup = BeautifulSoup(condition_for_soup(rev.parenttext), 'lxml')
+        soup = BeautifulSoup(condition_for_soup(rev.text), 'lxml')
 
         allref1 = parentsoup.findAll('ref')
         s1 = len([r for r in allref1 if len(r.contents) > 0])

@@ -234,9 +234,13 @@ class Revision(object):
         return p
 
     def get_wordcount(self):
-        dp = DanmicholoParser(self.text)
-        dp2 = DanmicholoParser(self.parenttext)
-        return len(dp.maintext.split()) - len(dp2.maintext.split())
+        try:
+            return self._wordcount
+        except:
+            dp = DanmicholoParser(self.text)
+            dp2 = DanmicholoParser(self.parenttext)
+            self._wordcount = len(dp.maintext.split()) - len(dp2.maintext.split())
+            return self._wordcount
 
 
 class User(object):

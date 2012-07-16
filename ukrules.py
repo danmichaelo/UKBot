@@ -218,10 +218,10 @@ class ByteBonusRule(Rule):
     def __init__(self, points, limit):
         Rule.__init__(self)
         self.points = float(points)
-        self.limit = float(limit)
+        self.limit = int(limit)
 
     def test(self, rev):
-        abytes = 0.
+        abytes = 0
         for r in rev.article.revisions.itervalues():
             abytes += r.bytes
             if r == rev and abytes >= self.limit:
@@ -234,10 +234,10 @@ class WordBonusRule(Rule):
     def __init__(self, points, limit):
         Rule.__init__(self)
         self.points = float(points)
-        self.limit = float(limit)
+        self.limit = int(limit)
 
     def test(self, rev):
-        awords = 0.
+        awords = 0
         for r in rev.article.revisions.itervalues():
             try:
                 awords += r.get_wordcount()

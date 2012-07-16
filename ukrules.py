@@ -103,31 +103,19 @@ class WordRule(Rule):
         self.points = float(points)
         self.maxpoints = float(maxpoints)
 
-    def get_wordcount(self, txt):
-        dp = DanmicholoParser(txt)
-        return len(dp.maintext.split())
+    #def get_wordcount(self, txt):
+    #    dp = DanmicholoParser(txt)
+    #    return len(dp.maintext.split())
 
     def test(self, rev):
 
         try:
-            nwords = self.get_wordcount(rev.text)
-        except DanmicholoParseError as e:
-            rev.article.errors.append('Det oppstod et problem ved parsing av revisjon %d som kan ha påvirket ordtellingen for denne revisjonen: %s' % (rev.revid,e.msg))
-            nwords = -1
-        
-        try:
-            nwords_p = self.get_wordcount(rev.parenttext)
-        except DanmicholoParseError as e:
-            rev.article.errors.append('Det oppstod et problem ved parsing av foreldrerevisjon %d som kan ha påvirket ordtellingen for denne revisjonen: %s' % (rev.parentid,e.msg))
-            nwords_p = -1
-
-        if nwords == -1 or nwords_p == -1:
-            # oh noes!
-            pass
-        else:
-            words = nwords - nwords_p
+            words = rev.get_wordcount()
             revpoints = words * self.points
             self.add_points(rev, revpoints, 'word', '%.f ord' % words, self.maxpoints)
+
+        except DanmicholoParseError as e:
+            rev.errors.append('Ordtelling kunne ikke gjennomføres for revisjon %d pga. følgende feil: %s' % (rev.revid, e.msg))
 
 
 class ImageRule(Rule):
@@ -223,7 +211,8 @@ class WordBonusRule(Rule):
             try:
                 awords += r.get_wordcount()
             except DanmicholoParseError as e:
-                rev.article.errors.append('Det oppstod et problem ved parsing av revisjonen %d som kan ha påvirket ordtellingen for denne revisjonen: %s' % (r.revid, e.msg))
+                #rev.article.errors.append('Det oppstod et problem ved parsing av revisjonen %d som kan ha påvirket ordtellingen for denne revisjonen: %s' % (r.revid, e.msg))
+                pass # messages usually always passed from WordRule anyway
             if r == rev and awords >= self.limit:
                 rev.points.append([self.points, 'wordbonus', '&gt; %d ord' % self.limit ])
             elif awords >= self.limit:

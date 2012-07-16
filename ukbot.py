@@ -177,6 +177,7 @@ class Revision(object):
           - revid: (int) revision id
         """
         self.article = article
+        self.errors = []
 
         self.revid = revid
         self.size = -1
@@ -586,6 +587,8 @@ class User(object):
                         out = '[%s %s]: %s' % (rev.get_link(), dt_str, descr)
                         if self.suspended_since != None and dt > self.suspended_since:
                             out = '<s>' + out + '</s>'
+                        if len(rev.errors) > 0:
+                            out = '[[File:Ambox warning yellow.svg|12px|%s]] ' % (', '.join(rev.errors)) + out
                         revs.append(out)
                 
                 titletxt = 'Totalt %d bytes. Revisjoner:<br />' % article.bytes + '<br />'.join(revs)
@@ -1274,8 +1277,15 @@ if __name__ == '__main__':
     article_errors = {}
     for u in uk.users:
         for article in u.articles.itervalues():
+            k = article.site.key+':'+article.name
             if len(article.errors) > 0:
-                article_errors[article.site.key+':'+article.name] = article.errors
+                article_errors[k] = article.errors
+            for rev in article.revisions.itervalues():
+                if len(rev.errors) > 0:
+                    if k in article_errors:
+                        article_errors[k].extend(rev.errors)
+                    else:
+                        article_errors[k] = rev.errors
 
     errors = []
     for art, err in article_errors.iteritems():

@@ -147,6 +147,10 @@ class Article(object):
     @property
     def bytes(self):
         return np.sum([rev.bytes for rev in self.revisions.itervalues()])
+    
+    @property
+    def words(self):
+        return np.sum([rev.words for rev in self.revisions.itervalues()])
 
     @property
     def points(self):
@@ -209,6 +213,25 @@ class Revision(object):
         return self.size - self.parentsize
 
     @property
+    def words(self):
+        try:
+            return self._wordcount
+        except:
+            dp = DanmicholoParser(self.text)
+            dp2 = DanmicholoParser(self.parenttext)
+            try:
+                self._wordcount = len(dp.maintext.split()) - len(dp2.maintext.split())
+                if len(dp.parse_errors) > 0:
+                    self.errors.append('Et problem med revisjon %d kan ha påvirket ordtellingen for denne: <nowiki>%s</nowiki> ' % (self.revid, dp.parse_errors[0]))
+                if len(dp2.parse_errors) > 0:
+                    self.errors.append('Et problem med revisjon %d kan ha påvirket ordtellingen for denne: <nowiki>%s</nowiki> ' % (self.parentid, dp2.parse_errors[0]))
+            except DanmicholoParseError as e:
+                print "!!!>> FAIL",self.revid,self.article.name
+                self._wordcount = 0
+                raise
+            return self._wordcount
+
+    @property
     def new(self):
         return (self.parentid == 0)
     
@@ -233,15 +256,6 @@ class Revision(object):
                 else:
                     p += pnt[0]
         return p
-
-    def get_wordcount(self):
-        try:
-            return self._wordcount
-        except:
-            dp = DanmicholoParser(self.text)
-            dp2 = DanmicholoParser(self.parenttext)
-            self._wordcount = len(dp.maintext.split()) - len(dp2.maintext.split())
-            return self._wordcount
 
 
 class User(object):
@@ -591,11 +605,13 @@ class User(object):
                             out = '[[File:Ambox warning yellow.svg|12px|%s]] ' % (', '.join(rev.errors)) + out
                         revs.append(out)
                 
-                titletxt = 'Totalt %d bytes. Revisjoner:<br />' % article.bytes + '<br />'.join(revs)
+                titletxt = ''
                 try:
-                    titletxt += '<br />Kategoritreff: ' + ' &gt; '.join(article.cat_path)
+                    titletxt = 'Kategoritreff: ' + ' &gt; '.join(article.cat_path) + '<br />'
                 except AttributeError:
                     pass
+                titletxt += '<br />'.join(revs)
+                titletxt += '<div style="border-top:1px solid #CCC">Totalt {{formatnum:%d}} bytes, %d ord.</div>' % (article.bytes, article.words)
                 
                 ap = article.points
                 if article_key in self.disqualified_articles:
@@ -612,10 +628,10 @@ class User(object):
                 out = '[[:%s|%s]]' % (article_key, article.name)
                 if article_key in self.disqualified_articles:
                     out = '[[Fil:Qsicon Achtung.png|14px]] <s>' + out + '</s>'
-                    titletxt += '<br /><strong>Merk:</strong> Bidragene til artikkelen fra denne brukeren er diskvalifisert og teller ikke i konkurransen'
+                    titletxt += '<div style="border-top:1px solid red; background:#ffcccc;"><strong>Merk:</strong> Bidragene til artikkelen fra denne brukeren er diskvalifisert og teller ikke i konkurransen</div>'
                 elif cp != ap:
                     out = '[[Fil:Qsicon Achtung.png|14px]] ' + out
-                    titletxt += '<br /><strong>Merk:</strong> En eller flere revisjoner er ikke talt med fordi de ble gjort mens brukeren var suspendert. Hvis suspenderingen oppheves vil bidragene telle med.'
+                    titletxt += '<div style="border-top:1px solid red; background:#ffcccc;"><strong>Merk:</strong> En eller flere revisjoner er ikke talt med fordi de ble gjort mens brukeren var suspendert. Hvis suspenderingen oppheves vil bidragene telle med.</div>'
                 out += ' (<abbr class="uk-ap">%s</abbr>)' % p
 
                 out = '# ' + out

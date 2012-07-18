@@ -1444,7 +1444,7 @@ if __name__ == '__main__':
 
     # Update WP:UK
 
-    if not args.simulate and not args.close and not ending:
+    if re.match('^Wikipedia:Ukens konkurranse/Ukens konkurranse', kpage) and not args.simulate and not args.close and not ending:
         page = sites['no'].pages['WP:UK']
         txt = '#OMDIRIGERING [[%s]]' % kpage
         if page.edit() != txt:

@@ -691,9 +691,9 @@ class UK(object):
         self.rules, self.filters = self.extract_rules(txt, catignore)
         
         if self.startweek == self.endweek:
-            self.log.write('== Uke %d == \n' % self.startweek)
+            self.log.write('@ Uke %d \n' % self.startweek)
         else:
-            self.log.write('== Uke %d–%d == \n' % (self.startweek, self.endweek))
+            self.log.write('@ Uke %d–%d \n' % (self.startweek, self.endweek))
 
     def extract_userlist(self, txt):
         lst = []
@@ -709,7 +709,7 @@ class UK(object):
             q = re.search(r'\[\[([^:]+):([^|\]]+)', d)
             if q:
                 lst.append(q.group(2))
-        self.log.write(" -> Fant %d deltakere\n" % (len(lst)))
+        self.log.write("@ Fant %d deltakere\n" % (len(lst)))
         return lst
 
 
@@ -1168,15 +1168,25 @@ class UK(object):
 ############################################################################################################################
 
 if __name__ == '__main__':
+    
+    runstart = datetime.now()
 
-    from wp_private import ukbotlogin
+    # "Hard" settings
+
     sites = {
         'no': Site('no.wikipedia.org'),
         'nn': Site('nn.wikipedia.org')
     }
+    cpage = 'Bruker:UKBot/cat-ignore'
+    
+    # Login to increase api limit from 50 to 500 
+
+    from wp_private import ukbotlogin
     for site in sites.itervalues():
-        # login increases api limit from 50 to 500 
         site.login(*ukbotlogin)
+    del ukbotlogin
+    
+    # Read args
 
     parser = argparse.ArgumentParser( description = 'The UKBot' )
     parser.add_argument('--page', required=False, help='Name of the contest page to work with')
@@ -1184,11 +1194,8 @@ if __name__ == '__main__':
     parser.add_argument('--output', nargs='?', default='', help='Write results to file')
     parser.add_argument('--log', nargs='?', default = '', help='Log file')
     parser.add_argument('--verbose', action='store_true', default=False, help='More verbose logging')
-    parser.add_argument('--end', action='store_true', help='End contest')
     parser.add_argument('--close', action='store_true', help='Close contest')
     args = parser.parse_args()
-
-    cpage = 'Bruker:UKBot/cat-ignore'
 
     if args.log == '':
         # note that this may fail if terminal encoding is not found
@@ -1197,7 +1204,12 @@ if __name__ == '__main__':
     else:
         logf = codecs.open(args.log, 'a', 'utf-8')
 
+    logf.write('-----------------------------------------------------------------\n')
+    logf.write('UKBot starting at %s\n' % (runstart.strftime('%F %T')))
+
     sql = sqlite3.connect('uk.db')
+
+    # Determine kpage
 
     if args.close:
         # Check if there are contests to be closed
@@ -1219,26 +1231,20 @@ if __name__ == '__main__':
     else:
         kpage = args.page
 
+    # Is kpage redirect? Resolve
+
+    logf.write('@ kpage is %s\n' % kpage)
+    pp = sites['no'].api('query', prop = 'pageprops', titles = kpage, redirects = '1')
+    if 'redirects' in pp['query']:
+        kpage = pp['query']['redirects'][0]['to']
+        logf.write('  -> Redirected to:  %s\n' % kpage)
+
+    # Check that we're not given some very wrong page
+
     if not (re.match('^Wikipedia:Ukens konkurranse/Ukens konkurranse', kpage) or re.match('^Bruker:UKBot/Sandkasse', kpage)):
         raise StandardError('I refuse to work with that page!')
-    
-    if args.end:
-        logf.write(" -> Ending contest\n")
-        cur = sql.cursor()
-        if len(cur.execute(u'SELECT ended FROM contests WHERE name=? AND ended=1', [kpage] ).fetchall()) == 1:
-            logf.write(" -> Feil: Konkurransen er allerede avsluttet!\n")
-            print "Konkurransen kunne ikke avsluttes da den allerede er avsluttet"
-            sys.exit(1)
 
-        cur.close()
-
-    # Check redirect page
-
-    if not args.simulate and not args.close and not args.end:
-        page = sites['no'].pages['WP:UK']
-        txt = '#OMDIRIGERING [[%s]]' % kpage
-        if page.edit() != txt:
-            page.save(txt, summary = 'Omdirigering til '+kpage)
+    # Initialize the contest
 
     try:
         uk = UK(sites['no'].pages[kpage], sites['no'].pages[cpage].edit(), sites, logf, sql, verbose = args.verbose)
@@ -1254,7 +1260,25 @@ if __name__ == '__main__':
         print '!! Konkurransen ble forsokt avsluttet av andre enn konkurranseleder'
         sys.exit(0)
 
+    # Check if contest is to be ended
+    
+    logf.write('@ Contest open from %s to %s\n' % (uk.start.strftime('%F %T'), uk.end.strftime('%F %T')))
+    osl = pytz.timezone('Europe/Oslo')
+    now = osl.localize(datetime.now())
+    ending = False
+    if now > uk.end:
+        ending = True
+        logf.write("  -> Ending contest\n")
+        cur = sql.cursor()
+        if len(cur.execute(u'SELECT ended FROM contests WHERE name=? AND ended=1', [kpage] ).fetchall()) == 1:
+            logf.write("  -> Already ended. Abort\n")
+            #print "Konkurransen kunne ikke avsluttes da den allerede er avsluttet"
+            sys.exit(0)
+
+        cur.close()
+
     # Loop over users
+
     narticles = 0
     nbytes = 0
     nnewpages = 0
@@ -1294,10 +1318,11 @@ if __name__ == '__main__':
             raise
 
     # Sort users by points
+
     uk.users.sort( key = lambda x: x.points, reverse = True )
 
-
     # Make outpage
+
     out = '== Resultater ==\n'
     out += '[[File:Nowp Ukens konkurranse %s.svg|thumb|400px|Resultater (oppdateres normalt hver natt i halv ett-tiden, viser kun de ti med høyest poengsum)]]\n' % uk.start.strftime('%Y-%W')
     
@@ -1317,7 +1342,7 @@ if __name__ == '__main__':
     out += sammen + '\n'
 
     now = datetime.now()
-    if args.end:
+    if ending:
         out += "''Konkurransen er nå avsluttet – takk til alle som deltok! Rosetter vil bli delt ut så snart konkurransearrangøren(e) har sjekket resultatene.''\n\n"
     elif args.close:
         out += "''Konkurransen er nå avsluttet – takk til alle som deltok!''\n\n"
@@ -1362,7 +1387,7 @@ if __name__ == '__main__':
     if not args.simulate:
         logf.write(" -> Updating wiki, section = %d \n" % (uk.results_section))
         page = sites['no'].pages[kpage]
-        if args.end:
+        if ending:
             page.save(out, summary = 'Oppdaterer med siste resultater og merker konkurransen som avsluttet', section = uk.results_section)
         elif args.close:
             page.save(out, summary = 'Kontrollerer og deler ut rosetter', section = uk.results_section)
@@ -1375,7 +1400,7 @@ if __name__ == '__main__':
         f.write(out)
         f.close()
 
-    if args.end:
+    if ending:
         logf.write(" -> Ending contest\n")
         uk.deliver_leader_notification(kpage)
 
@@ -1417,6 +1442,20 @@ if __name__ == '__main__':
     if not args.simulate:
         uk.deliver_warnings()
 
+    # Update WP:UK
+
+    if not args.simulate and not args.close and not ending:
+        page = sites['no'].pages['WP:UK']
+        txt = '#OMDIRIGERING [[%s]]' % kpage
+        if page.edit() != txt:
+            page.save(txt, summary = 'Omdirigering til '+kpage)
+
     # Make a nice plot
 
     uk.plot()
+
+    runend = datetime.now()
+    runtime = (runend - runstart).total_seconds()
+    logf.write('UKBot finishing at %s. Runtime was %.f seconds.\n' % (runstart.strftime('%F %T'), runtime))
+    logf.close()
+

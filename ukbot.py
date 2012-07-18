@@ -639,8 +639,9 @@ class User(object):
                 out += '<div class="uk-ap-title" style="font-size: smaller; color:#888; line-height:100%;">' + titletxt + '</div>'
                 
                 entries.append(out)
-                self.contest.log.write('    %s: %.f / %.f points' % (article_key, cp, ap) )
-                self.contest.log.write('    -- %.f / %.f points\n' % (article.get_points(include_suspension_period = False), article.get_points(include_suspension_period = True)))
+                if self.verbose:
+                    self.contest.log.write('    %s: %.f / %.f points' % (article_key, cp, ap) )
+                    self.contest.log.write('    -- %.f / %.f points\n' % (article.get_points(include_suspension_period = False), article.get_points(include_suspension_period = True)))
 
         ros = ''
         if closing:
@@ -1456,6 +1457,6 @@ if __name__ == '__main__':
 
     runend = datetime.now()
     runtime = (runend - runstart).total_seconds()
-    logf.write('UKBot finishing at %s. Runtime was %.f seconds.\n' % (runstart.strftime('%F %T'), runtime))
+    logf.write('UKBot finishing at %s. Runtime was %.f seconds.\n' % (runend.strftime('%F %T'), runtime))
     logf.close()
 

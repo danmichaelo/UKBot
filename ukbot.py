@@ -78,6 +78,7 @@ rosettfiler = {
 #  points REAL NOT NULL,
 #  bytes INTEGER NOT NULL,
 #  newpages INTEGER NOT NULL,
+#  week2 INTEGER NOT NULL,
 #  PRIMARY KEY(contest, user)  
 #);
 
@@ -689,7 +690,10 @@ class UK(object):
         self.users = [User(n, self) for n in self.extract_userlist(txt)]
         self.rules, self.filters = self.extract_rules(txt, catignore)
         
-        self.log.write('== Uke %d == \n' % self.week)
+        if self.startweek == self.endweek:
+            self.log.write('== Uke %d == \n' % self.startweek)
+        else:
+            self.log.write('== Uke %d–%d == \n' % (self.startweek, self.endweek))
 
     def extract_userlist(self, txt):
         lst = []
@@ -847,9 +851,16 @@ class UK(object):
 
         if 'år' in infoboks.parameters and 'uke' in infoboks.parameters:
             year = infoboks.parameters['år']
-            week = infoboks.parameters['uke']
-            self.start = osl.localize(datetime.strptime(year+' '+week+' 1 00 00 00', '%Y %W %w %H %M %S'))
-            self.end = osl.localize(datetime.strptime(year+' '+week+' 0 23 59 59', '%Y %W %w %H %M %S'))
+            startweek = infoboks.parameters['uke']
+            if 'ukefler' in infoboks.parameters and  != '' :
+                endweek = re.sub('<\!--.+?-->', '', infoboks.parameters['ukefler']).strip()
+                if endweek == '':
+                    endweek = startweek
+            else:
+                endweek = startweek
+
+            self.start = osl.localize(datetime.strptime(year+' '+startweek+' 1 00 00 00', '%Y %W %w %H %M %S'))
+            self.end = osl.localize(datetime.strptime(year+' '+endweek+' 0 23 59 59', '%Y %W %w %H %M %S'))
         elif 'start' in infoboks.parameters and 'slutt' in infoboks.parameters:
             startdt = infoboks.parameters['start']
             enddt = infoboks.parameters['slutt']
@@ -859,7 +870,8 @@ class UK(object):
             raise ParseError('Fant ikke uke/år eller start/slutt i {{tl|infoboks ukens konkurranse}}.')
 
         self.year = self.start.isocalendar()[0]
-        self.week = self.start.isocalendar()[1]
+        self.startweek = self.start.isocalendar()[1]
+        self.endweek = self.end.isocalendar()[1]
 
         self.ledere = re.findall(r'\[\[Bruker:([^\|\]]+)', infoboks.parameters['leder'])
         if len(self.ledere) == 0:
@@ -999,11 +1011,17 @@ class UK(object):
             # ncol = 4, loc = 3, bbox_to_anchor = (0., 1.02, 1., .102), mode = "expand", borderaxespad = 0.
             loc = 2, bbox_to_anchor = (1.0, 1.0), borderaxespad = 0., frameon = 0.
         )
-        plt.savefig('Nowp Ukens konkurranse %d-%d.svg' % (self.year, self.week), dpi = 200)
+        if self.startweek == self.endweek:
+            plt.savefig('Nowp Ukens konkurranse %d-%d.svg' % (self.year, self.startweek), dpi = 200)
+        else:
+            plt.savefig('Nowp Ukens konkurranse %d-%d-%d.svg' % (self.year, self.startweek, self.endweek), dpi = 200)
 
     def deliver_prices(self):
 
-        heading = '== Ukens konkurranse uke %s == ' % self.week
+        if self.startweek == self.endweek:
+            heading = '== Ukens konkurranse uke %d == ' % self.startweek
+        else:
+            heading = '== Ukens konkurranse uke %d–%d == ' % (self.startweek, self.endweek)
         for i, u in enumerate(self.users):
 
             prizefound = False
@@ -1012,7 +1030,10 @@ class UK(object):
                 for r in self.prices:
                     if r[1] == 'winner':
                         prizefound = True
-                        mld += '{{UK vinner|visuk=nei|år=%s|uke=%s|%s=ja' % (self.year, self.week, r[0])
+                        if self.startweek == self.endweek:
+                            mld += '{{UK vinner|visuk=nei|år=%d|uke=%d|%s=ja' % (self.year, self.startweek, r[0])
+                        else:
+                            mld += '{{UK vinner|visuk=nei|år=%d|uke=%d|ukefler=%d|%s=ja' % (self.year, self.startweek, self.endweek, r[0])
                         break
                 for r in self.prices:
                     if r[1] == 'pointlimit' and u.points >= r[2]:
@@ -1024,7 +1045,10 @@ class UK(object):
                 for r in self.prices:
                     if r[1] == 'pointlimit' and u.points >= r[2]:
                         prizefound = True
-                        mld += '{{UK deltaker|visuk=nei|år=%s|uke=%s|%s=ja}}\n' % (self.year, self.week, r[0])
+                        if self.startweek == self.endweek:
+                            mld += '{{UK deltaker|visuk=nei|år=%d|uke=%d|%s=ja}}\n' % (self.year, self.startweek, r[0])
+                        else:
+                            mld += '{{UK deltaker|visuk=nei|år=%d|uke=%d|ukefler=%d|%s=ja}}\n' % (self.year, self.startweek, self.endweek, r[0])
                         break
 
             now = datetime.now()
@@ -1038,10 +1062,16 @@ class UK(object):
                 page.save(text = mld, bot = False, section = 'new', summary = heading)
 
     def deliver_leader_notification(self, pagename):
-        heading = '== Ukens konkurranse uke %s == ' % self.week
+        if self.startweek == self.endweek:
+            heading = '== Ukens konkurranse uke %d == ' % self.startweek
+        else:
+            heading = '== Ukens konkurranse uke %d–%d == ' % (self.startweek, self.endweek)
         link = '//no.wikipedia.org/w/index.php?title=Bruker:UKBot/Premieutsendelse&action=edit&section=new&preload=Bruker:UKBot/Premieutsendelse/Preload&preloadtitle=send%20ut'
         for u in self.ledere:
-            mld = '{{UK arrangør|visuk=nei|år=%s|uke=%s|gul=ja}}\n' % (self.year, self.week)
+            if self.startweek == self.endweek:
+                mld = '{{UK arrangør|visuk=nei|år=%d|uke=%d|gul=ja}}\n' % (self.year, self.startweek)
+            else:
+                mld = '{{UK arrangør|visuk=nei|år=%d|uke=%d|ukefler=%d|gul=ja}}\n' % (self.year, self.startweek, self.endweek)
             mld += 'Du må nå sjekke resultatene. Hvis det er feilmeldinger nederst på [[%s|konkurransesiden]] må du sjekke om de relaterte bidragene har fått poengene de skal ha. Se også etter om det er kommentarer eller klager på diskusjonssiden. Hvis alt ser greit ut kan du trykke [%s her] (og lagre), så sender jeg ut rosetter ved første anledning. ' % (pagename, link)
             mld += 'Hilsen ~~~~'
 
@@ -1050,7 +1080,10 @@ class UK(object):
             page.save(text = mld, bot = False, section = 'new', summary = heading)
     
     def deliver_receipt_to_leaders(self):
-        heading = 'Ukens konkurranse uke %s' % self.week
+        if self.startweek == self.endweek:
+            heading = 'Ukens konkurranse uke %d' % self.startweek
+        else:
+            heading = 'Ukens konkurranse uke %d–%d' % (self.startweek, self.endweek
         mld = '\n:Rosetter er nå [//no.wikipedia.org/w/index.php?title=Spesial%3ABidrag&contribs=user&target=UKBot&namespace=3 sendt ut]. ~~~~'
         for u in self.ledere:
             page = self.sites['no'].pages['Brukerdiskusjon:' + u]
@@ -1110,8 +1143,11 @@ class UK(object):
                         cur.execute(u'INSERT INTO notifications (contest, user, class, args) VALUES (?,?,?,?)', d)
             
             if len(msgs) > 0:
-                heading = '== Viktig informasjon angående Ukens konkurranse uke %s ==' % self.week
-                msg = 'Takk for innsatsen din i [[%(pagename)s|Ukens konkurranse uke %(week)s]] så langt. Det er dessverre registrert problemer med enkelte av dine bidrag som medfører at vi er nødt til å informere deg om følgende:\n' % { 'week': self.week, 'pagename': self.name }
+                if self.startweek == self.endweek:
+                    heading = '== Viktig informasjon angående Ukens konkurranse uke %d ==' % self.startweek
+                else:
+                    heading = '== Viktig informasjon angående Ukens konkurranse uke %d–%d ==' % (self.startweek, self.endweek)
+                msg = 'Takk for innsatsen din i [[%(pagename)s|ukens konkurranses]] så langt. Det er dessverre registrert problemer med enkelte av dine bidrag som medfører at vi er nødt til å informere deg om følgende:\n' % { 'pagename': self.name }
                 for m in msgs:
                     msg += '* %s\n' % m
                 msg += 'Hvordan problemene kan løses kan diskuteres på konkurransens diskusjonsside. ~~~~'
@@ -1355,9 +1391,11 @@ if __name__ == '__main__':
 
         cur = sql.cursor()
         for u in uk.users:
-            arg = [kpage, u.name, int(uk.week), u.points, int(u.bytes), int(u.newpages)]
+            arg = [kpage, u.name, int(uk.startweek), u.points, int(u.bytes), int(u.newpages),'']
+            if uk.startweek != uk.endweek:
+                arg[-1] = int(uk.endweek)
             #print arg
-            cur.execute(u"INSERT INTO users (contest, user, week, points, bytes, newpages) VALUES (?,?,?,?,?,?)", arg )
+            cur.execute(u"INSERT INTO users (contest, user, week, points, bytes, newpages, week2) VALUES (?,?,?,?,?,?,?)", arg )
 
         cur.execute(u'UPDATE contests SET closed=1 WHERE name=?', [kpage] )
         sql.commit()

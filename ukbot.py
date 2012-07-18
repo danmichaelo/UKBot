@@ -852,7 +852,7 @@ class UK(object):
         if 'år' in infoboks.parameters and 'uke' in infoboks.parameters:
             year = infoboks.parameters['år']
             startweek = infoboks.parameters['uke']
-            if 'ukefler' in infoboks.parameters and  != '' :
+            if 'ukefler' in infoboks.parameters:
                 endweek = re.sub('<\!--.+?-->', '', infoboks.parameters['ukefler']).strip()
                 if endweek == '':
                     endweek = startweek
@@ -951,8 +951,12 @@ class UK(object):
 
         t0 = float(self.start.strftime('%s'))
 
-        xt = t0 + np.arange(8) * 86400
-        xt_mid = t0 + 43200 + np.arange(7) * 86400
+        ndays = 7
+        if self.startweek != self.endweek:
+            ndays = 14
+
+        xt = t0 + np.arange(ndays + 1) * 86400
+        xt_mid = t0 + 43200 + np.arange(ndays) * 86400
 
         now = float(datetime.now().strftime('%s'))
 
@@ -987,10 +991,10 @@ class UK(object):
         ax.set_xticks(xt_mid, minor = True)
         ax.set_xticklabels(['Man','Tir','Ons','Tors','Fre','Lør','Søn'], minor = True)
 
-        for i in range(1,7,2):
+        for i in range(1,ndays,2):
             ax.axvspan(xt[i], xt[i+1], facecolor='#000099', linewidth=0., alpha=0.03)
 
-        for i in range(0,7,2):
+        for i in range(0,ndays,2):
             ax.axvspan(xt[i], xt[i+1], facecolor='#000099', linewidth=0., alpha=0.07)
 
         for line in ax.xaxis.get_ticklines(minor = False):
@@ -1002,19 +1006,17 @@ class UK(object):
         for line in ax.yaxis.get_ticklines(minor = False):
             line.set_markersize(0)
 
-        ax.set_xlim(t0, xt[-1])
-        ax.set_ylim(0, 1.05*np.max(yall))
+        if len(yall) > 0:
+            ax.set_xlim(t0, xt[-1])
+            ax.set_ylim(0, 1.05*np.max(yall))
 
-        plt.legend()
-        ax = plt.gca()
-        ax.legend( 
-            # ncol = 4, loc = 3, bbox_to_anchor = (0., 1.02, 1., .102), mode = "expand", borderaxespad = 0.
-            loc = 2, bbox_to_anchor = (1.0, 1.0), borderaxespad = 0., frameon = 0.
-        )
-        if self.startweek == self.endweek:
+            plt.legend()
+            ax = plt.gca()
+            ax.legend( 
+                # ncol = 4, loc = 3, bbox_to_anchor = (0., 1.02, 1., .102), mode = "expand", borderaxespad = 0.
+                loc = 2, bbox_to_anchor = (1.0, 1.0), borderaxespad = 0., frameon = 0.
+            )
             plt.savefig('Nowp Ukens konkurranse %d-%d.svg' % (self.year, self.startweek), dpi = 200)
-        else:
-            plt.savefig('Nowp Ukens konkurranse %d-%d-%d.svg' % (self.year, self.startweek, self.endweek), dpi = 200)
 
     def deliver_prices(self):
 
@@ -1083,7 +1085,7 @@ class UK(object):
         if self.startweek == self.endweek:
             heading = 'Ukens konkurranse uke %d' % self.startweek
         else:
-            heading = 'Ukens konkurranse uke %d–%d' % (self.startweek, self.endweek
+            heading = 'Ukens konkurranse uke %d–%d' % (self.startweek, self.endweek)
         mld = '\n:Rosetter er nå [//no.wikipedia.org/w/index.php?title=Spesial%3ABidrag&contribs=user&target=UKBot&namespace=3 sendt ut]. ~~~~'
         for u in self.ledere:
             page = self.sites['no'].pages['Brukerdiskusjon:' + u]

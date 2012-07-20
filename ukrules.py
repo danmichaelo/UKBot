@@ -187,12 +187,17 @@ class ByteBonusRule(Rule):
 
     def test(self, rev):
         abytes = 0
+        thisrev = False
+        passedlimit = False
         for r in rev.article.revisions.itervalues():
             abytes += r.bytes
-            if r == rev and abytes >= self.limit:
-                rev.points.append([self.points, 'bytebonus', 'bonus %.f bytes' % self.limit ])
-            elif abytes >= self.limit:
-                break
+            if passedlimit == False and abytes >= self.limit:
+                passedlimit = True
+                if r == rev:
+                    thisrev = True
+        
+        if abytes >= self.limit and thisrev == True:
+            rev.points.append([self.points, 'bytebonus', 'bonus %.f bytes' % self.limit ])
 
 class WordBonusRule(Rule):
     
@@ -202,15 +207,23 @@ class WordBonusRule(Rule):
         self.limit = int(limit)
 
     def test(self, rev):
+
+        # First check all revisions
         awords = 0
+        thisrev = False
+        passedlimit = False
         for r in rev.article.revisions.itervalues():
             try:
                 awords += r.words
             except DanmicholoParseError as e:
-                #rev.article.errors.append('Det oppstod et problem ved parsing av revisjonen %d som kan ha påvirket ordtellingen for denne revisjonen: %s' % (r.revid, e.msg))
                 pass # messages usually always passed from WordRule anyway
-            if r == rev and awords >= self.limit:
-                rev.points.append([self.points, 'wordbonus', 'bonus %d ord' % self.limit ])
-            elif awords >= self.limit:
-                break
+            
+            if passedlimit == False and awords >= self.limit:
+                passedlimit = True
+                if r == rev:
+                    thisrev = True
+
+        if awords >= self.limit and thisrev == True:
+            rev.points.append([self.points, 'wordbonus', 'bonus %d ord' % self.limit ])
+
         

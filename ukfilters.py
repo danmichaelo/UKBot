@@ -5,6 +5,15 @@ from copy import copy
 from odict import odict
 from danmicholoparser import DanmicholoParser, DanmicholoParseError
 
+class CategoryLoopError(Exception):
+    """Raised when a category loop is found. 
+
+    Attributes:
+        catpath -- category path followed while getting lost in the loop
+    """
+    def __init__(self, catpath):
+        self.catpath = catpath
+        self.msg = 'Entered a category loop'
 
 class Filter(object):
 

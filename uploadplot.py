@@ -25,10 +25,11 @@ if not os.path.isfile(filename):
 
 pagetext = """== {{int:filedesc}} ==
 {{Information
-|Description    ={{no|1=Resultater for [[:no:Wikipedia:Ukens konkurranse/Ukens konkurranse %(yearweek)s|Ukens konkurranse uke %(week)s, %(year)s]]}}{{en|1=Results from the weekly article writing challenge at Norwegian Bokmål/Nynorsk Wikipedia [[:no:Wikipedia:Ukens konkurranse/Ukens konkurranse %(yearweek)s|week %(week)s, %(year)s]]}}
-|Source         ={{own}}
-|Date           =%(weekstart)s
-|Author         =[[User:UKBot|UKBot]]
+|Description    = {{no|1=Resultater for [[:no:Wikipedia:Ukens konkurranse/Ukens konkurranse %(yearweek)s|Ukens konkurranse uke %(week)s, %(year)s]]}}
+{{en|1=Results from the weekly article writing contest at Norwegian Bokmål/Nynorsk Wikipedia [[:no:Wikipedia:Ukens konkurranse/Ukens konkurranse %(yearweek)s|week %(week)s, %(year)s]]}}
+|Source         = {{own}}
+|Date           = %(weekstart)s
+|Author         = [[User:UKBot|UKBot]]
 }}
 
 == {{int:license-header}} ==
@@ -40,11 +41,11 @@ from wp_private import ukbotlogin
 commons = mwclient.Site('commons.wikimedia.org')
 commons.login(*ukbotlogin)
 
+p = commons.pages['File:' + filename]
 f = open(filename, 'rb')
-forcenew = False
-if forcenew or (day == 0 and now.hour == 12):
-    commons.upload(f, filename, comment = 'Bot: Uploading new "Ukens konkurranse" plot at week-start', description = pagetext)
-else:
+if p.exists:
     commons.upload(f, filename, comment = 'Bot: Updating plot', ignore = True)
+else:
+    commons.upload(f, filename, comment = 'Bot: Uploading new "Ukens konkurranse" plot at week-start', description = pagetext)
 f.close()
 

@@ -720,7 +720,7 @@ class UK(object):
             raise ParseError('Denne konkurransen mangler en {{tl|infoboks ukens konkurranse}}-mal.')
 
         try:
-            catignore = dp2.tags['pre'][0]['content'].split()
+            catignore = dp2.tags['pre'][0]['content'].splitlines()
         except (IndexError, KeyError):
             raise ParseError('Klarte ikke tolke catignore-siden')
 

@@ -80,6 +80,8 @@ class CatFilter(Filter):
         self.sites = sites
         self.include = catnames
         self.maxdepth = int(maxdepth)
+        if self.verbose:
+            self.log.write("  CatFilter: %s\n" % (" OR ".join(self.include)))
 
  
     def fetchcats(self, articles, debug=False):
@@ -134,9 +136,9 @@ class CatFilter(Filter):
                     nnc = 0
             
                     for s0 in range(0, len(titles0), apilim):
-                        #if debug:
-                        #print
-                        #print "[%d] > Getting %d to %d of %d" % (level, s0, s0+apilim, len(titles0))
+                        if debug:
+                            print
+                            print "[%d] > Getting %d to %d of %d" % (level, s0, s0+apilim, len(titles0))
                         ids = '|'.join(titles0[s0:s0+apilim])
 
                         cont = True
@@ -162,6 +164,8 @@ class CatFilter(Filter):
                                         follow = True
                                         for d in self.ignore:
                                             if re.search(d, cat_short):
+                                                if self.verbose:
+                                                    self.log.write(' - Ignore: "%s" matched "%s"\n' % (cat_title, d))
                                                 follow = False
                                         if follow:
                                             nc += 1
@@ -182,8 +186,6 @@ class CatFilter(Filter):
                                                         #    if not cat_short.encode('utf-8') in [i.name for i in node.get_children()]:
                                                         #        node.add_child(name = cat_short.encode('utf-8'))
                                         else:
-                                            #if debug:
-                                            #    print "ignore",cat_title
                                             nnc += 1
                             if 'query-continue' in q:
                                 clcont = q['query-continue']['categories']['clcontinue']
@@ -203,8 +205,8 @@ class CatFilter(Filter):
     def check_article_cats(self, article_cats):
         """ Checks if article_cats contains any of the cats given in self.include """
         # loop over levels
-        for cats in article_cats:
-            for inc in self.include:
+        for inc in self.include:
+            for cats in article_cats:
                 if inc in cats:
                     return inc
         return None
@@ -228,6 +230,8 @@ class CatFilter(Filter):
                 for l,ca in enumerate(article_cats):
                     self.log.write('[%d] %s' % (l, ', '.join(ca)))
 
+            #print article_key
+            #print article_cats
             catname = self.check_article_cats(article_cats)
             if catname:
 

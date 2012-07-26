@@ -92,17 +92,6 @@ rosettfiler = {
 #pbar.finish()
 
 
-class CategoryLoopError(Exception):
-    """Raised when a category loop is found. 
-
-    Attributes:
-        catpath -- category path followed while getting lost in the loop
-    """
-    def __init__(self, catpath):
-        self.catpath = catpath
-        self.msg = 'Entered a category loop'
-
-
 class ParseError(Exception):
     """Raised when wikitext input is not on the expected form, so we don't find what we're looking for"""
     
@@ -990,7 +979,10 @@ class UK(object):
         ax.set_xticklabels([], minor = False)
         
         ax.set_xticks(xt_mid, minor = True)
-        ax.set_xticklabels(['Man','Tir','Ons','Tors','Fre','Lør','Søn'], minor = True)
+        if ndays == 7:
+            ax.set_xticklabels(['Man','Tir','Ons','Tors','Fre','Lør','Søn'], minor = True)
+        else:
+            ax.set_xticklabels(['Man','','Ons','','Fre','','Søn','','Tir','','Tor','','Lør', ''], minor = True)
 
         for i in range(1,ndays,2):
             ax.axvspan(xt[i], xt[i+1], facecolor='#000099', linewidth=0., alpha=0.03)

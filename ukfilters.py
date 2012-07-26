@@ -126,9 +126,11 @@ class CatFilter(Filter):
         for site_key, site in self.sites.iteritems():
             
             if 'bot' in site.rights:
-                apilim = 5000
+                requestlimit = 500
+                returnlimit = 5000
             else:
-                apilim = 50
+                requestlimit = 50
+                returnlimit = 500
 
             # Titles of articles that belong to this site
             titles = [article.name for article in articles.itervalues() if article.site.key == site_key]
@@ -144,20 +146,20 @@ class CatFilter(Filter):
                     nc = 0
                     nnc = 0
             
-                    for s0 in range(0, len(titles0), apilim):
+                    for s0 in range(0, len(titles0), requestlimit):
                         if debug:
                             print
-                            print "[%d] > Getting %d to %d of %d" % (level, s0, s0+apilim, len(titles0))
-                        ids = '|'.join(titles0[s0:s0+apilim])
+                            print "[%d] > Getting %d to %d of %d" % (level, s0, s0+requestlimit, len(titles0))
+                        ids = '|'.join(titles0[s0:s0+requestlimit])
 
                         cont = True
                         clcont = ''
                         while cont:
                             #print clcont
                             if clcont != '':
-                                q = site.api('query', prop = 'categories', titles = ids, cllimit = apilim, clcontinue = clcont)
+                                q = site.api('query', prop = 'categories', titles = ids, cllimit = returnlimit, clcontinue = clcont)
                             else:
-                                q = site.api('query', prop = 'categories', titles = ids, cllimit = apilim)
+                                q = site.api('query', prop = 'categories', titles = ids, cllimit = returnlimit)
                             
                             if 'warnings' in q:
                                 raise StandardError(q['warnings']['query']['*'])

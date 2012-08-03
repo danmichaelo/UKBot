@@ -669,6 +669,8 @@ class UK(object):
         self.page = page
         self.name = self.page.name
         txt = page.edit(readonly = True)
+        m = re.search('==\s*Resultater\s*==',txt)
+        txt = txt[:m.end()]
 
         self.log = log
         self.verbose = verbose

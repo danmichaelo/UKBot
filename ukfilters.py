@@ -126,7 +126,7 @@ class CatFilter(Filter):
         for site_key, site in self.sites.iteritems():
             
             if 'bot' in site.rights:
-                apilim = 5000
+                apilim = 500
             else:
                 apilim = 50
 

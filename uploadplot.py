@@ -17,7 +17,14 @@ if now.hour == 0:
 year, week, day = now.isocalendar()
 weekstart = now - datetime.timedelta(days = day-1)
 
-filename = 'Nowp Ukens konkurranse %s.svg' % now.strftime('%Y-%W')
+kpage = 'Wikipedia:Ukens konkurranse/Ukens konkurranse %s' % now.strftime('%Y-%W')
+no = mwclient.Site('no.wikipedia.org')
+pp = no.api('query', prop = 'pageprops', titles = kpage, redirects = '1')
+if 'redirects' in pp['query']:
+    kpage = pp['query']['redirects'][0]['to']
+
+yearweek = kpage.split()[-1]
+filename = 'Nowp Ukens konkurranse %s.svg' % yearweek
 
 if not os.path.isfile(filename):
     sys.stderr.write('File "%s" was not found\n' % filename)
@@ -35,7 +42,7 @@ pagetext = """== {{int:filedesc}} ==
 == {{int:license-header}} ==
 {{PD-self}}
 
-[[Category:Ukens konkurranse]]""" % { 'yearweek': now.strftime('%Y-%W'), 'week': now.strftime('%W'), 'year': now.strftime('%Y'), 'weekstart' : weekstart.strftime('%F') }
+[[Category:Ukens konkurranse]]""" % { 'yearweek': yearweek, 'week': now.strftime('%W'), 'year': now.strftime('%Y'), 'weekstart' : weekstart.strftime('%F') }
 
 from wp_private import ukbotlogin
 commons = mwclient.Site('commons.wikimedia.org')

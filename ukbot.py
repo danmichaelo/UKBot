@@ -669,6 +669,8 @@ class UK(object):
         self.page = page
         self.name = self.page.name
         txt = page.edit(readonly = True)
+        m = re.search('==\s*Resultater\s*==',txt)
+        txt = txt[:m.end()]
 
         self.log = log
         self.verbose = verbose
@@ -1259,7 +1261,7 @@ if __name__ == '__main__':
     osl = pytz.timezone('Europe/Oslo')
     now = osl.localize(datetime.now())
     ending = False
-    if now > uk.end:
+    if args.close == False and now > uk.end:
         ending = True
         logf.write("  -> Ending contest\n")
         cur = sql.cursor()

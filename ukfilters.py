@@ -4,6 +4,7 @@ import sys, re
 from copy import copy
 from odict import odict
 from danmicholoparser import DanmicholoParser, DanmicholoParseError
+from ukcommon import log
 
 class CategoryLoopError(Exception):
     """Raised when a category loop is found. 
@@ -17,15 +18,14 @@ class CategoryLoopError(Exception):
 
 class Filter(object):
 
-    def __init__(self, log, verbose):
-        self.log = log
+    def __init__(self, verbose):
         self.verbose = verbose
 
 class StubFilter(Filter):
     """ Filters articles that was stubs, but is no more """
 
-    def __init__(self, log, verbose):
-        Filter.__init__(self, log, verbose)
+    def __init__(self, verbose):
+        Filter.__init__(self, verbose)
 
     def is_stub(self, text):
         """ Checks if a given text is a stub """
@@ -33,7 +33,7 @@ class StubFilter(Filter):
         m = re.search(r'{{[^}]*(?:stubb|spire)[^}]*}}', text, re.IGNORECASE)
         if m:
             if self.verbose:
-                self.log.write(" >> %s " % m.group(0))
+                log(" >> %s " % m.group(0), newline = False)
             return True
         return False
 
@@ -62,35 +62,35 @@ class StubFilter(Filter):
                             out[article_key] = article
 
                         if self.verbose:
-                            self.log.write("\n")
+                            log('')
                 
             except DanmicholoParseError as e:
-                self.log.write(" >> DanmicholoParser failed to parse " + article_key + '\n')
+                log(" >> DanmicholoParser failed to parse " + article_key)
                 parentid = firstrev.parentid
                 article.site.errors.append('Artikkelen %s kunne ikke analyseres fordi en av revisjone %d eller %d ikke kunne parses: %s' % (article_key, firstrev.parentid, lastrev.revid, e.msg))
         
-        self.log.write("  [+] Applying stub filter: %d -> %d\n" % (len(articles), len(out)))
+        log("  [+] Applying stub filter: %d -> %d" % (len(articles), len(out)))
 
         return out
 
 class CatFilter(Filter):
     """ Filters articles that belong to a given overcategory """
 
-    def __init__(self, log, verbose, sites, catnames, maxdepth = 4, ignore = []):
+    def __init__(self, verbose, sites, catnames, maxdepth = 4, ignore = []):
         """
         Arguments:
             sites     : dict { 'no': <mwclient.client.Site>, ... }
             catnames  : list of category names
             maxdepth  : number of subcategory levels to traverse
         """
-        Filter.__init__(self, log, verbose)
+        Filter.__init__(self, verbose)
         
         self.ignore = ignore
         self.sites = sites
         self.include = catnames
         self.maxdepth = int(maxdepth)
         if self.verbose:
-            self.log.write("  CatFilter: %s\n" % (" OR ".join(self.include)))
+            log("  CatFilter: %s" % (" OR ".join(self.include)))
 
  
     def fetchcats(self, articles, debug=False):
@@ -135,7 +135,7 @@ class CatFilter(Filter):
             # Titles of articles that belong to this site
             titles = [article.name for article in articles.itervalues() if article.site.key == site_key]
             
-            self.log.write(' ['+site_key+':'+str(len(titles))+']')
+            log(' ['+site_key+':'+str(len(titles))+']', newline = False)
             #.flush()
             if len(titles) > 0:
         
@@ -176,7 +176,7 @@ class CatFilter(Filter):
                                         for d in self.ignore:
                                             if re.search(d, cat_short):
                                                 if self.verbose:
-                                                    self.log.write(' - Ignore: "%s" matched "%s"\n' % (cat_title, d))
+                                                    log(' - Ignore: "%s" matched "%s"' % (cat_title, d))
                                                 follow = False
                                         if follow:
                                             nc += 1
@@ -206,7 +206,7 @@ class CatFilter(Filter):
                     #if level == 0:
                     #    cattree = [p for p in titles]
                     #if self.verbose:
-                    self.log.write(' %d' % (len(titles)))
+                    log(' %d' % (len(titles)), newline = False)
                     #.stdout.flush()
                     #print "Found %d unique categories (%d total) at level %d (skipped %d categories)" % (len(titles), nc, level, nnc)
 
@@ -225,7 +225,7 @@ class CatFilter(Filter):
     def filter(self, articles, debug = False):
         
         #if self.verbose:
-        self.log.write("  [+] Applying category filter")
+        log("  [+] Applying category filter", newline = False)
 
         cats, parents = self.fetchcats(articles, debug=debug)
 
@@ -237,9 +237,9 @@ class CatFilter(Filter):
             #    print
             article = articles[article_key]
             if debug:
-                self.log.write(">>> %s"%article.name)
+                log(">>> %s" % article.name, newline = False)
                 for l,ca in enumerate(article_cats):
-                    self.log.write('[%d] %s' % (l, ', '.join(ca)))
+                    log('[%d] %s' % (l, ', '.join(ca)), newline = False)
 
             #print article_key
             #print article_cats
@@ -264,14 +264,14 @@ class CatFilter(Filter):
                 out[article_key] = article
 
         #if self.verbose:
-        self.log.write(": %d -> %d\n" % (len(articles), len(out)))
+        log(": %d -> %d" % (len(articles), len(out)))
         return out
 
 class ByteFilter(Filter):
     """Filters articles according to a byte treshold"""
 
-    def __init__(self, log, verbose, bytelimit):
-        Filter.__init__(self, log, verbose)
+    def __init__(self, verbose, bytelimit):
+        Filter.__init__(self, verbose)
         self.bytelimit = int(bytelimit)
 
     def filter(self, articles):
@@ -279,17 +279,17 @@ class ByteFilter(Filter):
         for article_key, article in articles.iteritems():
             if article.bytes >= self.bytelimit:
                 out[article_key] = article
-        self.log.write("  [+] Applying byte filter (%d bytes): %d -> %d\n" % (self.bytelimit, len(articles), len(out)))
+        log("  [+] Applying byte filter (%d bytes): %d -> %d" % (self.bytelimit, len(articles), len(out)))
         return out
 
 class NewPageFilter(Filter):
     """Filters new articles"""
 
-    def __init__(self, log, verbose):
-        Filter.__init__(self, log, verbose)
+    def __init__(self, verbose):
+        Filter.__init__(self, verbose)
 
-    def filter(self, articles, log):
-        self.log.write("  [+] Applying new page filter\n")
+    def filter(self, articles):
+        log("  [+] Applying new page filter")
         out = odict()
         for a, aa in articles.iteritems():
             if aa.new and not aa.redirect:
@@ -299,11 +299,11 @@ class NewPageFilter(Filter):
 class ExistingPageFilter(Filter):
     """ Filters non-new articles """
 
-    def __init__(self, log, verbose):
-        Filter.__init__(self, log, verbose)
+    def __init__(self, verbose):
+        Filter.__init__(self, verbose)
 
-    def filter(self, articles, log):
-        self.log.write("  [+] Applying existing page filter\n")
+    def filter(self, articles):
+        log("  [+] Applying existing page filter")
         out = odict()
         for aname, article in articles.iteritems():
             if not article.new:
@@ -313,13 +313,13 @@ class ExistingPageFilter(Filter):
 class BackLinkFilter(Filter):
     """Filters articles with backlinks to <name>"""
 
-    def __init__(self, log, verbose, sites, articles):
+    def __init__(self, verbose, sites, articles):
         """
         Arguments:
             sites     : dict { 'no': <mwclient.client.Site>, ... }
             articles  : list of article names
         """
-        Filter.__init__(self, log, verbose)
+        Filter.__init__(self, verbose)
         self.sites = sites
         self.articles = articles
         self.links = []
@@ -338,19 +338,19 @@ class BackLinkFilter(Filter):
         for article_key, article in articles.iteritems():
             if article_key in self.links:
                 out[article_key] = article
-        self.log.write("  [+] Applying backlink filter (%s): %d -> %d\n" % (','.join(self.articles), len(articles), len(out)))
+        log("  [+] Applying backlink filter (%s): %d -> %d" % (','.join(self.articles), len(articles), len(out)))
         return out
 
 class ForwardLinkFilter(Filter):
     """Filters articles with backlinks to <name>"""
 
-    def __init__(self, log, verbose, sites, articles):
+    def __init__(self, verbose, sites, articles):
         """
         Arguments:
             sites     : dict { 'no': <mwclient.client.Site>, ... }
             articles  : list of article names
         """
-        Filter.__init__(self, log, verbose)
+        Filter.__init__(self, verbose)
         self.sites = sites
         self.articles = articles
         self.links = []
@@ -369,5 +369,5 @@ class ForwardLinkFilter(Filter):
         for article_key, article in articles.iteritems():
             if article_key in self.links:
                 out[article_key] = article
-        self.log.write("  [+] Applying forward link filter (%s): %d -> %d\n" % (','.join(self.articles), len(articles), len(out)))
+        log("  [+] Applying forward link filter (%s): %d -> %d" % (','.join(self.articles), len(articles), len(out)))
         return out

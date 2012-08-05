@@ -16,6 +16,8 @@ import argparse
 import codecs
 
 from danmicholoparser import DanmicholoParser, DanmicholoParseError
+import ukcommon
+from ukcommon import log
 from ukrules import *
 from ukfilters import *
 
@@ -155,7 +157,7 @@ class Article(object):
                 p += rev.get_points(ptype, ignore_max)
             else:
                 if self.user.contest.verbose:
-                    self.user.contest.log.write('!! Skipping revision %d in suspension period\n' % revid)
+                    log('!! Skipping revision %d in suspension period' % revid)
         return p
         #return np.sum([a.points for a in self.articles.values()])
 
@@ -319,7 +321,7 @@ class User(object):
         # Always sort after we've added contribs
         self.sort_contribs()
         if len(new_revisions) > 0 or len(new_articles) > 0:
-            self.contest.log.write(" -> [%s] Added %d new revisions, %d new articles from API\n" % (site_key, len(new_revisions), len(new_articles)))
+            log(" -> [%s] Added %d new revisions, %d new articles from API" % (site_key, len(new_revisions), len(new_articles)))
 
         # 2) Check if pages are redirects (this information can not be cached, because other users may make the page a redirect)
         #    If we fail to notice a redirect, the contributions to the page will be double-counted, so lets check
@@ -354,7 +356,7 @@ class User(object):
                     if not rev.new:
                         parentids.append(rev.parentid)
         if nr > 0:
-            self.contest.log.write(" -> [%s] Checked %d of %d revisions, found %d parent revisions\n" % (site_key, nr, len(new_revisions), len(parentids)))
+            log(" -> [%s] Checked %d of %d revisions, found %d parent revisions" % (site_key, nr, len(new_revisions), len(parentids)))
 
         if nr != len(new_revisions):
             raise StandardError("Did not get all revisions")
@@ -386,7 +388,7 @@ class User(object):
                     if '*' in apirev.keys():
                         rev.parenttext = apirev['*']
         if nr > 0:
-            self.contest.log.write(" -> [%s] Checked %d parent revisions\n" % (site_key, nr))
+            log(" -> [%s] Checked %d parent revisions" % (site_key, nr))
 
     
     def save_contribs_to_db(self, sql):
@@ -421,7 +423,7 @@ class User(object):
         sql.commit()
         cur.close()
         if nrevs > 0 or ntexts > 0:
-            self.contest.log.write(" -> Wrote %d revisions and %d fulltexts to DB\n" % (nrevs, ntexts))
+            log(" -> Wrote %d revisions and %d fulltexts to DB" % (nrevs, ntexts))
     
     def add_contribs_from_db(self, sql, start, end, sites):
         """
@@ -474,28 +476,28 @@ class User(object):
         self.sort_contribs()
 
         if nrevs > 0 or narts > 0:
-            self.contest.log.write(" -> Added %d revisions, %d articles from DB\n" % (nrevs, narts))
+            log(" -> Added %d revisions, %d articles from DB" % (nrevs, narts))
 
     def filter(self, filters):
 
         for filter in filters:
             if self.contest.verbose:
-                self.contest.log.write('>> Before %s (%d) : %s\n' % (type(filter).__name__, len(self.articles), ', '.join(self.articles.keys())))
+                log('>> Before %s (%d) : %s' % (type(filter).__name__, len(self.articles), ', '.join(self.articles.keys())))
 
             self.articles = filter.filter(self.articles)
             
             if self.contest.verbose:
-                self.contest.log.write('>> After %s (%d) : %s\n' % (type(filter).__name__, len(self.articles), ', '.join(self.articles.keys())))
+                log('>> After %s (%d) : %s' % (type(filter).__name__, len(self.articles), ', '.join(self.articles.keys())))
 
         # We should re-sort afterwards since not all filters preserve the order (notably the CatFilter)
         self.sort_contribs()
 
-        self.contest.log.write(" -> %d articles remain after filtering\n" % len(self.articles))
+        log(" -> %d articles remain after filtering" % len(self.articles))
         if self.contest.verbose:
-            self.contest.log.write('----\n')
+            log('----')
             for a in self.articles.iterkeys():
-                self.contest.log.write('%s\n' % a)
-            self.contest.log.write('----\n')
+                log('%s' % a)
+            log('----')
 
     @property
     def bytes(self):
@@ -569,14 +571,14 @@ class User(object):
         osl = pytz.timezone('Europe/Oslo')
 
         if self.contest.verbose:
-            self.contest.log.write('Formatting results for user %s\n' % self.name)
+            log('Formatting results for user %s' % self.name)
         # loop over articles
         for article_key, article in self.articles.iteritems():
             
             if article.points == 0.0:
 
                 if self.contest.verbose:
-                    self.contest.log.write('    %s: skipped (0 points)\n' % article_key)
+                    log('    %s: skipped (0 points)' % article_key)
 
             else:
 
@@ -629,8 +631,8 @@ class User(object):
                 
                 entries.append(out)
                 if self.contest.verbose:
-                    self.contest.log.write('    %s: %.f / %.f points' % (article_key, cp, ap) )
-                    self.contest.log.write('    -- %.f / %.f points\n' % (article.get_points(include_suspension_period = False), article.get_points(include_suspension_period = True)))
+                    log('    %s: %.f / %.f points' % (article_key, cp, ap) , newline = False)
+                    log('    -- %.f / %.f points' % (article.get_points(include_suspension_period = False), article.get_points(include_suspension_period = True)))
 
         ros = ''
         if closing:
@@ -658,13 +660,13 @@ class User(object):
 
 class UK(object):
 
-    def __init__(self, page, catignore, sites, log, sql, verbose = False):
+    def __init__(self, page, catignore, sites, sql, verbose = False):
         """
             page: mwclient.Page object
             catignore: string
             sites: list
-            log: file object
             sql: sqlite3 object
+            verbose: boolean
         """
         self.page = page
         self.name = self.page.name
@@ -672,7 +674,6 @@ class UK(object):
         m = re.search('==\s*Resultater\s*==',txt)
         txt = txt[:m.end()]
 
-        self.log = log
         self.verbose = verbose
         self.sql = sql
         sections = [s.strip() for s in re.findall('^[\s]*==([^=]+)==', txt, flags = re.M)]
@@ -683,9 +684,9 @@ class UK(object):
         self.rules, self.filters = self.extract_rules(txt, catignore)
         
         if self.startweek == self.endweek:
-            self.log.write('@ Uke %d \n' % self.startweek)
+            log('@ Uke %d' % self.startweek)
         else:
-            self.log.write('@ Uke %d–%d \n' % (self.startweek, self.endweek))
+            log('@ Uke %d–%d' % (self.startweek, self.endweek))
 
     def extract_userlist(self, txt):
         lst = []
@@ -701,7 +702,7 @@ class UK(object):
             q = re.search(r'\[\[([^:]+):([^|\]]+)', d)
             if q:
                 lst.append(q.group(2))
-        self.log.write("@ Fant %d deltakere\n" % (len(lst)))
+        log("@ Fant %d deltakere" % (len(lst)))
         return lst
 
 
@@ -739,7 +740,7 @@ class UK(object):
                 named = odict(named)
                 key = anon[0].lower()
 
-                params = { 'log': self.log, 'verbose': self.verbose }
+                params = { 'verbose': self.verbose }
                 if key == 'ny':
                     filters.append(NewPageFilter(**params))
 
@@ -1055,7 +1056,7 @@ class UK(object):
 
             if prizefound:
                 page = self.sites['no'].pages['Brukerdiskusjon:' + u.name]
-                self.log.write(' -> Leverer melding til %s\n' % page.name)
+                log(' -> Leverer melding til %s' % page.name)
                 page.save(text = mld, bot = False, section = 'new', summary = heading)
 
     def deliver_leader_notification(self, pagename):
@@ -1073,7 +1074,7 @@ class UK(object):
             mld += 'Hilsen ~~~~'
 
             page = self.sites['no'].pages['Brukerdiskusjon:' + u]
-            self.log.write(' -> Leverer arrangørmelding til %s\n' % page.name)
+            log(' -> Leverer arrangørmelding til %s' % page.name)
             page.save(text = mld, bot = False, section = 'new', summary = heading)
     
     def deliver_receipt_to_leaders(self):
@@ -1084,7 +1085,7 @@ class UK(object):
         mld = '\n:Rosetter er nå [//no.wikipedia.org/w/index.php?title=Spesial%3ABidrag&contribs=user&target=UKBot&namespace=3 sendt ut]. ~~~~'
         for u in self.ledere:
             page = self.sites['no'].pages['Brukerdiskusjon:' + u]
-            self.log.write(' -> Leverer kvittering til %s\n' % page.name)
+            log(' -> Leverer kvittering til %s' % page.name)
             
             # Find section number
             txt = page.edit()
@@ -1109,12 +1110,12 @@ class UK(object):
             ndel += row2.rowcount
         
         nremain = cur.execute('SELECT COUNT(*) FROM fulltexts').fetchone()[0]
-        self.log.write('> Cleaned %d rows from fulltexts-table. %d rows remain\n' % (ndel, nremain))
+        log('> Cleaned %d rows from fulltexts-table. %d rows remain' % (ndel, nremain))
 
         row = cur.execute(u"""DELETE FROM contribs WHERE timestamp >= ? AND timestamp <= ?""", (ts_start, ts_end))
         ndel = row.rowcount
         nremain = cur.execute('SELECT COUNT(*) FROM contribs').fetchone()[0]
-        self.log.write('> Cleaned %d rows from contribs-table. %d rows remain\n' % (ndel, nremain))
+        log('> Cleaned %d rows from contribs-table. %d rows remain' % (ndel, nremain))
 
         cur.close()
         cur2.close()
@@ -1153,7 +1154,7 @@ class UK(object):
                 #print '------------------------------'
 
                 page = self.sites['no'].pages['Brukerdiskusjon:' + u.name]
-                self.log.write(' -> Leverer advarsel til %s\n' % page.name)
+                log(' -> Leverer advarsel til %s' % page.name)
                 page.save(text = msg, bot = False, section = 'new', summary = heading)
             self.sql.commit()
 
@@ -1192,15 +1193,11 @@ if __name__ == '__main__':
     parser.add_argument('--close', action='store_true', help='Close contest')
     args = parser.parse_args()
 
-    if args.log == '':
-        # note that this may fail if terminal encoding is not found
-        # UnicodeEncodeError: 'ascii' codec can't encode character u'???' in position ??: ordinal not in range(128)
-        logf = sys.stdout
-    else:
-        logf = codecs.open(args.log, 'a', 'utf-8')
+    if args.log != '':
+        ukcommon.logfile = open(args.log, 'a')
 
-    logf.write('-----------------------------------------------------------------\n')
-    logf.write('UKBot starting at %s\n' % (runstart.strftime('%F %T')))
+    log('-----------------------------------------------------------------')
+    log('UKBot starting at %s' % (runstart.strftime('%F %T')))
 
     sql = sqlite3.connect('uk.db')
 
@@ -1211,28 +1208,27 @@ if __name__ == '__main__':
         cur = sql.cursor()
         rows = cur.execute(u'SELECT name FROM contests WHERE ended=1 AND closed=0 LIMIT 1').fetchall()
         if len(rows) == 0:
-            logf.write(" -> Fant ingen konkurranser å avslutte!\n")
+            log(" -> Fant ingen konkurranser å avslutte!")
             sys.exit(0)
         cur.close()
         kpage = rows[0][0]
-        logf.write(" -> Contest %s is to be closed\n" % rows[0])
+        log(" -> Contest %s is to be closed" % rows[0])
         lastrev = sites['no'].pages['Bruker:UKBot/Premieutsendelse'].revisions(prop='user|comment').next()
         closeuser = lastrev['user']
         revc = lastrev['comment']
         if revc != 'Nytt avsnitt: /* send ut */':
-            logf.write('>> Ikke klar til utsendelse\n')
-            logf.close()
+            log('>> Ikke klar til utsendelse')
             sys.exit(0)
     else:
         kpage = args.page
 
     # Is kpage redirect? Resolve
 
-    logf.write('@ kpage is %s\n' % kpage)
+    log('@ kpage is %s' % kpage)
     pp = sites['no'].api('query', prop = 'pageprops', titles = kpage, redirects = '1')
     if 'redirects' in pp['query']:
         kpage = pp['query']['redirects'][0]['to']
-        logf.write('  -> Redirected to:  %s\n' % kpage)
+        log('  -> Redirected to:  %s' % kpage)
 
     # Check that we're not given some very wrong page
 
@@ -1242,7 +1238,7 @@ if __name__ == '__main__':
     # Initialize the contest
 
     try:
-        uk = UK(sites['no'].pages[kpage], sites['no'].pages[cpage].edit(), sites, logf, sql, verbose = args.verbose)
+        uk = UK(sites['no'].pages[kpage], sites['no'].pages[cpage].edit(), sites, sql, verbose = args.verbose)
     except ParseError as e:
         err = "\n* '''%s'''" % e.msg
         page = sites['no'].pages[kpage]
@@ -1251,22 +1247,22 @@ if __name__ == '__main__':
         raise
     
     if args.close and closeuser not in uk.ledere:
-        logf.write('!! Konkurransen ble forsøkt avsluttet av andre enn konkurranseleder\n')
+        log('!! Konkurransen ble forsøkt avsluttet av andre enn konkurranseleder')
         print '!! Konkurransen ble forsokt avsluttet av andre enn konkurranseleder'
         sys.exit(0)
 
     # Check if contest is to be ended
     
-    logf.write('@ Contest open from %s to %s\n' % (uk.start.strftime('%F %T'), uk.end.strftime('%F %T')))
+    log('@ Contest open from %s to %s' % (uk.start.strftime('%F %T'), uk.end.strftime('%F %T')))
     osl = pytz.timezone('Europe/Oslo')
     now = osl.localize(datetime.now())
     ending = False
     if args.close == False and now > uk.end:
         ending = True
-        logf.write("  -> Ending contest\n")
+        log("  -> Ending contest")
         cur = sql.cursor()
         if len(cur.execute(u'SELECT ended FROM contests WHERE name=? AND ended=1', [kpage] ).fetchall()) == 1:
-            logf.write("  -> Already ended. Abort\n")
+            log("  -> Already ended. Abort")
             #print "Konkurransen kunne ikke avsluttes da den allerede er avsluttet"
             sys.exit(0)
 
@@ -1278,7 +1274,7 @@ if __name__ == '__main__':
     nbytes = 0
     nnewpages = 0
     for u in uk.users:
-        logf.write("=== %s ===\n" % u.name)
+        log("=== %s ===" % u.name)
         
         # First read contributions from db
         u.add_contribs_from_db(sql, uk.start, uk.end, sites)
@@ -1380,7 +1376,7 @@ if __name__ == '__main__':
     out += '\n{{ukens konkurranse %s}}\n[[Kategori:Artikkelkonkurranser]]\n' % (uk.year)
 
     if not args.simulate:
-        logf.write(" -> Updating wiki, section = %d \n" % (uk.results_section))
+        log(" -> Updating wiki, section = %d " % (uk.results_section))
         page = sites['no'].pages[kpage]
         if ending:
             page.save(out, summary = 'Oppdaterer med siste resultater og merker konkurransen som avsluttet', section = uk.results_section)
@@ -1396,7 +1392,7 @@ if __name__ == '__main__':
         f.close()
 
     if ending:
-        logf.write(" -> Ending contest\n")
+        log(" -> Ending contest")
         uk.deliver_leader_notification(kpage)
 
         page = sites['no'].pages['Bruker:UKBot/Premieutsendelse']
@@ -1408,7 +1404,7 @@ if __name__ == '__main__':
         cur.close()
     
     if args.close:
-        logf.write(" -> Delivering prices\n")
+        log(" -> Delivering prices")
         uk.deliver_prices()
 
         cur = sql.cursor()
@@ -1429,7 +1425,7 @@ if __name__ == '__main__':
         uk.deliver_receipt_to_leaders()
 
 
-        logf.write(" -> Cleaning DB\n")
+        log(" -> Cleaning DB")
         uk.delete_contribs_from_db()
 
     # Notify users about issues
@@ -1451,6 +1447,5 @@ if __name__ == '__main__':
 
     runend = datetime.now()
     runtime = (runend - runstart).total_seconds()
-    logf.write('UKBot finishing at %s. Runtime was %.f seconds.\n' % (runend.strftime('%F %T'), runtime))
-    logf.close()
+    log('UKBot finishing at %s. Runtime was %.f seconds.' % (runend.strftime('%F %T'), runtime))
 

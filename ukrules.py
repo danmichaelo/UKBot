@@ -4,7 +4,7 @@ import re
 import urllib
 from bs4 import BeautifulSoup
 from danmicholoparser import DanmicholoParser, DanmicholoParseError, condition_for_soup
-
+from ukcommon import log
 
 class Rule(object):
 

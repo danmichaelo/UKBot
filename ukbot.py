@@ -218,7 +218,7 @@ class Revision(object):
                 if len(dp2.parse_errors) > 0:
                     self.errors.append('Et problem med revisjon %d kan ha påvirket ordtellingen for denne: <nowiki>%s</nowiki> ' % (self.parentid, dp2.parse_errors[0]))
             except DanmicholoParseError as e:
-                print "!!!>> FAIL",self.revid,self.article.name
+                log("!!!>> FAIL: %s @ %d" % (self.article.name,self.revid))
                 self._wordcount = 0
                 raise
             return self._wordcount

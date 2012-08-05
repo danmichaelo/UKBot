@@ -1441,6 +1441,25 @@ if __name__ == '__main__':
         if page.edit() != txt:
             page.save(txt, summary = 'Omdirigering til '+kpage)
 
+    # Update Wikipedia:Portal/Oppslagstavle
+    
+    oppslagstavle = sites['no'].pages['Wikipedia:Portal/Oppslagstavle']
+    txt = oppslagstavle.edit()
+
+    dp = DanmicholoParser(txt)
+    if len(dp.templates['la stå/uk']) != 1:
+        raise StandardError(u'Feil: Fant %d la stå/uk-maler i Wikipedia:Portal/Oppslagstavle' % len(dp.templates['la stå/uk']))
+
+    tpl = dp.templates['la stå/uk'][0]
+    if int(tpl.parameters['uke']) != int(now.strftime('%W')):
+        log('-> Oppdaterer Wikipedia:Portal/Oppslagstavle')
+        tpl.parameters[1] = '{{subst:Ukens konkurranse liste|uke=%s}}' % now.strftime('%Y-%W')
+        tpl.parameters['dato'] = now.strftime('%d %B')
+        tpl.parameters['år'] = now.strftime('%Y')
+        tpl.parameters['uke'] = now.strftime('%W')
+        txt2 = unicode(dp)
+        oppslagstavle.save(txt2, summary = 'Oppdaterer ukens konkurranse')
+
     # Make a nice plot
 
     uk.plot()

@@ -323,6 +323,7 @@ class BackLinkFilter(Filter):
         self.sites = sites
         self.articles = articles
         self.links = []
+        log("  [+] Initializing backlink filter: " + ','.join(self.articles))
         
         for site_key, site in self.sites.iteritems():
             for aname in self.articles:
@@ -342,7 +343,7 @@ class BackLinkFilter(Filter):
         return out
 
 class ForwardLinkFilter(Filter):
-    """Filters articles with backlinks to <name>"""
+    """Filters articles with forwardlinks to <name>"""
 
     def __init__(self, verbose, sites, articles):
         """

@@ -733,8 +733,11 @@ class UK(object):
 
         # Read filters
 
+        nfilters = 0
+        #print dp.templates.keys()
         if 'ukens konkurranse kriterium' in dp.templates.keys():
             for templ in dp.templates['ukens konkurranse kriterium']:
+                nfilters += 1
                 p = templ.parameters
                 anon = [[k,p[k]] for k in p.keys() if type(k) == int]
                 anon = sorted(anon, key = lambda x: x[0])
@@ -782,7 +785,8 @@ class UK(object):
 
                 else: 
                     raise ParseError('Ukjent argument gitt til {{ml|ukens konkurranse kriterium}}: '+key)
-        
+        log("@ Fant %d filtre" % (nfilters))
+
         # Read rules
 
         for templ in dp.templates['ukens konkurranse poeng']:

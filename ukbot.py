@@ -508,6 +508,10 @@ class User(object):
         return np.sum([1 for a in self.articles.itervalues() if a.new and not a.redirect])
     
     @property
+    def words(self):
+        return np.sum([a.words for a in self.articles.itervalues()])
+    
+    @property
     def points(self):
         """ The points for all the user's articles, excluding disqualified ones """
         p = 0.
@@ -1272,6 +1276,7 @@ if __name__ == '__main__':
 
     narticles = 0
     nbytes = 0
+    nwords = 0
     nnewpages = 0
     for u in uk.users:
         log("=== %s ===" % u.name)
@@ -1296,6 +1301,7 @@ if __name__ == '__main__':
 
             narticles += len(u.articles)
             nbytes += u.bytes
+            nwords += u.words
             nnewpages += u.newpages
 
         except ParseError as e:
@@ -1328,6 +1334,7 @@ if __name__ == '__main__':
         sammen += '|kilobytes=%.f' % (nbytes/1000.)
     else:
         sammen += '|bytes=%d' % (nbytes)
+    sammen += '|ord=%d' % (nwords)
     sammen += '}}'
 
     out += sammen + '\n'

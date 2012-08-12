@@ -1465,7 +1465,7 @@ if __name__ == '__main__':
     if int(tpl.parameters['uke']) != int(now.strftime('%W')):
         log('-> Oppdaterer Wikipedia:Portal/Oppslagstavle')
         tpl.parameters[1] = '{{subst:Ukens konkurranse liste|uke=%s}}' % now.strftime('%Y-%W')
-        tpl.parameters['dato'] = now.strftime('%e. %B')
+        tpl.parameters['dato'] = now.strftime('%e. %h')
         tpl.parameters['år'] = now.strftime('%Y')
         tpl.parameters['uke'] = now.strftime('%W')
         txt2 = unicode(dp)

@@ -71,6 +71,31 @@ class StubRule(Rule):
         except DanmicholoParseError as e:
             rev.article.errors.append('Problem ved parsing av [%s rev. %d] : %s' % (rev.get_link(), rev.revid, e.msg))
     
+class TemplateRemovalRule(Rule):
+
+    def __init__(self, points, template, aliases = []):
+        Rule.__init__(self)
+        self.points = float(points)
+        self.template = template.lower()
+        self.aliases = [a.lower() for a in aliases]
+        self.total = 0
+
+    def has_template(self, text):
+        """ Checks if a given text has the template"""
+
+        dp = DanmicholoParser(text, debug = False)
+        for tname, templ in dp.templates.iteritems():
+            if tname == self.template or tname in self.aliases:
+                return True
+        return False
+
+    def test(self, rev):
+        try:
+            if self.has_template(rev.parenttext) and not self.has_template(rev.text):
+                rev.points.append([self.points, 'templateremoval', 'fjerning av {{ml|%s}}'%self.template])
+                self.total += 1
+        except DanmicholoParseError as e:
+            rev.article.errors.append('Problem ved parsing av [%s rev. %d] : %s' % (rev.get_link(), rev.revid, e.msg))
 
 class QualiRule(Rule):
 
@@ -145,6 +170,7 @@ class RefRule(Rule):
         Rule.__init__(self)
         self.sourcepoints = float(sourcepoints)
         self.refpoints = float(refpoints)
+        self.totalsources = 0
             
     def test(self, rev):
 
@@ -163,6 +189,8 @@ class RefRule(Rule):
 
         sources_added = s2 - s1
         refs_added = r2 - r1
+        
+        self.totalsources += sources_added
         
         if sources_added != 0 or refs_added != 0:
             p = 0.

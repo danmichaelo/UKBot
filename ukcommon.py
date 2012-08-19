@@ -7,3 +7,4 @@ def log(msg, newline = True):
     if newline:
         msg = msg + '\n'
     logfile.write(msg.encode('utf-8'))
+    logfile.flush()

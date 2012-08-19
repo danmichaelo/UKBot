@@ -220,7 +220,7 @@ class Revision(object):
             except DanmicholoParseError as e:
                 log("!!!>> FAIL: %s @ %d" % (self.article.name,self.revid))
                 self._wordcount = 0
-                raise
+                #raise
             return self._wordcount
 
     @property
@@ -533,6 +533,7 @@ class User(object):
         
         # loop over articles
         for article_key, article in self.articles.iteritems():
+            log('.', newline = False)
             
             # loop over revisions
             for revid, rev in article.revisions.iteritems():
@@ -829,6 +830,12 @@ class UK(object):
             elif key == 'ref':
                 params = { 'sourcepoints': anon[1], 'refpoints': anon[2] }
                 rules.append(RefRule(**params))
+            
+            elif key == 'malfjerning':
+                params = { 'points': anon[1], 'template': anon[2] }
+                if 'alias' in named:
+                    params['aliases'] = [a.strip() for a in named['alias'].split(',')]
+                rules.append(TemplateRemovalRule(**params))
 
             elif key == 'bytebonus':
                 rules.append(ByteBonusRule(anon[1], anon[2]))
@@ -1301,7 +1308,9 @@ if __name__ == '__main__':
             u.filter(uk.filters)
 
             # And calculate points
+            log(' -> Analyzing ', newline = False)
             u.analyze(uk.rules)
+            log('OK')
 
             narticles += len(u.articles)
             nbytes += u.bytes
@@ -1330,15 +1339,30 @@ if __name__ == '__main__':
 
     sammen = '{{Ukens konkurranse status'
     
-    if StubFilter in [type(f) for f in uk.filters]:
+    ft = [type(f) for f in uk.filters]
+    rt = [type(r) for r in uk.rules]
+
+    if StubFilter in ft:
         sammen += '|avstubbet=%d' % narticles
-    if nnewpages > 0:
-        sammen += '|nye=%d' % nnewpages
-    if nbytes >= 10000:
-        sammen += '|kilobytes=%.f' % (nbytes/1000.)
-    else:
-        sammen += '|bytes=%d' % (nbytes)
-    sammen += '|ord=%d' % (nwords)
+
+    if ByteRule in rt or WordRule in rt:
+        if nnewpages > 0:
+            sammen += '|nye=%d' % nnewpages
+        if nbytes >= 10000:
+            sammen += '|kilobytes=%.f' % (nbytes/1000.)
+        else:
+            sammen += '|bytes=%d' % (nbytes)
+        sammen += '|ord=%d' % (nwords)
+
+    ts = [r for r in uk.rules if type(r) == RefRule]
+    if len(ts) == 1:
+        sammen += '|ref=%d' % (ts[0].totalsources)
+
+    ts = [r for r in uk.rules if type(r) == TemplateRemovalRule]
+    if len(ts) > 0:
+        for i,r in enumerate(ts):
+            sammen += '|mal%d=%s|mal%dn=%d' % (i+1, r.template, i+1, r.total)
+
     sammen += '}}'
 
     out += sammen + '\n'

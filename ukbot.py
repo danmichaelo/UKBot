@@ -299,24 +299,26 @@ class User(object):
 
         new_articles = []
         new_revisions = []
-        for c in site.usercontributions(self.name, ts_start, ts_end, 'newer', prop = 'ids|title|timestamp', namespace = namespace ):
+        for c in site.usercontributions(self.name, ts_start, ts_end, 'newer', prop = 'ids|title|timestamp|comment', namespace = namespace ):
             #pageid = c['pageid']
-            rev_id = c['revid']
-            article_title = c['title']
-            article_key = site_key + ':' + article_title
-            
-            if not article_key in self.articles:
-                self.articles[article_key] = Article(site, self, article_title)
-                if article_key in self.disqualified_articles:
-                    self.articles[article_key].disqualified = True
+            article_comment = c['comment']
+            if not article_comment[:13] == 'Tilbakestilte':
+                rev_id = c['revid']
+                article_title = c['title']
+                article_key = site_key + ':' + article_title
+                
+                if not article_key in self.articles:
+                    self.articles[article_key] = Article(site, self, article_title)
+                    if article_key in self.disqualified_articles:
+                        self.articles[article_key].disqualified = True
 
-                new_articles.append(self.articles[article_key])
-            
-            article = self.articles[article_key]
-            
-            if not rev_id in article.revisions:
-                rev = article.add_revision(rev_id, timestamp = time.mktime(c['timestamp']) )
-                new_revisions.append(rev)
+                    new_articles.append(self.articles[article_key])
+                
+                article = self.articles[article_key]
+                
+                if not rev_id in article.revisions:
+                    rev = article.add_revision(rev_id, timestamp = time.mktime(c['timestamp']) )
+                    new_revisions.append(rev)
             
         # Always sort after we've added contribs
         self.sort_contribs()

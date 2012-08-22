@@ -80,20 +80,26 @@ class TemplateRemovalRule(Rule):
         self.aliases = [a.lower() for a in aliases]
         self.total = 0
 
-    def has_template(self, text):
+    def templatecount(self, text):
         """ Checks if a given text has the template"""
 
         dp = DanmicholoParser(text, debug = False)
+        tc = 0
         for tname, templ in dp.templates.iteritems():
             if tname == self.template or tname in self.aliases:
-                return True
-        return False
+                tc += len(templ)
+        return tc
 
     def test(self, rev):
+        if rev.redirect or rev.parentredirect:
+            # skip redirects
+            return
         try:
-            if self.has_template(rev.parenttext) and not self.has_template(rev.text):
-                rev.points.append([self.points, 'templateremoval', 'fjerning av {{ml|%s}}'%self.template])
-                self.total += 1
+            pt = self.templatecount(rev.parenttext)
+            ct = self.templatecount(rev.text)
+            if ct < pt:
+                rev.points.append([(pt-ct)*self.points, 'templateremoval', 'fjerning av {{ml|%s}}'%self.template])
+                self.total += (pt-ct)
         except DanmicholoParseError as e:
             rev.article.errors.append('Problem ved parsing av [%s rev. %d] : %s' % (rev.get_link(), rev.revid, e.msg))
 

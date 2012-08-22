@@ -226,6 +226,14 @@ class Revision(object):
     @property
     def new(self):
         return (self.parentid == 0)
+
+    @property
+    def redirect(self):
+        return bool(re.match(r'#(OMDIRIGERING|REDIRECT)', self.text))
+
+    @property
+    def parentredirect(self):
+        return bool(re.match(r'#(OMDIRIGERING|REDIRECT)', self.parenttext))
     
     def get_link(self):
         """ returns a link to revision """

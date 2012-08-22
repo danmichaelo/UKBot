@@ -90,6 +90,9 @@ class TemplateRemovalRule(Rule):
         return False
 
     def test(self, rev):
+        if rev.redirect or rev.parentredirect:
+            # skip redirects
+            return
         try:
             if self.has_template(rev.parenttext) and not self.has_template(rev.text):
                 rev.points.append([self.points, 'templateremoval', 'fjerning av {{ml|%s}}'%self.template])

@@ -652,7 +652,10 @@ class User(object):
                 if r[1] == 'pointlimit' and self.points >= r[2]:
                     ros += '[[Fil:%s|20px]] ' % rosettfiler[r[0]]
                     break
-        out = '=== %s [[Bruker:%s|%s]] (%.f p) ===\n' % (ros, self.name, self.name, self.points)
+        suspended = ''
+        if self.suspended_since != None:
+            suspended = ', suspendert siden %s' % self.suspended_since.strftime('%A, %H.%M').decode('utf-8')
+        out = '=== %s [[Bruker:%s|%s]] (%.f p%s) ===\n' % (ros, self.name, self.name, self.points, suspended)
         if len(entries) == 0:
             out += "''Ingen kvalifiserte bidrag registrert enda''"
         else:
@@ -1165,7 +1168,7 @@ class UK(object):
                 msg = 'Takk for innsatsen din i [[%(pagename)s|ukens konkurranses]] så langt. Det er dessverre registrert problemer med enkelte av dine bidrag som medfører at vi er nødt til å informere deg om følgende:\n' % { 'pagename': self.name }
                 for m in msgs:
                     msg += '* %s\n' % m
-                msg += 'Hvordan problemene kan løses kan diskuteres på konkurransens diskusjonsside. ~~~~'
+                msg += 'Hvordan problemene kan løses kan diskuteres på konkurransens diskusjonsside. Du kan fjerne denne meldingen når du har lest den om du ønsker det. ~~~~'
                 #print '------------------------------',u.name
                 #print msg
                 #print '------------------------------'

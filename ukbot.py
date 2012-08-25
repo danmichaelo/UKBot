@@ -273,7 +273,7 @@ class User(object):
     @property
     def revisions(self):
         # oh my, funny (and fast) one-liner for making a flat list of revisions
-        return [rev for article in self.articles.values() for rev in article.revisions.values()]
+        return { rev.revid : rev for article in self.articles.values() for rev in article.revisions.values() }
 
     def sort_contribs(self):
 
@@ -315,16 +315,19 @@ class User(object):
                 article_title = c['title']
                 article_key = site_key + ':' + article_title
                 
-                if not article_key in self.articles:
-                    self.articles[article_key] = Article(site, self, article_title)
-                    if article_key in self.disqualified_articles:
-                        self.articles[article_key].disqualified = True
+                if not rev_id in self.revisions:
 
-                    new_articles.append(self.articles[article_key])
+                    if not article_key in self.articles:
+                        self.articles[article_key] = Article(site, self, article_title)
+                        if article_key in self.disqualified_articles:
+                            self.articles[article_key].disqualified = True
+
+                        new_articles.append(self.articles[article_key])
                 
-                article = self.articles[article_key]
+                    article = self.articles[article_key]
                 
-                if not rev_id in article.revisions:
+                    # We check self.revisions instead of article.revisions, because the revision may
+                    # already belong to "another article" (another title) if the article has been moved
                     rev = article.add_revision(rev_id, timestamp = time.mktime(c['timestamp']) )
                     new_revisions.append(rev)
             
@@ -465,10 +468,10 @@ class User(object):
             article = self.articles[article_key]
             
             # Add revision if not present
-            if not rev_id in article.revisions:
+            if not rev_id in self.revisions:
                 nrevs += 1
                 article.add_revision(rev_id, timestamp = ts, parentid = parent_id, size = size, parentsize = parentsize)
-            rev = article.revisions[rev_id]
+            rev = self.revisions[rev_id]
 
             # Add revision text
             for row2 in cur2.execute(u"""SELECT revtxt FROM fulltexts WHERE revid=? AND site=?""", [rev_id, site_key]):
@@ -1311,6 +1314,7 @@ if __name__ == '__main__':
         # Then fill in new contributions from wiki
         for site in sites.itervalues():
             u.add_contribs_from_wiki(site, uk.start, uk.end, fulltext = True)
+
 
         # And update db
         u.save_contribs_to_db(sql)

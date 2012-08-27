@@ -668,7 +668,7 @@ class User(object):
             suspended = ', suspendert siden %s' % self.suspended_since.strftime('%A, %H.%M').decode('utf-8')
         out = '=== %s [[Bruker:%s|%s]] (%.f p%s) ===\n' % (ros, self.name, self.name, self.points, suspended)
         if len(entries) == 0:
-            out += "''Ingen kvalifiserte bidrag registrert enda''"
+            out += "''Ingen kvalifiserte bidrag registrert ennå''"
         else:
             out += '%d artikler, {{formatnum:%.2f}} kB\n' % (len(entries), self.bytes/1000.)
         if len(entries) > 10:

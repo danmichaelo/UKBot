@@ -938,7 +938,9 @@ class UK(object):
                         u.suspended_since = sdate
                         ufound = True
                 if not ufound:
-                    raise ParseError('Fant ikke brukeren %s gitt til {{ml|UK bruker suspendert}}-malen.' % uname)
+                    pass
+                    # TODO: logging.warning 
+                    #raise ParseError('Fant ikke brukeren %s gitt til {{ml|UK bruker suspendert}}-malen.' % uname)
         
         if 'uk bidrag diskvalifisert' in dp.templates:
             for templ in dp.templates['uk bidrag diskvalifisert']:

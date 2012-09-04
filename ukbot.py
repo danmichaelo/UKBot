@@ -786,7 +786,7 @@ class UK(object):
                     params['sites'] = self.sites
                     params['catnames'] = anon[1:]
                     params['ignore'] = catignore
-                    if 'maksdybde' in named:
+                    if templ.has_param('maksdybde'):
                         params['maxdepth'] = int(named['maksdybde'])
                     filters.append(CatFilter(**params))
 
@@ -827,19 +827,19 @@ class UK(object):
 
             elif key == 'byte':
                 params = { 'points': anon[1] }
-                if 'makspoeng' in named:
+                if templ.has_param('makspoeng'):
                     params['maxpoints'] = named['makspoeng']
                 rules.append(ByteRule(**params))
 
             elif key == 'ord':
                 params = { 'points': anon[1] }
-                if 'makspoeng' in named:
+                if templ.has_param('makspoeng'):
                     params['maxpoints'] = named['makspoeng']
                 rules.append(WordRule(**params))
 
             elif key == 'bilde':
                 params = { 'points': anon[1] }
-                if 'makspoeng' in named:
+                if templ.has_param('makspoeng'):
                     params['maxpoints'] = named['makspoeng']
                 rules.append(ImageRule(**params))
             
@@ -849,7 +849,7 @@ class UK(object):
             
             elif key == 'malfjerning':
                 params = { 'points': anon[1], 'template': anon[2] }
-                if 'alias' in named:
+                if templ.has_param('alias'):
                     params['aliases'] = [a.strip() for a in named['alias'].split(',')]
                 rules.append(TemplateRemovalRule(**params))
 
@@ -873,10 +873,10 @@ class UK(object):
         utc = pytz.utc
         osl = pytz.timezone('Europe/Oslo')
 
-        if 'år' in infoboks.parameters and 'uke' in infoboks.parameters:
+        if infoboks.has_param('år') and infoboks.has_param('uke'):
             year = infoboks.parameters['år']
             startweek = infoboks.parameters['uke']
-            if 'ukefler' in infoboks.parameters:
+            if infoboks.has_param('ukefler'):
                 endweek = re.sub('<\!--.+?-->', '', infoboks.parameters['ukefler']).strip()
                 if endweek == '':
                     endweek = startweek
@@ -885,7 +885,7 @@ class UK(object):
 
             self.start = osl.localize(datetime.strptime(year+' '+startweek+' 1 00 00 00', '%Y %W %w %H %M %S'))
             self.end = osl.localize(datetime.strptime(year+' '+endweek+' 0 23 59 59', '%Y %W %w %H %M %S'))
-        elif 'start' in infoboks.parameters and 'slutt' in infoboks.parameters:
+        elif infoboks.has_param('start') and infoboks.has_param('slutt'):
             startdt = infoboks.parameters['start']
             enddt = infoboks.parameters['slutt']
             self.start = osl.localize(datetime.strptime(startdt + ' 00 00 00 00', '%Y-%m-%d %H %M %S'))
@@ -904,7 +904,7 @@ class UK(object):
         
         self.prices = []
         for col in rosettfiler.keys():
-            if col in infoboks.parameters.keys():
+            if infoboks.has_param(col):
                 r = re.sub('<\!--.+?-->', '', infoboks.parameters[col]).strip() # strip comments, then whitespace
                 if r != '':
                     r = r.split()[0].lower()

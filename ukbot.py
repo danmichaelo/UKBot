@@ -122,8 +122,15 @@ class Article(object):
         self.disqualified = False
         
         self.revisions = odict()
+        self.point_deductions = []
         self.redirect = False
         self.errors = []
+        
+        key = self.site.key + ':' + self.name
+        for pd in self.user.point_deductions:
+            if pd[0] == key:
+                self.add_point_deduction(pd[1], pd[2])
+
     
     def __repr__(self):
         return ("<Article %s:%s for user %s>" % (self.site.key, self.name, self.user.name)).encode('utf-8')
@@ -136,6 +143,10 @@ class Article(object):
         self.revisions[revid] = Revision(self, revid, **kwargs)
         return self.revisions[revid]
     
+    def add_point_deduction(self, points, reason):
+        log('Adding point deduction %d points for reason: %s' % (points, reason))
+        self.point_deductions.append([points, reason])
+    
     @property
     def bytes(self):
         return np.sum([rev.bytes for rev in self.revisions.itervalues()])
@@ -147,17 +158,25 @@ class Article(object):
     @property
     def points(self):
         """ The article score is the sum of the score for its revisions, independent of whether the article is disqualified or not """
-        return np.sum([rev.get_points() for rev in self.revisions.values()])
+        return self.get_points()
+        #return np.sum([rev.get_points() for rev in self.revisions.values()])
 
-    def get_points(self, ptype = '', ignore_max = False, include_suspension_period = True):
+    def get_points(self, ptype = '', ignore_max = False, ignore_suspension_period = False, 
+            ignore_disqualification = False, ignore_point_deductions = False):
         p = 0.
-        for revid, rev in self.revisions.iteritems():
-            dt = pytz.utc.localize(datetime.fromtimestamp(rev.timestamp))
-            if include_suspension_period == True or self.user.suspended_since == None or dt < self.user.suspended_since:
-                p += rev.get_points(ptype, ignore_max)
-            else:
-                if self.user.contest.verbose:
-                    log('!! Skipping revision %d in suspension period' % revid)
+        article_key = self.site.key + ':' + self.name
+        if ignore_disqualification or not article_key in self.user.disqualified_articles:
+            for revid, rev in self.revisions.iteritems():
+                dt = pytz.utc.localize(datetime.fromtimestamp(rev.timestamp))
+                if ignore_suspension_period == True or self.user.suspended_since == None or dt < self.user.suspended_since:
+                    p += rev.get_points(ptype, ignore_max)
+                else:
+                    if self.user.contest.verbose:
+                        log('!! Skipping revision %d in suspension period' % revid)
+
+        if ptype == '' and not ignore_point_deductions:
+            for points, reason in self.point_deductions:
+                p -= points
         return p
         #return np.sum([a.points for a in self.articles.values()])
 
@@ -266,6 +285,7 @@ class User(object):
         self.contest = contest
         self.suspended_since = None
         self.disqualified_articles = []
+        self.point_deductions = []
 
     def __repr__(self):
         return ("<User %s>" % self.name).encode('utf-8')
@@ -529,11 +549,7 @@ class User(object):
         """ The points for all the user's articles, excluding disqualified ones """
         p = 0.
         for article_key, article in self.articles.iteritems():
-            if not article_key in self.disqualified_articles:
-                for revid, rev in article.revisions.iteritems():
-                    dt = pytz.utc.localize(datetime.fromtimestamp(rev.timestamp))
-                    if self.suspended_since == None or dt < self.suspended_since:
-                        p += rev.get_points()
+            p += article.get_points()
         return p
         #return np.sum([a.points for a in self.articles.values()])
 
@@ -593,7 +609,10 @@ class User(object):
         # loop over articles
         for article_key, article in self.articles.iteritems():
             
-            if article.points == 0.0:
+            brutto = article.get_points(ignore_suspension_period = True, ignore_point_deductions = True, ignore_disqualification = True)
+            netto = article.get_points()
+            
+            if brutto == 0.0:
 
                 if self.contest.verbose:
                     log('    %s: skipped (0 points)' % article_key)
@@ -615,33 +634,35 @@ class User(object):
                             out = '[[File:Ambox warning yellow.svg|12px|%s]] ' % (', '.join(rev.errors)) + out
                         revs.append(out)
                 
+                
                 titletxt = ''
                 try:
-                    titletxt = 'Kategoritreff: ' + ' &gt; '.join(article.cat_path) + '<br />'
+                    titletxt = "''Kategoritreff'': " + ' &gt; '.join(article.cat_path) + '<br />'
                 except AttributeError:
                     pass
                 titletxt += '<br />'.join(revs)
+                if len(article.point_deductions) > 0:
+                    pds = []
+                    for points, reason in article.point_deductions:
+                        pds.append('%.f p: %s' % (-points, reason))
+                    titletxt += '<div style="border-top:1px solid #CCC">\'\'Merknader:\'\'<br />%s</div>' % '<br />'.join(pds)
+                
                 titletxt += '<div style="border-top:1px solid #CCC">Totalt {{formatnum:%d}} bytes, %d ord.</div>' % (article.bytes, article.words)
                 
-                ap = article.points
-                if article_key in self.disqualified_articles:
-                    cp = 0.
-                else:
-                    cp = article.get_points(include_suspension_period = False)
 
-                p = '%.1f p' % ap
-                if ap != cp:
-                    p = '<s>'+p+'</s>'
-                    if cp != 0.:
-                        p += '%.1f p' % cp
+                p = '%.1f p' % brutto
+                if brutto != netto:
+                    p = '<s>'+p+'</s> '
+                    if netto != 0.:
+                        p += '%.1f p' % netto
 
                 out = '[[:%s|%s]]' % (article_key, article.name)
                 if article_key in self.disqualified_articles:
                     out = '[[Fil:Qsicon Achtung.png|14px]] <s>' + out + '</s>'
                     titletxt += '<div style="border-top:1px solid red; background:#ffcccc;"><strong>Merk:</strong> Bidragene til artikkelen fra denne brukeren er diskvalifisert og teller ikke i konkurransen</div>'
-                elif cp != ap:
+                elif brutto != netto:
                     out = '[[Fil:Qsicon Achtung.png|14px]] ' + out
-                    titletxt += '<div style="border-top:1px solid red; background:#ffcccc;"><strong>Merk:</strong> En eller flere revisjoner er ikke talt med fordi de ble gjort mens brukeren var suspendert. Hvis suspenderingen oppheves vil bidragene telle med.</div>'
+                    #titletxt += '<div style="border-top:1px solid red; background:#ffcccc;"><strong>Merk:</strong> En eller flere revisjoner er ikke talt med fordi de ble gjort mens brukeren var suspendert. Hvis suspenderingen oppheves vil bidragene telle med.</div>'
                 out += ' (<abbr class="uk-ap">%s</abbr>)' % p
 
                 out = '# ' + out
@@ -649,8 +670,7 @@ class User(object):
                 
                 entries.append(out)
                 if self.contest.verbose:
-                    log('    %s: %.f / %.f points' % (article_key, cp, ap) , newline = False)
-                    log('    -- %.f / %.f points' % (article.get_points(include_suspension_period = False), article.get_points(include_suspension_period = True)))
+                    log('    %s: %.f / %.f points' % (article_key, netto, brutto) , newline = False)
 
         ros = ''
         if closing:
@@ -874,8 +894,8 @@ class UK(object):
         osl = pytz.timezone('Europe/Oslo')
 
         if infoboks.has_param('år') and infoboks.has_param('uke'):
-            year = infoboks.parameters['år']
-            startweek = infoboks.parameters['uke']
+            year = re.sub('<\!--.+?-->', '', infoboks.parameters['år']).strip()
+            startweek = re.sub('<\!--.+?-->', '', infoboks.parameters['uke']).strip()
             if infoboks.has_param('ukefler'):
                 endweek = re.sub('<\!--.+?-->', '', infoboks.parameters['ukefler']).strip()
                 if endweek == '':
@@ -952,6 +972,21 @@ class UK(object):
                     if u.name == uname:
                         #print " > funnet"
                         u.disqualified_articles.append(aname)
+                        ufound = True
+                if not ufound:
+                    raise ParseError('Fant ikke brukeren %s gitt til {{ml|UK bidrag diskvalifisert}}-malen.' % uname)
+        
+        if 'uk poengtrekk' in dp.templates:
+            for templ in dp.templates['uk poengtrekk']:
+                uname = templ.parameters[1]
+                aname = templ.parameters[2]
+                points = float(templ.parameters[3])
+                reason  = templ.parameters[4]
+                ufound = False
+                log('poengtrekk: %s %s %d %s' % (uname, aname, points, reason))
+                for u in self.users:
+                    if u.name == uname:
+                        u.point_deductions.append([aname, points, reason])
                         ufound = True
                 if not ufound:
                     raise ParseError('Fant ikke brukeren %s gitt til {{ml|UK bidrag diskvalifisert}}-malen.' % uname)
@@ -1329,7 +1364,7 @@ if __name__ == '__main__':
             # And calculate points
             log(' -> Analyzing ', newline = False)
             u.analyze(uk.rules)
-            log('OK')
+            log('OK (%.f points)' % u.points)
 
             narticles += len(u.articles)
             nbytes += u.bytes

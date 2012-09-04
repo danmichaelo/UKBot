@@ -45,7 +45,7 @@ class NewPageRule(Rule):
         self.points = float(points)
 
     def test(self, rev):
-        if rev.new and not rev.article.redirect:
+        if rev.new and not rev.redirect:
             rev.points.append([self.points, 'newpage', 'ny side'])
 
 

@@ -123,7 +123,7 @@ class Article(object):
         
         self.revisions = odict()
         self.point_deductions = []
-        self.redirect = False
+        #self.redirect = False
         self.errors = []
         
         key = self.site.key + ':' + self.name
@@ -138,6 +138,11 @@ class Article(object):
     @property
     def new(self):
         return self.revisions[self.revisions.firstkey()].new
+    
+    @property
+    def new_non_redirect(self):
+        firstrev = self.revisions[self.revisions.firstkey()]
+        return firstrev.new and not firstrev.redirect
 
     def add_revision(self, revid, **kwargs):
         self.revisions[revid] = Revision(self, revid, **kwargs)
@@ -304,6 +309,16 @@ class User(object):
         # sort articles by first revision id
         self.articles.sort( key = lambda x: x[1].revisions.firstkey() )
     
+    def add_article_if_necessary(self, site_key, article_title):
+        article_key = site_key + ':' + article_title
+
+        if not article_key in self.articles:
+            self.articles[article_key] = Article(site, self, article_title)
+            if article_key in self.disqualified_articles:
+                self.articles[article_key].disqualified = True
+
+        return self.articles[article_key]
+
     def add_contribs_from_wiki(self, site, start, end, fulltext = False, namespace = 0):
         """
         Populates self.articles with entries from the API.
@@ -325,8 +340,9 @@ class User(object):
 
         # 1) Fetch user contributions
 
-        new_articles = []
+        #new_articles = []
         new_revisions = []
+        n_articles = len(self.articles)
         for c in site.usercontributions(self.name, ts_start, ts_end, 'newer', prop = 'ids|title|timestamp|comment', namespace = namespace ):
             #pageid = c['pageid']
             article_comment = c['comment']
@@ -335,36 +351,47 @@ class User(object):
                 article_title = c['title']
                 article_key = site_key + ':' + article_title
                 
-                if not rev_id in self.revisions:
-
-                    if not article_key in self.articles:
-                        self.articles[article_key] = Article(site, self, article_title)
-                        if article_key in self.disqualified_articles:
-                            self.articles[article_key].disqualified = True
-
-                        new_articles.append(self.articles[article_key])
-                
-                    article = self.articles[article_key]
-                
+                if rev_id in self.revisions:
                     # We check self.revisions instead of article.revisions, because the revision may
                     # already belong to "another article" (another title) if the article has been moved
+
+                    if self.revisions[rev_id].article.name != article_title:
+                        rev = self.revisions[rev_id]
+                        log(' -> Moving revision %d from "%s" to "%s"' % (rev_id, rev.article.name, article_title))
+                        article = self.add_article_if_necessary(site_key, article_title)
+                        rev.article.revisions.pop(rev_id) # remove from old article
+                        article.revisions[rev_id] = rev   # add to new article
+                        rev.article = article             # and update reference
+
+                else:
+                
+                    article = self.add_article_if_necessary(site_key, article_title)
                     rev = article.add_revision(rev_id, timestamp = time.mktime(c['timestamp']) )
                     new_revisions.append(rev)
             
         # Always sort after we've added contribs
+        new_articles = len(self.articles) - n_articles
         self.sort_contribs()
-        if len(new_revisions) > 0 or len(new_articles) > 0:
-            log(" -> [%s] Added %d new revisions, %d new articles from API" % (site_key, len(new_revisions), len(new_articles)))
+        if len(new_revisions) > 0 or new_articles > 0:
+            log(" -> [%s] Added %d new revisions, %d new articles from API" % (site_key, len(new_revisions), new_articles))
+
+        # If revisions were moved from one article to another, and the redirect was not created by the same user,
+        # some articles may now have zero revisions. We should drop them
+        for article_key, article in self.articles.iteritems():
+            if len(article.revisions) == 0:
+                log('--> Dropping article "%s" due to zero remaining revisions' % (article.name))
+                del self.articles[article_key]
+
 
         # 2) Check if pages are redirects (this information can not be cached, because other users may make the page a redirect)
         #    If we fail to notice a redirect, the contributions to the page will be double-counted, so lets check
 
-        titles = [a.name for a in self.articles.values() if a.site.key == site_key]
-        for s0 in range(0, len(titles), apilim):
-            ids = '|'.join(titles[s0:s0+apilim])
-            for page in site.api('query', prop = 'info', titles = ids)['query']['pages'].itervalues():
-                article_key = site_key + ':' + page['title']
-                self.articles[article_key].redirect = ('redirect' in page.keys())
+        #titles = [a.name for a in self.articles.values() if a.site.key == site_key]
+        #for s0 in range(0, len(titles), apilim):
+        #    ids = '|'.join(titles[s0:s0+apilim])
+        #    for page in site.api('query', prop = 'info', titles = ids)['query']['pages'].itervalues():
+        #        article_key = site_key + ':' + page['title']
+        #        self.articles[article_key].redirect = ('redirect' in page.keys())
 
         # 3) Fetch info about the new revisions: diff size, possibly content
 
@@ -538,7 +565,7 @@ class User(object):
     
     @property
     def newpages(self):
-        return np.sum([1 for a in self.articles.itervalues() if a.new and not a.redirect])
+        return np.sum([1 for a in self.articles.itervalues() if a.new_non_redirect])
     
     @property
     def words(self):

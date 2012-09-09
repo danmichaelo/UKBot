@@ -369,12 +369,6 @@ class User(object):
                     rev = article.add_revision(rev_id, timestamp = time.mktime(c['timestamp']) )
                     new_revisions.append(rev)
             
-        # Always sort after we've added contribs
-        new_articles = len(self.articles) - n_articles
-        self.sort_contribs()
-        if len(new_revisions) > 0 or new_articles > 0:
-            log(" -> [%s] Added %d new revisions, %d new articles from API" % (site_key, len(new_revisions), new_articles))
-
         # If revisions were moved from one article to another, and the redirect was not created by the same user,
         # some articles may now have zero revisions. We should drop them
         for article_key, article in self.articles.iteritems():
@@ -382,6 +376,11 @@ class User(object):
                 log('--> Dropping article "%s" due to zero remaining revisions' % (article.name))
                 del self.articles[article_key]
 
+        # Always sort after we've added contribs
+        new_articles = len(self.articles) - n_articles
+        self.sort_contribs()
+        if len(new_revisions) > 0 or new_articles > 0:
+            log(" -> [%s] Added %d new revisions, %d new articles from API" % (site_key, len(new_revisions), new_articles))
 
         # 2) Check if pages are redirects (this information can not be cached, because other users may make the page a redirect)
         #    If we fail to notice a redirect, the contributions to the page will be double-counted, so lets check
@@ -1569,12 +1568,14 @@ if __name__ == '__main__':
     tpl = dp.templates['la stå/uk'][0]
     if int(tpl.parameters['uke']) != int(now.strftime('%W')):
         log('-> Oppdaterer Wikipedia:Portal/Oppslagstavle')
-        tpl.parameters[1] = '{{subst:Ukens konkurranse liste|uke=%s}}' % now.strftime('%Y-%W')
+        tema = sites['no'].api('parse', text = '{{subst:Ukens konkurranse liste|uke=%s}}' % now.strftime('%Y-%W'), pst=1, onlypst=1)['parse']['text']['*']
+        tpl.parameters[1] = tema
         tpl.parameters['dato'] = now.strftime('%e. %h')
         tpl.parameters['år'] = now.strftime('%Y')
         tpl.parameters['uke'] = now.strftime('%W')
-        txt2 = unicode(dp)
-        oppslagstavle.save(txt2, summary = 'Oppdaterer ukens konkurranse')
+        txt2 = dp.get_wikitext()
+        if txt != txt2:
+            oppslagstavle.save(txt2, summary = 'Ukens konkurranse er: %s' % tema)
 
     # Make a nice plot
 

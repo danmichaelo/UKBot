@@ -372,3 +372,22 @@ class ForwardLinkFilter(Filter):
                 out[article_key] = article
         log("  [+] Applying forward link filter (%s): %d -> %d" % (','.join(self.articles), len(articles), len(out)))
         return out
+
+class NamespaceFilter(Filter):
+    """Filters articles with forwardlinks to <name>"""
+
+    def __init__(self, verbose, namespace):
+        """
+        Arguments:
+            namespace : int 
+        """
+        Filter.__init__(self, verbose)
+        self.namespace = namespace
+
+    def filter(self, articles):
+        #out = odict()
+        #for article_key, article in articles.iteritems():
+        #    if article.namespace == self.namespace:
+        #        out[article_key] = article
+        #log("  [+] Applying namespace filter (%s): %d -> %d" % (','.join(self.articles), len(articles), len(out)))
+        return articles # already filtered

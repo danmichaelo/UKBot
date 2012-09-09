@@ -319,7 +319,7 @@ class User(object):
 
         return self.articles[article_key]
 
-    def add_contribs_from_wiki(self, site, start, end, fulltext = False, namespace = 0):
+    def add_contribs_from_wiki(self, site, start, end, fulltext = False, **kwargs):
         """
         Populates self.articles with entries from the API.
 
@@ -327,7 +327,6 @@ class User(object):
             start     : datetime object with timezone Europe/Oslo
             end       : datetime object with timezone Europe/Oslo
             fulltext  : get revision fulltexts
-            namespace : namespace ID
         """
         apilim = 50
         if 'bot' in site.rights:
@@ -340,10 +339,15 @@ class User(object):
 
         # 1) Fetch user contributions
 
+        args = {}
+        if 'namespace' in kwargs:
+            args['namespace'] = kwargs['namespace']
+            log(' -> Limiting to namespace: %d' % args['namespace'])
+
         #new_articles = []
         new_revisions = []
         n_articles = len(self.articles)
-        for c in site.usercontributions(self.name, ts_start, ts_end, 'newer', prop = 'ids|title|timestamp|comment', namespace = namespace ):
+        for c in site.usercontributions(self.name, ts_start, ts_end, 'newer', prop = 'ids|title|timestamp|comment', **args):
             #pageid = c['pageid']
             article_comment = c['comment']
             if not article_comment[:13] == 'Tilbakestilte':
@@ -845,6 +849,10 @@ class UK(object):
                     params['sites'] = self.sites
                     params['articles'] = anon[1:]
                     filters.append(ForwardLinkFilter(**params))
+                
+                elif key == 'navnerom':
+                    params['namespace'] = int(anon[1])
+                    filters.append(NamespaceFilter(**params))
 
                 else: 
                     raise ParseError('Ukjent argument gitt til {{ml|ukens konkurranse kriterium}}: '+key)
@@ -1368,6 +1376,12 @@ if __name__ == '__main__':
     nbytes = 0
     nwords = 0
     nnewpages = 0
+
+    extraargs = { 'namespace': 0 }
+    for f in uk.filters:
+        if type(f) == NamespaceFilter:
+            extraargs['namespace'] = f.namespace
+
     for u in uk.users:
         log("=== %s ===" % u.name)
         
@@ -1376,7 +1390,7 @@ if __name__ == '__main__':
 
         # Then fill in new contributions from wiki
         for site in sites.itervalues():
-            u.add_contribs_from_wiki(site, uk.start, uk.end, fulltext = True)
+            u.add_contribs_from_wiki(site, uk.start, uk.end, fulltext = True, **extraargs)
 
 
         # And update db

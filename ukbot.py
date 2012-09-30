@@ -1313,7 +1313,7 @@ if __name__ == '__main__':
             log(" -> Fant ingen konkurranser å avslutte!")
             sys.exit(0)
         cur.close()
-        kpage = rows[0][0]
+        ktitle= rows[0][0]
         log(" -> Contest %s is to be closed" % rows[0])
         lastrev = sites['no'].pages['Bruker:UKBot/Premieutsendelse'].revisions(prop='user|comment').next()
         closeuser = lastrev['user']
@@ -1321,37 +1321,48 @@ if __name__ == '__main__':
         if revc != 'Nytt avsnitt: /* send ut */':
             log('>> Ikke klar til utsendelse')
             sys.exit(0)
+    elif args.page != None:
+        ktitle = args.page
     else:
-        kpage = args.page
+        log('  !! No page given! Exiting')
+        sys.exit(1)
 
-    # Is kpage redirect? Resolve
 
-    log('@ kpage is %s' % kpage)
-    pp = sites['no'].api('query', prop = 'pageprops', titles = kpage, redirects = '1')
+    # Is ktitle redirect? Resolve
+
+    log('@ ktitle is %s' % ktitle)
+    pp = sites['no'].api('query', prop = 'pageprops', titles = ktitle, redirects = '1')
     if 'redirects' in pp['query']:
-        kpage = pp['query']['redirects'][0]['to']
-        log('  -> Redirected to:  %s' % kpage)
-
+        ktitle = pp['query']['redirects'][0]['to']
+        log('  -> Redirected to:  %s' % ktitle)
+    
     # Check that we're not given some very wrong page
 
-    if not (re.match('^Wikipedia:Ukens konkurranse/Ukens konkurranse', kpage) or re.match('^Bruker:UKBot/Sandkasse', kpage)):
+    if not (re.match('^Wikipedia:Ukens konkurranse/Ukens konkurranse', ktitle) or re.match('^Bruker:UKBot/Sandkasse', ktitle)):
         raise StandardError('I refuse to work with that page!')
+    
+    # Check if page exists
+    
+    kpage = sites['no'].pages[ktitle]
+    if not kpage.exists:
+        log('  !! kpage does not exist! Exiting')
+        sys.exit(0)
 
     # Initialize the contest
 
     try:
-        uk = UK(sites['no'].pages[kpage], sites['no'].pages[cpage].edit(), sites, sql, verbose = args.verbose)
+        uk = UK(kpage, sites['no'].pages[cpage].edit(), sites, sql, verbose = args.verbose)
     except ParseError as e:
         err = "\n* '''%s'''" % e.msg
-        page = sites['no'].pages[kpage]
         out = '\n{{Ukens konkurranse robotinfo | error | %s }}' % err
-        page.save('dummy', summary = 'Resultatboten støtte på et problem', appendtext = out)
+        kpage.save('dummy', summary = 'Resultatboten støtte på et problem', appendtext = out)
         raise
     
     if args.close and closeuser not in uk.ledere:
-        log('!! Konkurransen ble forsøkt avsluttet av andre enn konkurranseleder')
+        log('!! Konkurransen ble forsøkt avsluttet av %s, men konkurranseledere er oppgitt som: %s' % (closeuser, ', '.join(uk.ledere)))
+        #log('!! Konkurransen ble forsøkt avsluttet av andre enn konkurranseleder')
         print '!! Konkurransen ble forsokt avsluttet av andre enn konkurranseleder'
-        sys.exit(0)
+        #sys.exit(0)
 
     # Check if contest is to be ended
     
@@ -1363,7 +1374,7 @@ if __name__ == '__main__':
         ending = True
         log("  -> Ending contest")
         cur = sql.cursor()
-        if len(cur.execute(u'SELECT ended FROM contests WHERE name=? AND ended=1', [kpage] ).fetchall()) == 1:
+        if len(cur.execute(u'SELECT ended FROM contests WHERE name=? AND ended=1', [ktitle] ).fetchall()) == 1:
             log("  -> Already ended. Abort")
             #print "Konkurransen kunne ikke avsluttes da den allerede er avsluttet"
             sys.exit(0)
@@ -1413,12 +1424,11 @@ if __name__ == '__main__':
 
         except ParseError as e:
             err = "\n* '''%s'''" % e.msg
-            page = sites['no'].pages[kpage]
             out = '\n{{Ukens konkurranse robotinfo | error | %s }}' % err
             if args.simulate:
                 print out
             else:
-                page.save('dummy', summary = 'Resultatboten støtte på et problem', appendtext = out)
+                kpage.save('dummy', summary = 'Resultatboten støtte på et problem', appendtext = out)
             raise
 
     # Sort users by points
@@ -1506,13 +1516,12 @@ if __name__ == '__main__':
 
     if not args.simulate:
         log(" -> Updating wiki, section = %d " % (uk.results_section))
-        page = sites['no'].pages[kpage]
         if ending:
-            page.save(out, summary = 'Oppdaterer med siste resultater og merker konkurransen som avsluttet', section = uk.results_section)
+            kpage.save(out, summary = 'Oppdaterer med siste resultater og merker konkurransen som avsluttet', section = uk.results_section)
         elif args.close:
-            page.save(out, summary = 'Kontrollerer og deler ut rosetter', section = uk.results_section)
+            kpage.save(out, summary = 'Kontrollerer og deler ut rosetter', section = uk.results_section)
         else:
-            page.save(out, summary = 'Oppdaterer resultater', section = uk.results_section)
+            kpage.save(out, summary = 'Oppdaterer resultater', section = uk.results_section)
 
     if args.output != '':
         print "Writing output to file"
@@ -1522,13 +1531,13 @@ if __name__ == '__main__':
 
     if ending:
         log(" -> Ending contest")
-        uk.deliver_leader_notification(kpage)
+        uk.deliver_leader_notification(ktitle)
 
         page = sites['no'].pages['Bruker:UKBot/Premieutsendelse']
         page.save(text = 'venter', summary = 'Venter', bot = True)
 
         cur = sql.cursor()
-        cur.execute(u'INSERT INTO contests (name, ended, closed) VALUES (?,1,0)', [kpage] )
+        cur.execute(u'INSERT INTO contests (name, ended, closed) VALUES (?,1,0)', [ktitle] )
         sql.commit()
         cur.close()
     
@@ -1538,13 +1547,13 @@ if __name__ == '__main__':
 
         cur = sql.cursor()
         for u in uk.users:
-            arg = [kpage, u.name, int(uk.startweek), u.points, int(u.bytes), int(u.newpages),'']
+            arg = [ktitle, u.name, int(uk.startweek), u.points, int(u.bytes), int(u.newpages),'']
             if uk.startweek != uk.endweek:
                 arg[-1] = int(uk.endweek)
             #print arg
             cur.execute(u"INSERT INTO users (contest, user, week, points, bytes, newpages, week2) VALUES (?,?,?,?,?,?,?)", arg )
 
-        cur.execute(u'UPDATE contests SET closed=1 WHERE name=?', [kpage] )
+        cur.execute(u'UPDATE contests SET closed=1 WHERE name=?', [ktitle] )
         sql.commit()
         cur.close()
 
@@ -1564,11 +1573,11 @@ if __name__ == '__main__':
 
     # Update WP:UK
 
-    if re.match('^Wikipedia:Ukens konkurranse/Ukens konkurranse', kpage) and not args.simulate and not args.close and not ending:
+    if re.match('^Wikipedia:Ukens konkurranse/Ukens konkurranse', ktitle) and not args.simulate and not args.close and not ending:
         page = sites['no'].pages['WP:UK']
-        txt = '#OMDIRIGERING [[%s]]' % kpage
+        txt = '#OMDIRIGERING [[%s]]' % ktitle
         if page.edit() != txt:
-            page.save(txt, summary = 'Omdirigering til '+kpage)
+            page.save(txt, summary = 'Omdirigering til ' + ktitle)
 
     # Update Wikipedia:Portal/Oppslagstavle
     

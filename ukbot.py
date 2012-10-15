@@ -823,6 +823,12 @@ class UK(object):
 
                 elif key == 'stubb':
                     filters.append(StubFilter(**params))
+ 
+                elif key == 'mal':
+                    if len(anon) < 2:
+                        raise ParseError('Ingen maler (andre argument) ble gitt til {{mlp|ukens konkurranse kriterium|mal}}')
+                    params['templates'] = anon[1:]
+                    filters.append(TemplateFilter(**params))
                 
                 elif key == 'bytes':
                     if len(anon) < 2:
@@ -971,6 +977,9 @@ class UK(object):
                         except ValueError:
                             pass
                             #raise ParseError('Klarte ikke tolke verdien til parameteren %s gitt til {{tl|infoboks ukens konkurranse}}.' % col)
+
+        if not 'winner' in [r[1] for r in self.prices]:
+            raise ParseError('Fant ingen vinner-rosett i {{tl|infoboks ukens konkurranse}}. Vinner-rosett angis med {{para|blå|Vinner}} eller {{para|rød|Vinner}}.')
 
         self.prices.sort(key = lambda x: x[2], reverse = True)
         

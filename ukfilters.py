@@ -73,6 +73,52 @@ class StubFilter(Filter):
 
         return out
 
+class TemplateFilter(Filter):
+    """ Filters articles that had a given template at a point"""
+
+    def __init__(self, verbose, templates):
+        Filter.__init__(self, verbose)
+        self.templates = templates
+
+    def has_template(self, text):
+        """ Checks if a given text contains the template"""
+
+        m = re.search(r'{{(%s)[^}]*}}' % '|'.join(self.templates), text, re.IGNORECASE)
+        if m:
+            if self.verbose:
+                log(" >> %s " % m.group(1), newline = False)
+            return True
+        return False
+
+    def filter(self, articles):
+
+        out = odict()
+        for article_key, article in articles.iteritems():
+
+            firstrevid = article.revisions.firstkey()
+            firstrev = article.revisions[firstrevid]
+
+            try:
+
+                #if article.new == False and article.redirect == False:
+
+                # Check if first revision is a stub
+                if self.has_template(firstrev.parenttext):
+
+                    out[article_key] = article
+
+                    if self.verbose:
+                        log('')
+
+            except DanmicholoParseError as e:
+                log(" >> DanmicholoParser failed to parse " + article_key)
+                parentid = firstrev.parentid
+                article.site.errors.append('Artikkelen %s kunne ikke analyseres fordi en av revisjone %d eller %d ikke kunne parses: %s' % (article_key, firstrev.parentid, lastrev.revid, e.msg))
+
+        log("  [+] Applying template filter: %d -> %d" % (len(articles), len(out)))
+
+        return out
+
 class CatFilter(Filter):
     """ Filters articles that belong to a given overcategory """
 

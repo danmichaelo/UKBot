@@ -58,7 +58,7 @@ class StubRule(Rule):
     def is_stub(self, text):
         """ Checks if a given text is a stub """
 
-        dp = DanmicholoParser(text, debug = False)
+        dp = DanmicholoParser(text)
         for tname, templ in dp.templates.iteritems():
             if tname.find('stubb') != -1 or tname.find('spire') != -1:
                 return True
@@ -83,7 +83,7 @@ class TemplateRemovalRule(Rule):
     def templatecount(self, text):
         """ Checks if a given text has the template"""
 
-        dp = DanmicholoParser(text, debug = False)
+        dp = DanmicholoParser(text)
         tc = 0
         for tname, templ in dp.templates.iteritems():
             if tname == self.template or tname in self.aliases:

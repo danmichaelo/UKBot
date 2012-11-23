@@ -15,7 +15,7 @@ import urllib
 import argparse 
 import codecs
 
-from danmicholoparser import DanmicholoParser, DanmicholoParseError
+from danmicholoparser import DanmicholoParser, DanmicholoParseError, TemplateEditor
 import ukcommon
 from ukcommon import log
 from ukrules import *
@@ -827,6 +827,8 @@ class UK(object):
                 elif key == 'mal':
                     if len(anon) < 2:
                         raise ParseError('Ingen maler (andre argument) ble gitt til {{mlp|ukens konkurranse kriterium|mal}}')
+                    if templ.has_param('alias'):
+                        params['aliases'] = [a.strip() for a in named['alias'].split(',')]
                     params['templates'] = anon[1:]
                     filters.append(TemplateFilter(**params))
                 
@@ -902,6 +904,12 @@ class UK(object):
                 if templ.has_param('makspoeng'):
                     params['maxpoints'] = named['makspoeng']
                 rules.append(ImageRule(**params))
+
+            elif key == 'ekstern lenke':
+                params = { 'points': anon[1] }
+                if templ.has_param('makspoeng'):
+                    params['maxpoints'] = named['makspoeng']
+                rules.append(ExternalLinkRule(**params))
             
             elif key == 'ref':
                 params = { 'sourcepoints': anon[1], 'refpoints': anon[2] }
@@ -1446,9 +1454,8 @@ if __name__ == '__main__':
 
     # Make outpage
 
-    out = '== Resultater ==\n'
-    out += '[[File:Nowp Ukens konkurranse %s.svg|thumb|400px|Resultater (oppdateres normalt hver natt i halv ett-tiden, viser kun de ti med høyest poengsum)]]\n' % uk.start.strftime('%Y-%W')
-    
+    out = ''
+    #out += '[[File:Nowp Ukens konkurranse %s.svg|thumb|400px|Resultater (oppdateres normalt hver natt i halv ett-tiden, viser kun de ti med høyest poengsum)]]\n' % uk.start.strftime('%Y-%W')
 
     sammen = '{{Ukens konkurranse status'
     
@@ -1478,7 +1485,7 @@ if __name__ == '__main__':
 
     sammen += '}}'
 
-    out += sammen + '\n'
+    #out += sammen + '\n'
 
     now = datetime.now()
     if ending:
@@ -1524,13 +1531,33 @@ if __name__ == '__main__':
     out += '\n{{ukens konkurranse %s}}\n[[Kategori:Artikkelkonkurranser]]\n' % (uk.year)
 
     if not args.simulate:
-        log(" -> Updating wiki, section = %d " % (uk.results_section))
-        if ending:
-            kpage.save(out, summary = 'Oppdaterer med siste resultater og merker konkurransen som avsluttet', section = uk.results_section)
-        elif args.close:
-            kpage.save(out, summary = 'Kontrollerer og deler ut rosetter', section = uk.results_section)
+        txt = kpage.edit()
+        tp = TemplateEditor(txt)
+        tp.templates['infoboks ukens konkurranse'][0].parameters['status'] = sammen
+        txt = tp.get_wikitext()
+        secstart = -1
+        secend = -1
+        for s in re.finditer(r'^[\s]*==([^=]+)==[\s]*\n', txt, flags = re.M):
+            if s.group(1).strip() == 'Resultater':
+                secstart = s.end()
+            elif secstart != -1:
+                secend = s.start()
+                break
+        if secstart == -1:
+            raise StandardError("Error: secstart=%d,secend=%d" % (secstart,secend))
         else:
-            kpage.save(out, summary = 'Oppdaterer resultater', section = uk.results_section)
+            if secend == -1:
+                txt = txt[:secstart] + out
+            else:
+                txt = txt[:secstart] + out + txt[secend:]
+
+            log(" -> Updating wiki, section = %d " % (uk.results_section))
+            if ending:
+                kpage.save(txt, summary = 'Oppdaterer med siste resultater og merker konkurransen som avsluttet')
+            elif args.close:
+                kpage.save(txt, summary = 'Kontrollerer og deler ut rosetter')
+            else:
+                kpage.save(txt, summary = 'Oppdaterer resultater')
 
     if args.output != '':
         print "Writing output to file"

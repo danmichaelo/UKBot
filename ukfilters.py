@@ -74,21 +74,20 @@ class StubFilter(Filter):
         return out
 
 class TemplateFilter(Filter):
-    """ Filters articles that had a given template at a point"""
+    """ Filters articles that had any of a given set of templates (or their aliases) at a point"""
 
-    def __init__(self, verbose, templates):
+    def __init__(self, verbose, templates, aliases=[]):
         Filter.__init__(self, verbose)
+        templates.extend([a.lower() for a in aliases])
         self.templates = templates
 
     def has_template(self, text):
         """ Checks if a given text contains the template"""
 
-        m = re.search(r'{{(%s)[^}]*}}' % '|'.join(self.templates), text, re.IGNORECASE)
+        m = re.search(r'{{(%s)[\s]*(\||}})' % '|'.join(self.templates), text, re.IGNORECASE)
         if m:
-            if self.verbose:
-                log(" >> %s " % m.group(1), newline = False)
-            return True
-        return False
+            return m.group(1)
+        return None
 
     def filter(self, articles):
 
@@ -103,12 +102,11 @@ class TemplateFilter(Filter):
                 #if article.new == False and article.redirect == False:
 
                 # Check if first revision is a stub
-                if self.has_template(firstrev.parenttext):
-
-                    out[article_key] = article
-
+                t = self.has_template(firstrev.parenttext)
+                if t:
                     if self.verbose:
-                        log('')
+                        log('      Fant malen {{%s}} i [[%s]] @ %d' % (t, article_key, firstrevid))
+                    out[article_key] = article
 
             except DanmicholoParseError as e:
                 log(" >> DanmicholoParser failed to parse " + article_key)

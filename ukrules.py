@@ -164,6 +164,27 @@ class ImageRule(Rule):
         if imgs > 0:
             revpoints = imgs * self.points
             self.add_points(rev, revpoints, 'image', '%d bilde%s' % (imgs, 'r' if imgs > 1 else ''), self.maxpoints)
+
+class ExternalLinkRule(Rule):
+    
+    def __init__(self, points, maxpoints = -1):
+        Rule.__init__(self)
+        self.points = float(points)
+        self.maxpoints = float(maxpoints)
+
+    def get_linkcount(self, txt):
+        txt = re.sub(r'<ref[^>]*>.*?</ref>', '', txt, re.MULTILINE) # fjern referanser først, så vi ikke teller lenker i referanser
+        return len(re.findall(r'(?<!\[)\[[^\[\] ]+ [^\[\]]+\](?!])', txt))
+
+    def test(self, rev):
+       
+        nlinks = self.get_linkcount(rev.text)
+        nlinks_p = self.get_linkcount(rev.parenttext)
+        links = nlinks - nlinks_p
+
+        if links > 0:
+            revpoints = links * self.points
+            self.add_points(rev, revpoints, 'link', '%d lenke%s' % (links, 'r' if links> 1 else ''), self.maxpoints)
  
 
 class RefRule(Rule):

@@ -102,12 +102,15 @@ class ParseError(Exception):
 
 class Site(mwclient.Site):
 
-    def __init__(self, name):
+    def __init__(self, host, username, password):
 
         self.errors = []
-        self.name = name
-        self.key = name.split('.')[0]
-        mwclient.Site.__init__(self, name)
+        self.name = host
+        self.key = host.split('.')[0]
+        log('@ Initializing site: %s' % host)
+        mwclient.Site.__init__(self, host)
+        # Login to increase api limit from 50 to 500 
+        self.login(username, password)
 
 class Article(object):
     
@@ -1285,21 +1288,6 @@ class UK(object):
 if __name__ == '__main__':
     
     runstart = datetime.now()
-
-    # "Hard" settings
-
-    sites = {
-        'no': Site('no.wikipedia.org'),
-        'nn': Site('nn.wikipedia.org')
-    }
-    cpage = 'Bruker:UKBot/cat-ignore'
-    
-    # Login to increase api limit from 50 to 500 
-
-    from wp_private import ukbotlogin
-    for site in sites.itervalues():
-        site.login(*ukbotlogin)
-    del ukbotlogin
     
     # Read args
 
@@ -1317,6 +1305,18 @@ if __name__ == '__main__':
 
     log('-----------------------------------------------------------------')
     log('UKBot starting at %s' % (runstart.strftime('%F %T')))
+    
+    # "Hard" settings
+
+    from wp_private import ukbotlogin
+    sites = {
+        'no': Site('no.wikipedia.org', *ukbotlogin),
+        'nn': Site('nn.wikipedia.org', *ukbotlogin),
+        'se': Site('se.wikipedia.org', *ukbotlogin)
+    }
+    cpage = 'Bruker:UKBot/cat-ignore'
+    del ukbotlogin
+    
 
     sql = sqlite3.connect('uk.db')
 

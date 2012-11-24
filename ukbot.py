@@ -692,7 +692,7 @@ class User(object):
                 out = '[[:%s|%s]]' % (article_key, article.name)
                 if article_key in self.disqualified_articles:
                     out = '[[Fil:Qsicon Achtung.png|14px]] <s>' + out + '</s>'
-                    titletxt += '<div style="border-top:1px solid red; background:#ffcccc;"><strong>Merk:</strong> Bidragene til artikkelen fra denne brukeren er diskvalifisert og teller ikke i konkurransen</div>'
+                    titletxt += '<div style="border-top:1px solid red; background:#ffcccc;"><strong>Merk:</strong> Bidragene til artikkelen er diskvalifisert.</div>'
                 elif brutto != netto:
                     out = '[[Fil:Qsicon Achtung.png|14px]] ' + out
                     #titletxt += '<div style="border-top:1px solid red; background:#ffcccc;"><strong>Merk:</strong> En eller flere revisjoner er ikke talt med fordi de ble gjort mens brukeren var suspendert. Hvis suspenderingen oppheves vil bidragene telle med.</div>'
@@ -1267,10 +1267,13 @@ class UK(object):
                     heading = '== Viktig informasjon angående Ukens konkurranse uke %d ==' % self.startweek
                 else:
                     heading = '== Viktig informasjon angående Ukens konkurranse uke %d–%d ==' % (self.startweek, self.endweek)
-                msg = 'Takk for innsatsen din i [[%(pagename)s|ukens konkurranses]] så langt. Det er dessverre registrert problemer med enkelte av dine bidrag som medfører at vi er nødt til å informere deg om følgende:\n' % { 'pagename': self.name }
-                for m in msgs:
-                    msg += '* %s\n' % m
-                msg += 'Hvordan problemene kan løses kan diskuteres på konkurransens diskusjonsside. Du kan fjerne denne meldingen når du har lest den om du ønsker det. ~~~~'
+                #msg = 'Arrangøren av denne [[%(pagename)s|ukens konkurranse]] har registrert problemer ved noen av dine bidrag:
+                #så langt. Det er dessverre registrert problemer med enkelte av dine bidrag som medfører at vi er nødt til å informere deg om følgende:\n' % { 'pagename': self.name }
+
+                msg = ''.join(['* %s\n' % m for m in msgs])
+                msg += 'Denne meldingen er generert fra anmerkninger gjort av konkurransearrangør på [[%(pagename)s|konkurransesiden]]. Du finner mer informasjon på konkurransesiden og/eller tilhørende diskusjonsside. Så lenge konkurransen ikke er avsluttet, kan problemer løses i løpet av konkurransen. Om du ønsker det, kan du fjerne denne meldingen når du har lest den. ~~~~' % { 'pagename': self.name }
+
+                
                 #print '------------------------------',u.name
                 #print msg
                 #print '------------------------------'

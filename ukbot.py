@@ -808,13 +808,8 @@ class UK(object):
         if 'ukens konkurranse kriterium' in dp.templates.keys():
             for templ in dp.templates['ukens konkurranse kriterium']:
                 nfilters += 1
-                p = templ.parameters
-                anon = [[k,p[k]] for k in p.keys() if type(k) == int]
-                anon = sorted(anon, key = lambda x: x[0])
-                anon = [a[1] for a in anon]
-                named = [[k,p[k]] for k in p.keys() if type(k) != int]
-
-                named = odict(named)
+                anon = templ.get_anonymous_parameters()
+                named = templ.get_named_parameters()
                 key = anon[0].lower()
 
                 params = { 'verbose': self.verbose }
@@ -1018,17 +1013,18 @@ class UK(object):
         
         if 'uk bidrag diskvalifisert' in dp.templates:
             for templ in dp.templates['uk bidrag diskvalifisert']:
-                uname = templ.parameters[1]
-                aname = templ.parameters[2]
-                #print 'Diskvalifiserte bidrag:',uname,aname
-                ufound = False
-                for u in self.users:
-                    if u.name == uname:
-                        #print " > funnet"
-                        u.disqualified_articles.append(aname)
-                        ufound = True
-                if not ufound:
-                    raise ParseError('Fant ikke brukeren %s gitt til {{ml|UK bidrag diskvalifisert}}-malen.' % uname)
+                anon = templ.get_anonymous_parameters()
+                uname = anon[0]
+                for aname in anon[1:]:
+                    #print 'Diskvalifiserte bidrag:',uname,aname
+                    ufound = False
+                    for u in self.users:
+                        if u.name == uname:
+                            #print " > funnet"
+                            u.disqualified_articles.append(aname)
+                            ufound = True
+                    if not ufound:
+                        raise ParseError('Fant ikke brukeren %s gitt til {{ml|UK bidrag diskvalifisert}}-malen.' % uname)
         
         if 'uk poengtrekk' in dp.templates:
             for templ in dp.templates['uk poengtrekk']:
@@ -1243,7 +1239,7 @@ class UK(object):
         cur2.close()
         self.sql.commit()
 
-    def deliver_warnings(self):
+    def deliver_warnings(self, simulate=False):
         """
         Inform users about problems with their contribution(s)
         """
@@ -1254,14 +1250,23 @@ class UK(object):
                 d = [self.name, u.name, 'suspension', '']
                 if len( cur.execute(u'SELECT id FROM notifications WHERE contest=? AND user=? AND class=? AND args=?', d).fetchall() ) == 0:
                     msgs.append('Du er inntil videre suspendert fra konkurransen med virkning fra %s. Dette innebærer at dine bidrag gjort etter dette tidspunkt ikke teller i konkurransen, men alle bidrag blir registrert og skulle suspenderingen oppheves i løpet av konkurranseperioden vil også bidrag gjort i suspenderingsperioden telle med. Vi oppfordrer deg derfor til å arbeide med problemene som førte til suspenderingen slik at den kan oppheves.' % u.suspended_since.strftime('%e. %B %Y, %H:%M').decode('utf-8'))
-                    cur.execute(u'INSERT INTO notifications (contest, user, class, args) VALUES (?,?,?,?)', d)
+                    if not simulate:
+                        cur.execute(u'INSERT INTO notifications (contest, user, class, args) VALUES (?,?,?,?)', d)
+            discs = []
             for article_key, article in u.articles.iteritems():
                 if article.disqualified:
                     d = [self.name, u.name, 'disqualified', article_key]
                     if len( cur.execute(u'SELECT id FROM notifications WHERE contest=? AND user=? AND class=? AND args=?', d).fetchall() ) == 0:
-                        msgs.append('Bidragene dine til artikkelen [[%s|%s]] er diskvalifisert fra konkurransen. En diskvalifisering kan oppheves hvis du selv ordner opp i problemet som førte til diskvalifiseringen. Hvis andre brukere ordner opp i problemet er det ikke sikkert at den vil kunne oppheves.' % (':'+article_key, article.name))
-                        cur.execute(u'INSERT INTO notifications (contest, user, class, args) VALUES (?,?,?,?)', d)
-            
+                        discs.append('[[:%s|%s]]' % (article_key, article.name))
+                        if not simulate:
+                            cur.execute(u'INSERT INTO notifications (contest, user, class, args) VALUES (?,?,?,?)', d)
+            if len(discs) > 0:
+                if len(discs) == 1:
+                    s = discs[0]
+                else:
+                    s = ', '.join(discs[:-1]) + ' og ' + discs[-1]
+                msgs.append('Bidragene dine til %s er diskvalifisert fra konkurransen. En diskvalifisering kan oppheves hvis du selv ordner opp i problemet som førte til diskvalifiseringen. Hvis andre brukere ordner opp i problemet er det ikke sikkert at den vil kunne oppheves.' % s)
+
             if len(msgs) > 0:
                 if self.startweek == self.endweek:
                     heading = '== Viktig informasjon angående Ukens konkurranse uke %d ==' % self.startweek
@@ -1280,7 +1285,10 @@ class UK(object):
 
                 page = self.sites['no'].pages['Brukerdiskusjon:' + u.name]
                 log(' -> Leverer advarsel til %s' % page.name)
-                page.save(text = msg, bot = False, section = 'new', summary = heading)
+                if simulate:
+                    log(msg)
+                else:
+                    page.save(text = msg, bot = False, section = 'new', summary = heading)
             self.sql.commit()
 
 
@@ -1607,8 +1615,7 @@ if __name__ == '__main__':
 
     # Notify users about issues
 
-    if not args.simulate:
-        uk.deliver_warnings()
+    uk.deliver_warnings(simulate=args.simulate)
 
     # Update WP:UK
 

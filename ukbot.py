@@ -1015,16 +1015,17 @@ class UK(object):
             for templ in dp.templates['uk bidrag diskvalifisert']:
                 anon = templ.get_anonymous_parameters()
                 uname = anon[0]
-                for aname in anon[1:]:
-                    #print 'Diskvalifiserte bidrag:',uname,aname
-                    ufound = False
-                    for u in self.users:
-                        if u.name == uname:
-                            #print " > funnet"
-                            u.disqualified_articles.append(aname)
-                            ufound = True
-                    if not ufound:
-                        raise ParseError('Fant ikke brukeren %s gitt til {{ml|UK bidrag diskvalifisert}}-malen.' % uname)
+                if not 's' in templ.get_named_parameters():
+                    for aname in anon[1:]:
+                        #print 'Diskvalifiserte bidrag:',uname,aname
+                        ufound = False
+                        for u in self.users:
+                            if u.name == uname:
+                                #print " > funnet"
+                                u.disqualified_articles.append(aname)
+                                ufound = True
+                        if not ufound:
+                            raise ParseError('Fant ikke brukeren %s gitt til {{ml|UK bidrag diskvalifisert}}-malen.' % uname)
         
         if 'uk poengtrekk' in dp.templates:
             for templ in dp.templates['uk poengtrekk']:

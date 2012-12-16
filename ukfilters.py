@@ -131,7 +131,7 @@ class CatFilter(Filter):
         
         self.ignore = ignore
         self.sites = sites
-        self.include = catnames
+        self.include = [c[c.rfind(':')+1:] for c in catnames]
         self.maxdepth = int(maxdepth)
         if self.verbose:
             log("  CatFilter: %s" % (" OR ".join(self.include)))

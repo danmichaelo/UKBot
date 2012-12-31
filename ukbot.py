@@ -949,8 +949,8 @@ class UK(object):
             else:
                 endweek = startweek
 
-            self.start = osl.localize(datetime.strptime(year+' '+startweek+' 1 00 00 00', '%Y %W %w %H %M %S'))
-            self.end = osl.localize(datetime.strptime(year+' '+endweek+' 0 23 59 59', '%Y %W %w %H %M %S'))
+            self.start = osl.localize(datetime.strptime(year+' '+startweek+' 1 00 00 00', '%Y %V %w %H %M %S'))
+            self.end = osl.localize(datetime.strptime(year+' '+endweek+' 0 23 59 59', '%Y %V %w %H %M %S'))
         elif infoboks.has_param('start') and infoboks.has_param('slutt'):
             startdt = infoboks.parameters['start']
             enddt = infoboks.parameters['slutt']
@@ -1169,7 +1169,7 @@ class UK(object):
                         break
 
             now = datetime.now()
-            yearweek = now.strftime('%Y-%W')
+            yearweek = now.strftime('%Y-%V')
             mld += 'Husk at denne ukens konkurranse er [[Wikipedia:Ukens konkurranse/Ukens konkurranse %s|{{Ukens konkurranse liste|uke=%s}}]]. Lykke til! ' % (yearweek, yearweek)
             mld += 'Hilsen ' + ', '.join(['[[Bruker:%s|%s]]'%(s,s) for s in self.ledere]) + ' og ~~~~'
 
@@ -1529,7 +1529,7 @@ if __name__ == '__main__':
         if len(err) > 8:
             err = err[:8]
             err.append('(...)')
-        errors.append('\n* Boten støtte på følgende problemer med artikkelen [[%s]]'%art + ''.join(['\n** %s' % e for e in err]))
+        errors.append('\n* Boten støtte på følgende problemer med artikkelen [[:%s]]'%art + ''.join(['\n** %s' % e for e in err]))
     
     for site in uk.sites.itervalues():
         for error in site.errors:
@@ -1636,13 +1636,13 @@ if __name__ == '__main__':
         raise StandardError(u'Feil: Fant %d la stå/uk-maler i Wikipedia:Portal/Oppslagstavle' % len(dp.templates['la stå/uk']))
 
     tpl = dp.templates['la stå/uk'][0]
-    if int(tpl.parameters['uke']) != int(now.strftime('%W')):
+    if int(tpl.parameters['uke']) != int(now.strftime('%V')):
         log('-> Oppdaterer Wikipedia:Portal/Oppslagstavle')
-        tema = sites['no'].api('parse', text = '{{subst:Ukens konkurranse liste|uke=%s}}' % now.strftime('%Y-%W'), pst=1, onlypst=1)['parse']['text']['*']
+        tema = sites['no'].api('parse', text = '{{subst:Ukens konkurranse liste|uke=%s}}' % now.strftime('%Y-%V'), pst=1, onlypst=1)['parse']['text']['*']
         tpl.parameters[1] = tema
         tpl.parameters['dato'] = now.strftime('%e. %h')
         tpl.parameters['år'] = now.strftime('%Y')
-        tpl.parameters['uke'] = now.strftime('%W')
+        tpl.parameters['uke'] = now.strftime('%V')
         txt2 = dp.get_wikitext()
         if txt != txt2:
             oppslagstavle.save(txt2, summary = 'Ukens konkurranse er: %s' % tema)

@@ -53,39 +53,6 @@ rosettfiler = {
 ## Hver natt kl 00.30 laster vi opp ny figur
 #30 0 * * * nice -n 11 /uio/arkimedes/s01/dmheggo/wikipedia/UKBot/uploadbot.sh
 
-#CREATE TABLE contests (
-#  name TEXT,
-#  ended INTEGER NOT NULL,
-#  closed INTEGER NOT NULL,
-#  PRIMARY KEY(name)  
-#);
-#CREATE TABLE contribs (
-#  revid INTEGER NOT NULL,
-#  site TEXT NOT NULL,
-#  parentid INTEGER NOT NULL,
-#  user TEXT NOT NULL, 
-#  page TEXT NOT NULL, 
-#  timestamp DATETIME NOT NULL, 
-#  size  INTEGER NOT NULL,
-#  parentsize  INTEGER NOT NULL,
-#  PRIMARY KEY(revid, site)
-#);
-#CREATE TABLE fulltexts (
-#  revid INTEGER NOT NULL,
-#  site TEXT NOT NULL,
-#  revtxt TEXT NOT NULL,
-#  PRIMARY KEY(revid, site)  
-#);
-#CREATE TABLE users (
-#  contest TEXT NOT NULL,
-#  user TEXT NOT NULL,
-#  week INTEGER NOT NULL,
-#  points REAL NOT NULL,
-#  bytes INTEGER NOT NULL,
-#  newpages INTEGER NOT NULL,
-#  week2 INTEGER NOT NULL,
-#  PRIMARY KEY(contest, user)  
-#);
 
 
 #from ete2 import Tree
@@ -1339,8 +1306,7 @@ if __name__ == '__main__':
     cpage = 'Bruker:UKBot/cat-ignore'
     del ukbotlogin
     
-
-    sql = sqlite3.connect('uk.db')
+    sql = sqlite3.connect('db/uk.db')
 
     # Determine kpage
 

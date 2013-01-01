@@ -6,15 +6,18 @@ matplotlib.use('svg')
 import numpy as np
 import time
 from datetime import datetime, timedelta
+from datetime import time as dt_time
 import pytz
+from isoweek import Week # Sort-of necessary until datetime supports %V, see http://bugs.python.org/issue12006 
+                         # and See http://stackoverflow.com/questions/5882405/get-date-from-iso-week-number-in-python
 import re
 import sqlite3
 from odict import odict
-import mwclient
 import urllib
 import argparse 
 import codecs
 
+import mwclient
 from danmicholoparser import DanmicholoParser, DanmicholoParseError, TemplateEditor
 import ukcommon
 from ukcommon import log
@@ -745,7 +748,10 @@ class UK(object):
         self.page = page
         self.name = self.page.name
         txt = page.edit(readonly = True)
-        m = re.search('==\s*Resultater\s*==',txt)
+        m = re.search('==\s*Resultater\s*==', txt)
+        if not m:
+            raise ParseError('Fant ingen "Resultater"-seksjon i siden "%s"' % self.page.name)
+
         txt = txt[:m.end()]
 
         self.verbose = verbose
@@ -940,17 +946,21 @@ class UK(object):
         osl = pytz.timezone('Europe/Oslo')
 
         if infoboks.has_param('år') and infoboks.has_param('uke'):
-            year = re.sub('<\!--.+?-->', '', infoboks.parameters['år']).strip()
-            startweek = re.sub('<\!--.+?-->', '', infoboks.parameters['uke']).strip()
+            year = int(re.sub('<\!--.+?-->', '', infoboks.parameters['år']).strip())
+            startweek = int(re.sub('<\!--.+?-->', '', infoboks.parameters['uke']).strip())
             if infoboks.has_param('ukefler'):
                 endweek = re.sub('<\!--.+?-->', '', infoboks.parameters['ukefler']).strip()
                 if endweek == '':
                     endweek = startweek
             else:
                 endweek = startweek
+            endweek = int(endweek)
 
-            self.start = osl.localize(datetime.strptime(year+' '+startweek+' 1 00 00 00', '%Y %V %w %H %M %S'))
-            self.end = osl.localize(datetime.strptime(year+' '+endweek+' 0 23 59 59', '%Y %V %w %H %M %S'))
+            print year, startweek
+            startweek = Week(year, startweek)
+            endweek = Week(year, endweek)
+            self.start = osl.localize(datetime.combine(startweek.monday(), dt_time(0, 0, 0)))
+            self.end = osl.localize(datetime.combine(endweek.friday(), dt_time(23, 59, 59)))
         elif infoboks.has_param('start') and infoboks.has_param('slutt'):
             startdt = infoboks.parameters['start']
             enddt = infoboks.parameters['slutt']
@@ -1148,9 +1158,9 @@ class UK(object):
                     if r[1] == 'winner':
                         prizefound = True
                         if self.startweek == self.endweek:
-                            mld += '{{UK vinner|visuk=nei|år=%d|uke=%d|%s=ja' % (self.year, self.startweek, r[0])
+                            mld += '{{UK vinner|visuk=nei|år=%d|uke=%02d|%s=ja' % (self.year, self.startweek, r[0])
                         else:
-                            mld += '{{UK vinner|visuk=nei|år=%d|uke=%d|ukefler=%d|%s=ja' % (self.year, self.startweek, self.endweek, r[0])
+                            mld += '{{UK vinner|visuk=nei|år=%d|uke=%02d|ukefler=%d|%s=ja' % (self.year, self.startweek, self.endweek, r[0])
                         break
                 for r in self.prices:
                     if r[1] == 'pointlimit' and u.points >= r[2]:
@@ -1186,9 +1196,9 @@ class UK(object):
         link = '//no.wikipedia.org/w/index.php?title=Bruker:UKBot/Premieutsendelse&action=edit&section=new&preload=Bruker:UKBot/Premieutsendelse/Preload&preloadtitle=send%20ut'
         for u in self.ledere:
             if self.startweek == self.endweek:
-                mld = '{{UK arrangør|visuk=nei|år=%d|uke=%d|gul=ja}}\n' % (self.year, self.startweek)
+                mld = '{{UK arrangør|visuk=nei|år=%d|uke=%02d|gul=ja}}\n' % (self.year, self.startweek)
             else:
-                mld = '{{UK arrangør|visuk=nei|år=%d|uke=%d|ukefler=%d|gul=ja}}\n' % (self.year, self.startweek, self.endweek)
+                mld = '{{UK arrangør|visuk=nei|år=%d|uke=%02d|ukefler=%d|gul=ja}}\n' % (self.year, self.startweek, self.endweek)
             mld += 'Du må nå sjekke resultatene. Hvis det er feilmeldinger nederst på [[%s|konkurransesiden]] må du sjekke om de relaterte bidragene har fått poengene de skal ha. Se også etter om det er kommentarer eller klager på diskusjonssiden. Hvis alt ser greit ut kan du trykke [%s her] (og lagre), så sender jeg ut rosetter ved første anledning. ' % (pagename, link)
             mld += 'Hilsen ~~~~'
 

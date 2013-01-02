@@ -368,10 +368,18 @@ class BackLinkFilter(Filter):
         self.articles = articles
         self.links = []
         log("  [+] Initializing backlink filter: " + ','.join(self.articles))
+        #print sites
         
         for site_key, site in self.sites.iteritems():
             for aname in self.articles:
-                p = site.pages[aname]
+                aname2 = aname
+                kv = aname.split(':')
+                if len(kv) == 2 and len(kv[0]) == 2:
+                    if kv[0] != site_key:
+                        continue
+                    else:
+                        aname2 = kv[1]
+                p = site.pages[aname2]
                 if p.exists:
                     for link in p.links(redirects = True):
                         self.links.append(site_key+':'+link.name)

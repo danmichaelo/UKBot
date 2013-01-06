@@ -775,20 +775,18 @@ class UK(object):
         filtercfg = config['templates']['filter']
         if filtercfg['name'].lower() in dp.templates.keys():
             for templ in dp.templates[filtercfg['name'].lower()]:
-                nfilters += 1
                 anon = templ.get_anonymous_parameters()
                 named = templ.get_named_parameters()
                 key = anon[0].lower()
-
                 params = { 'verbose': self.verbose }
                 if key == filtercfg['new']:
-                    filters.append(NewPageFilter(**params))
+                    filt = NewPageFilter(**params)
 
                 elif key == filtercfg['existing']:
-                    filters.append(ExistingPageFilter(**params))
+                    filt = ExistingPageFilter(**params)
 
                 # elif key == 'stubb':
-                #     filters.append(StubFilter(**params))
+                #     filt = StubFilter(**params)
  
                 elif key == filtercfg['template']:
                     if len(anon) < 2:
@@ -796,13 +794,13 @@ class UK(object):
                     if templ.has_param('alias'):
                         params['aliases'] = [a.strip() for a in named['alias'].split(',')]
                     params['templates'] = anon[1:]
-                    filters.append(TemplateFilter(**params))
+                    filt = TemplateFilter(**params)
                 
                 elif key == filtercfg['bytes']:
                     if len(anon) < 2:
                         raise ParseError(_('No byte limit (second argument) given to {{mlp|%(template)s|%(firstarg)s}}') % {'template': filtercfg['name'], 'firstarg': filtercfg['bytes'] })
                     params['bytelimit'] = anon[1]
-                    filters.append(ByteFilter(**params))
+                    filt = ByteFilter(**params)
 
                 elif key == filtercfg['category']:
                     if len(anon) < 2:
@@ -812,24 +810,33 @@ class UK(object):
                     params['ignore'] = catignore
                     if templ.has_param('maksdybde'):
                         params['maxdepth'] = int(named['maksdybde'])
-                    filters.append(CatFilter(**params))
+                    filt = CatFilter(**params)
 
                 elif key == filtercfg['backlink']:
                     params['sites'] = self.sites
                     params['articles'] = anon[1:]
-                    filters.append(BackLinkFilter(**params))
+                    filt = BackLinkFilter(**params)
                 
                 elif key == filtercfg['forwardlink']:
                     params['sites'] = self.sites
                     params['articles'] = anon[1:]
-                    filters.append(ForwardLinkFilter(**params))
+                    filt = ForwardLinkFilter(**params)
                 
                 elif key == filtercfg['namespace']:
                     params['namespace'] = int(anon[1])
-                    filters.append(NamespaceFilter(**params))
+                    filt = NamespaceFilter(**params)
 
                 else: 
                     raise ParseError(_('Unknown argument given to {{tl|%(template)s}}: %(argument)s') % { 'template': filtercfg['name'], 'argument': key })
+                
+                foundfilter = False
+                for f in filters:
+                    if type(f) == type(filt):
+                        foundfilter = True
+                        f.extend(filt)
+                if not foundfilter:
+                    nfilters += 1
+                    filters.append(filt)
 
         ######################## Read rules ########################
 
@@ -1497,8 +1504,8 @@ if __name__ == '__main__':
     ft = [type(f) for f in uk.filters]
     rt = [type(r) for r in uk.rules]
 
-    # if StubFilter in ft:
-    #     sammen += '|avstubbet=%d' % narticles
+    #if StubFilter in ft:
+    #    sammen += '|avstubbet=%d' % narticles
 
     if ByteRule in rt or WordRule in rt:
         if nnewpages > 0:

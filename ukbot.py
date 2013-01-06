@@ -7,11 +7,13 @@ import numpy as np
 import time
 from datetime import datetime, timedelta
 from datetime import time as dt_time
+import gettext
 import pytz
 from isoweek import Week # Sort-of necessary until datetime supports %V, see http://bugs.python.org/issue12006 
                          # and See http://stackoverflow.com/questions/5882405/get-date-from-iso-week-number-in-python
 import re
 import sqlite3
+import yaml
 from odict import odict
 import urllib
 import argparse 
@@ -25,20 +27,6 @@ from ukrules import *
 from ukfilters import *
 
 import locale
-locale.setlocale(locale.LC_TIME, 'no_NO.utf-8'.encode('utf-8'))
-
-rosettfiler = {
-    'blå': 'Article blue.svg',
-    'rød': 'Article red.svg',
-    'oransj': 'Article orange.svg',
-    'orange': 'Article orange.svg',
-    'grønn': 'Article green.svg',
-    'grå': 'Article grey.svg',
-    'lyslilla': 'Article MediumPurple.svg',
-    'lilla': 'Article purple.svg',
-    'brun': 'Article brown.svg',
-    'gul': 'Article yellow.svg'
-}
 
 # Suggested crontab:
 ## Oppdater resultater annenhver time mellom kl 8 og 22 samt kl 23 og 01...
@@ -52,8 +40,6 @@ rosettfiler = {
 #20 */12 * * 3-6 nice -n 11 /uio/arkimedes/s01/dmheggo/wikipedia/UKBot/close.sh
 ## Hver natt kl 00.30 laster vi opp ny figur
 #30 0 * * * nice -n 11 /uio/arkimedes/s01/dmheggo/wikipedia/UKBot/uploadbot.sh
-
-
 
 #from ete2 import Tree
 
@@ -210,10 +196,12 @@ class Revision(object):
             dp2 = DanmicholoParser(self.parenttext)
             try:
                 self._wordcount = len(dp.maintext.split()) - len(dp2.maintext.split())
+                s = _('A problem encountered with revision %(revid)d may have influenced the word count for this revision: <nowiki>%(problems)s</nowiki> ')
+                #s = _('Et problem med revisjon %d kan ha påvirket ordtellingen for denne: <nowiki>%s</nowiki> ')
                 if len(dp.parse_errors) > 0:
-                    self.errors.append('Et problem med revisjon %d kan ha påvirket ordtellingen for denne: <nowiki>%s</nowiki> ' % (self.revid, dp.parse_errors[0]))
+                    self.errors.append(s % { 'revid': self.revid, 'problems': dp.parse_errors[0] })
                 if len(dp2.parse_errors) > 0:
-                    self.errors.append('Et problem med revisjon %d kan ha påvirket ordtellingen for denne: <nowiki>%s</nowiki> ' % (self.parentid, dp2.parse_errors[0]))
+                    self.errors.append(s % { 'revid': self.parentid, 'problems': dp2.parse_errors[0] })
             except DanmicholoParseError as e:
                 log("!!!>> FAIL: %s @ %d" % (self.article.name,self.revid))
                 self._wordcount = 0
@@ -561,7 +549,7 @@ class User(object):
         x = []
         y = []
         utc = pytz.utc
-        osl = pytz.timezone('Europe/Oslo')
+        osl = pytz.timezone(self.contest.config['timezone'])
         
         # loop over articles
         for article_key, article in self.articles.iteritems():
@@ -603,9 +591,10 @@ class User(object):
     def format_result(self, pos = -1, closing = False, prices= []):
         
         entries = []
+        config = self.contest.config
 
         utc = pytz.utc
-        osl = pytz.timezone('Europe/Oslo')
+        osl = pytz.timezone(config['timezone'])
 
         if self.contest.verbose:
             log('Formatting results for user %s' % self.name)
@@ -640,7 +629,7 @@ class User(object):
                 
                 titletxt = ''
                 try:
-                    titletxt = "''Kategoritreff'': " + ' &gt; '.join(article.cat_path) + '<br />'
+                    titletxt = "''" + _('Category hit') + "'': " + ' &gt; '.join(article.cat_path) + '<br />'
                 except AttributeError:
                     pass
                 titletxt += '<br />'.join(revs)
@@ -648,9 +637,9 @@ class User(object):
                     pds = []
                     for points, reason in article.point_deductions:
                         pds.append('%.f p: %s' % (-points, reason))
-                    titletxt += '<div style="border-top:1px solid #CCC">\'\'Merknader:\'\'<br />%s</div>' % '<br />'.join(pds)
+                    titletxt += '<div style="border-top:1px solid #CCC">\'\'' + _('Notes') + ':\'\'<br />%s</div>' % '<br />'.join(pds)
                 
-                titletxt += '<div style="border-top:1px solid #CCC">Totalt {{formatnum:%d}} bytes, %d ord.</div>' % (article.bytes, article.words)
+                titletxt += '<div style="border-top:1px solid #CCC">' + _('Total: {{formatnum:%(bytecount)d}} bytes, %(wordcount)d words') % { 'bytecount': article.bytes, 'wordcount': article.words} + '.</div>'
                 
 
                 p = '%.1f p' % brutto
@@ -662,7 +651,7 @@ class User(object):
                 out = '[[:%s|%s]]' % (article_key, article.name)
                 if article_key in self.disqualified_articles:
                     out = '[[Fil:Qsicon Achtung.png|14px]] <s>' + out + '</s>'
-                    titletxt += '<div style="border-top:1px solid red; background:#ffcccc;"><strong>Merk:</strong> Bidragene til artikkelen er diskvalifisert.</div>'
+                    titletxt += '<div style="border-top:1px solid red; background:#ffcccc;">' + _('<strong>Note:</strong> The contributions to this article are currently disqualified.') + '</div>'
                 elif brutto != netto:
                     out = '[[Fil:Qsicon Achtung.png|14px]] ' + out
                     #titletxt += '<div style="border-top:1px solid red; background:#ffcccc;"><strong>Merk:</strong> En eller flere revisjoner er ikke talt med fordi de ble gjort mens brukeren var suspendert. Hvis suspenderingen oppheves vil bidragene telle med.</div>'
@@ -680,22 +669,22 @@ class User(object):
             if pos == 0:
                 for r in prices:
                     if r[1] == 'winner':
-                        ros += '[[Fil:%s|20px]] ' % rosettfiler[r[0]]
+                        ros += '[[Fil:%s|20px]] ' % config['awards'][r[0]]
                         break
             for r in prices:
                 if r[1] == 'pointlimit' and self.points >= r[2]:
-                    ros += '[[Fil:%s|20px]] ' % rosettfiler[r[0]]
+                    ros += '[[Fil:%s|20px]] ' % config['awards'][r[0]]
                     break
         suspended = ''
         if self.suspended_since != None:
-            suspended = ', suspendert siden %s' % self.suspended_since.strftime('%A, %H.%M').decode('utf-8')
+            suspended = ', ' + _('suspended since') + ' %s' % self.suspended_since.strftime('%A, %H.%M').decode('utf-8')
         out = '=== %s [[Bruker:%s|%s]] (%.f p%s) ===\n' % (ros, self.name, self.name, self.points, suspended)
         if len(entries) == 0:
-            out += "''Ingen kvalifiserte bidrag registrert ennå''"
+            out += "''" + _('No qualifying contributions registered yet') + "''"
         else:
-            out += '%d artikler, {{formatnum:%.2f}} kB\n' % (len(entries), self.bytes/1000.)
+            out += '%d %s, {{formatnum:%.2f}} kB\n' % (len(entries), _('articles'), self.bytes/1000.)
         if len(entries) > 10:
-            out += '{{Kolonner}}\n'
+            out += _('{{Kolonner}}\n')
         out += '\n'.join(entries)
         out += '\n\n'
 
@@ -704,7 +693,7 @@ class User(object):
 
 class UK(object):
 
-    def __init__(self, page, catignore, sites, sql, verbose = False):
+    def __init__(self, page, catignore, sites, homesite, sql, config, verbose = False):
         """
             page: mwclient.Page object
             catignore: string
@@ -714,34 +703,37 @@ class UK(object):
         """
         self.page = page
         self.name = self.page.name
+        self.config = config
+        self.homesite = homesite
+        resultsSection = config['contestPages']['resultsSection']
         txt = page.edit(readonly = True)
-        m = re.search('==\s*Resultater\s*==', txt)
+        m = re.search('==\s*'+resultsSection+'\s*==', txt)
         if not m:
-            raise ParseError('Fant ingen "Resultater"-seksjon i siden "%s"' % self.page.name)
+            raise ParseError(_('Found no "%(section)s sections in the page "%(page)s"') % { 'section': resultsSection, 'page': self.page.name })
 
         txt = txt[:m.end()]
 
         self.verbose = verbose
         self.sql = sql
         sections = [s.strip() for s in re.findall('^[\s]*==([^=]+)==', txt, flags = re.M)]
-        self.results_section = sections.index('Resultater') + 1
+        self.results_section = sections.index(resultsSection) + 1
 
         self.sites = sites
         self.users = [User(n, self) for n in self.extract_userlist(txt)]
         self.rules, self.filters = self.extract_rules(txt, catignore)
         
         if self.startweek == self.endweek:
-            log('@ Uke %d' % self.startweek)
+            log('@ Week %d' % self.startweek)
         else:
-            log('@ Uke %d–%d' % (self.startweek, self.endweek))
+            log('@ Week %d–%d' % (self.startweek, self.endweek))
 
     def extract_userlist(self, txt):
         lst = []
-        m = re.search('==\s*Delta[kg]ere\s*==',txt)
+        m = re.search('==\s*' + self.config['contestPages']['participantsSection'] + '\s*==', txt)
         if not m:
-            raise ParseError('Fant ikke deltakerlisten!')
+            raise ParseError(_('Fant ikke deltakerlisten!'))
         deltakerliste = txt[m.end():]
-        m = re.search('==[^=]+==',deltakerliste)
+        m = re.search('==[^=]+==', deltakerliste)
         if not m:
             raise ParseError('Fant ingen overskrift etter deltakerlisten!')
         deltakerliste = deltakerliste[:m.start()]
@@ -749,69 +741,72 @@ class UK(object):
             q = re.search(r'\[\[([^:]+):([^|\]]+)', d)
             if q:
                 lst.append(q.group(2))
-        log("@ Fant %d deltakere" % (len(lst)))
+        log("@ Found %d participants" % (len(lst)))
         return lst
 
 
     def extract_rules(self, txt, catignore_txt):
         rules = []
         filters = []
+        config = self.config
 
         dp = DanmicholoParser(txt)
         dp2 = DanmicholoParser(catignore_txt)
         
-        if not 'ukens konkurranse poeng' in dp.templates.keys():
-            raise ParseError('Denne konkurransen har ingen poengregler. Poengregler defineres med {{tl|ukens konkurranse poeng}}.')
+        if not config['templates']['rule']['name'].lower() in dp.templates.keys():
+            raise ParseError(_('Denne konkurransen har ingen poengregler. Poengregler defineres med {{tl|%(template)s}}.') % { 'template': config['templates']['rule']['name'] })
         
         #if not 'ukens konkurranse kriterium' in dp.templates.keys():
         #    raise ParseError('Denne konkurransen har ingen bidragskriterier. Kriterier defineres med {{tl|ukens konkurranse kriterium}}.')
         
-        if not 'infoboks ukens konkurranse' in dp.templates.keys():
-            raise ParseError('Denne konkurransen mangler en {{tl|infoboks ukens konkurranse}}-mal.')
+        infobox = config['templates']['infobox']
+        if not infobox['name'].lower() in dp.templates.keys():
+            raise ParseError(_('This contest is missing a {{tl|%(template)s}} template.') % { 'template': infobox['name'] })
 
         try:
             catignore = dp2.tags['pre'][0]['content'].splitlines()
         except (IndexError, KeyError):
-            raise ParseError('Klarte ikke tolke catignore-siden')
+            raise ParseError(_('Could not parse the catignore page'))
 
-        # Read filters
+        ######################## Read filters ########################
 
         nfilters = 0
         #print dp.templates.keys()
-        if 'ukens konkurranse kriterium' in dp.templates.keys():
-            for templ in dp.templates['ukens konkurranse kriterium']:
+        filtercfg = config['templates']['filter']
+        if filtercfg['name'].lower() in dp.templates.keys():
+            for templ in dp.templates[filtercfg['name'].lower()]:
                 nfilters += 1
                 anon = templ.get_anonymous_parameters()
                 named = templ.get_named_parameters()
                 key = anon[0].lower()
 
                 params = { 'verbose': self.verbose }
-                if key == 'ny':
+                if key == filtercfg['new']:
                     filters.append(NewPageFilter(**params))
 
-                elif key == 'eksisterende':
+                elif key == filtercfg['existing']:
                     filters.append(ExistingPageFilter(**params))
 
-                elif key == 'stubb':
-                    filters.append(StubFilter(**params))
+                # elif key == 'stubb':
+                #     filters.append(StubFilter(**params))
  
-                elif key == 'mal':
+                elif key == filtercfg['template']:
                     if len(anon) < 2:
-                        raise ParseError('Ingen maler (andre argument) ble gitt til {{mlp|ukens konkurranse kriterium|mal}}')
+                        raise ParseError(_('No template (second argument) given to {{mlp|%(template)s|%(firstarg)s}}') % {'template': filtercfg['name'], 'firstarg': filtercfg['template'] })
                     if templ.has_param('alias'):
                         params['aliases'] = [a.strip() for a in named['alias'].split(',')]
                     params['templates'] = anon[1:]
                     filters.append(TemplateFilter(**params))
                 
-                elif key == 'bytes':
+                elif key == filtercfg['bytes']:
                     if len(anon) < 2:
-                        raise ParseError('Ingen bytesgrense (andre argument) ble gitt til {{mlp|ukens konkurranse kriterium|bytes}}')
+                        raise ParseError(_('No byte limit (second argument) given to {{mlp|%(template)s|%(firstarg)s}}') % {'template': filtercfg['name'], 'firstarg': filtercfg['bytes'] })
                     params['bytelimit'] = anon[1]
                     filters.append(ByteFilter(**params))
 
-                elif key == 'kategori':
+                elif key == filtercfg['category']:
                     if len(anon) < 2:
-                        raise ParseError('Ingen kategori(er) ble gitt til {{mlp|ukens konkurranse kriterium|kategori}}')
+                        raise ParseError(_('No categories given to {{mlp|%(template)s|%(firstarg)s}}') % {'template': filtercfg['name'], 'firstarg': filtercfg['bytes'] })
                     params['sites'] = self.sites
                     params['catnames'] = anon[1:]
                     params['ignore'] = catignore
@@ -819,27 +814,29 @@ class UK(object):
                         params['maxdepth'] = int(named['maksdybde'])
                     filters.append(CatFilter(**params))
 
-                elif key == 'tilbakelenke':
+                elif key == filtercfg['backlink']:
                     params['sites'] = self.sites
                     params['articles'] = anon[1:]
                     filters.append(BackLinkFilter(**params))
                 
-                elif key == 'fremlenke':
+                elif key == filtercfg['forwardlink']:
                     params['sites'] = self.sites
                     params['articles'] = anon[1:]
                     filters.append(ForwardLinkFilter(**params))
                 
-                elif key == 'navnerom':
+                elif key == filtercfg['namespace']:
                     params['namespace'] = int(anon[1])
                     filters.append(NamespaceFilter(**params))
 
                 else: 
-                    raise ParseError('Ukjent argument gitt til {{ml|ukens konkurranse kriterium}}: '+key)
-        log("@ Fant %d filtre" % (nfilters))
+                    raise ParseError(_('Unknown argument given to {{tl|%(template)s}}: %(argument)s') % { 'template': filtercfg['name'], 'argument': key })
 
-        # Read rules
+        ######################## Read rules ########################
 
-        for templ in dp.templates['ukens konkurranse poeng']:
+        rulecfg = config['templates']['rule']
+        nrules = 0
+        for templ in dp.templates[rulecfg['name'].lower()]:
+            nrules += 1
             p = templ.parameters
             anon = [[k,p[k]] for k in p.keys() if type(k) == int]
             anon = sorted(anon, key = lambda x: x[0])
@@ -848,111 +845,116 @@ class UK(object):
 
             named = odict(named)
             key = anon[0].lower()
+            maxpoints = rulecfg['maxpoints']
 
-            if key == 'ny':
+            if key == rulecfg['new']:
                 rules.append(NewPageRule(anon[1]))
 
-            elif key == 'kvalifisert':
+            elif key == rulecfg['qualified']:
                 rules.append(QualiRule(anon[1]))
             
-            elif key == 'stubb':
-                rules.append(StubRule(anon[1]))
+            # elif key == 'stubb':
+            #     rules.append(StubRule(anon[1]))
 
-            elif key == 'byte':
+            elif key == rulecfg['byte']:
                 params = { 'points': anon[1] }
-                if templ.has_param('makspoeng'):
-                    params['maxpoints'] = named['makspoeng']
+                if templ.has_param(maxpoints):
+                    params['maxpoints'] = named[maxpoints]
                 rules.append(ByteRule(**params))
 
-            elif key == 'ord':
+            elif key == rulecfg['word']:
                 params = { 'points': anon[1] }
-                if templ.has_param('makspoeng'):
-                    params['maxpoints'] = named['makspoeng']
+                if templ.has_param(maxpoints):
+                    params['maxpoints'] = named[maxpoints]
                 rules.append(WordRule(**params))
 
-            elif key == 'bilde':
+            elif key == rulecfg['image']:
                 params = { 'points': anon[1] }
-                if templ.has_param('makspoeng'):
-                    params['maxpoints'] = named['makspoeng']
+                if templ.has_param(maxpoints):
+                    params['maxpoints'] = named[maxpoints]
                 rules.append(ImageRule(**params))
 
-            elif key == 'ekstern lenke':
+            elif key == rulecfg['external_link']:
                 params = { 'points': anon[1] }
-                if templ.has_param('makspoeng'):
-                    params['maxpoints'] = named['makspoeng']
+                if templ.has_param(maxpoints):
+                    params['maxpoints'] = named[maxpoints]
                 rules.append(ExternalLinkRule(**params))
             
-            elif key == 'ref':
+            elif key == rulecfg['ref']:
                 params = { 'sourcepoints': anon[1], 'refpoints': anon[2] }
                 rules.append(RefRule(**params))
             
-            elif key == 'malfjerning':
+            elif key == rulecfg['templateremoval']:
                 params = { 'points': anon[1], 'template': anon[2] }
                 if templ.has_param('alias'):
                     params['aliases'] = [a.strip() for a in named['alias'].split(',')]
                 rules.append(TemplateRemovalRule(**params))
 
-            elif key == 'bytebonus':
+            elif key == rulecfg['bytebonus']:
                 rules.append(ByteBonusRule(anon[1], anon[2]))
 
-            elif key == 'ordbonus':
+            elif key == rulecfg['wordbonus']:
                 rules.append(WordBonusRule(anon[1], anon[2]))
 
             else:
-                raise ParseError('Ukjent argument gitt til {{ml|ukens konkurranse poeng}}: '+key)
-        
-        
-        # Read infobox 
+                raise ParseError(_('Unkown argument given to {{ml|%(template)s}}: %(argument)s') % { 'template': rulecfg['name'], 'argument': key })            ######################## Read rules ########################
 
+        log("@ Found %d filters and %d rules" % (nfilters, nrules))
+ 
+        ######################## Read infobox ########################
+
+        ibcfg = config['templates']['infobox']
         try:
-            infoboks = dp.templates['infoboks ukens konkurranse'][0]
+            infoboks = dp.templates[ibcfg['name'].lower()][0]
         except:
-            raise ParseError('Klarte ikke å tolke innholdet i {{tl|infoboks ukens konkurranse}}-malen.')
+            raise ParseError(_('Could not parse the {{tl|%(template)s}} template.') % { 'template': infoboxcfg['name'] })
         
         utc = pytz.utc
-        osl = pytz.timezone('Europe/Oslo')
+        osl = pytz.timezone(config['timezone'])
 
-        if infoboks.has_param('år') and infoboks.has_param('uke'):
-            year = int(re.sub('<\!--.+?-->', '', infoboks.parameters['år']).strip())
-            startweek = int(re.sub('<\!--.+?-->', '', infoboks.parameters['uke']).strip())
-            if infoboks.has_param('ukefler'):
-                endweek = re.sub('<\!--.+?-->', '', infoboks.parameters['ukefler']).strip()
+        if infoboks.has_param(ibcfg['year']) and infoboks.has_param(ibcfg['week']):
+            year = int(re.sub('<\!--.+?-->', '', infoboks.parameters[ibcfg['year']]).strip())
+            startweek = int(re.sub('<\!--.+?-->', '', infoboks.parameters[ibcfg['week']]).strip())
+            if infoboks.has_param(ibcfg['severalweeks']):
+                endweek = re.sub('<\!--.+?-->', '', infoboks.parameters[ibcfg['severalweeks']]).strip()
                 if endweek == '':
                     endweek = startweek
             else:
                 endweek = startweek
             endweek = int(endweek)
 
-            print year, startweek
             startweek = Week(year, startweek)
             endweek = Week(year, endweek)
             self.start = osl.localize(datetime.combine(startweek.monday(), dt_time(0, 0, 0)))
             self.end = osl.localize(datetime.combine(endweek.sunday(), dt_time(23, 59, 59)))
-        elif infoboks.has_param('start') and infoboks.has_param('slutt'):
-            startdt = infoboks.parameters['start']
-            enddt = infoboks.parameters['slutt']
+        elif infoboks.has_param(ibcfg['start']) and infoboks.has_param(ibcfg['end']):
+            startdt = infoboks.parameters[ibcfg['start']]
+            enddt = infoboks.parameters[ibcfg['end']]
             self.start = osl.localize(datetime.strptime(startdt + ' 00 00 00 00', '%Y-%m-%d %H %M %S'))
             self.end = osl.localize(datetime.strptime(enddt +' 23 59 59 00', '%Y-%m-%d %H %M %S'))
         else:
-            raise ParseError('Fant ikke uke/år eller start/slutt i {{tl|infoboks ukens konkurranse}}.')
+            args = { 'week': ibcfg['week'], 'year': ibcfg['year'], 'start': ibcfg['start'], 'end': ibcfg['end'], 'template': ibcfg['name'] }
+            raise ParseError(_('Did not find %(week)s+%(year)s or %(start)s+%(end)s in {{tl|%(templates)s}}.') % args)
 
         self.year = self.start.isocalendar()[0]
         self.startweek = self.start.isocalendar()[1]
         self.endweek = self.end.isocalendar()[1]
 
-        self.ledere = re.findall(r'\[\[Bruker:([^\|\]]+)', infoboks.parameters['leder'])
+        userprefix = self.homesite.namespaces[2];
+        self.ledere = re.findall(r'\[\[%s:([^\|\]]+)' % userprefix, infoboks.parameters[ibcfg['organizer']])
         if len(self.ledere) == 0:
-            raise ParseError('Fant ingen konkurranseorganisatorer i {{tl|infoboks ukens konkurranse}}.')
+            raise ParseError(_('Did not find any organizers in {{tl|%(template)s}}.') % { 'template': ibcfg['name'] })
 
         
+        awards = config['awards']
         self.prices = []
-        for col in rosettfiler.keys():
+        for col in awards.keys():
             if infoboks.has_param(col):
                 r = re.sub('<\!--.+?-->', '', infoboks.parameters[col]).strip() # strip comments, then whitespace
                 if r != '':
                     r = r.split()[0].lower()
                     #print col,r
-                    if r == 'vinner':
+                    if r == ibcfg['winner']:
                         self.prices.append([col, 'winner', 0])
                     elif r != '':
                         try:
@@ -962,19 +964,21 @@ class UK(object):
                             #raise ParseError('Klarte ikke tolke verdien til parameteren %s gitt til {{tl|infoboks ukens konkurranse}}.' % col)
 
         if not 'winner' in [r[1] for r in self.prices]:
-            raise ParseError('Fant ingen vinner-rosett i {{tl|infoboks ukens konkurranse}}. Vinner-rosett angis med {{para|blå|Vinner}} eller {{para|rød|Vinner}}.')
+            winnerawards = ', '.join(['{{para|%s|vinner}}' % k for k,v in awards.items() if 'winner' in v]) 
+            raise ParseError(_('Found no winner award in {{tl|%(template)s}}. Winner award is set by one of the following: %(awards)s.') % { 'template': ibcfg['name'], 'awards': winnerawards})
 
         self.prices.sort(key = lambda x: x[2], reverse = True)
-        
-        # Read disqualifications
 
-        if 'uk bruker suspendert' in dp.templates:
-            for templ in dp.templates['uk bruker suspendert']:
+        ######################## Read disqualifications ########################
+
+        sucfg = config['templates']['suspended']
+        if sucfg['name'].lower() in dp.templates:
+            for templ in dp.templates[sucfg['name'].lower()]:
                 uname = templ.parameters[1]
                 try:
                     sdate = osl.localize(datetime.strptime(templ.parameters[2], '%Y-%m-%d %H:%M'))
                 except ValueError:
-                    raise ParseError('Klarte ikke å tolke datoen gitt til {{ml|UK bruker suspendert}}-malen.')
+                    raise ParseError(_('Klarte ikke å tolke datoen gitt til {{ml|%(template)s}}-malen.') % sucfg['name'])
 
                 #print 'Suspendert bruker:',uname,sdate
                 ufound = False
@@ -988,8 +992,9 @@ class UK(object):
                     # TODO: logging.warning 
                     #raise ParseError('Fant ikke brukeren %s gitt til {{ml|UK bruker suspendert}}-malen.' % uname)
         
-        if 'uk bidrag diskvalifisert' in dp.templates:
-            for templ in dp.templates['uk bidrag diskvalifisert']:
+        dicfg = config['templates']['disqualified']
+        if dicfg['name'].lower() in dp.templates:
+            for templ in dp.templates[dicfg['name'].lower()]:
                 anon = templ.get_anonymous_parameters()
                 uname = anon[0]
                 if not 's' in templ.get_named_parameters():
@@ -1002,10 +1007,11 @@ class UK(object):
                                 u.disqualified_articles.append(aname)
                                 ufound = True
                         if not ufound:
-                            raise ParseError('Fant ikke brukeren %s gitt til {{ml|UK bidrag diskvalifisert}}-malen.' % uname)
+                            raise ParseError(_('Fant ikke brukeren %(user)s gitt til {{ml|%(template)s}}-malen.') % { 'user': uname, 'template': dicfg['name'] })
         
-        if 'uk poengtrekk' in dp.templates:
-            for templ in dp.templates['uk poengtrekk']:
+        pocfg = config['templates']['penalty']
+        if pocfg['name'].lower() in dp.templates:
+            for templ in dp.templates[pocfg['name'].lower()]:
                 uname = templ.parameters[1]
                 aname = templ.parameters[2]
                 points = float(templ.parameters[3])
@@ -1017,12 +1023,12 @@ class UK(object):
                         u.point_deductions.append([aname, points, reason])
                         ufound = True
                 if not ufound:
-                    raise ParseError('Fant ikke brukeren %s gitt til {{ml|UK bidrag diskvalifisert}}-malen.' % uname)
+                    raise ParseError(_('Fant ikke brukeren %(user)s gitt til {{ml|%(template)s}}-malen.') % { 'user': uname, 'template': dicfg['name'] })
 
-        try:
-            infoboks = dp.templates['infoboks ukens konkurranse'][0]
-        except:
-            raise ParseError('Klarte ikke å tolke innholdet i {{tl|infoboks ukens konkurranse}}-malen.')
+        # try:
+        #     infoboks = dp.templates['infoboks ukens konkurranse'][0]
+        # except:
+        #     raise ParseError('Klarte ikke å tolke innholdet i {{tl|infoboks ukens konkurranse}}-malen.')
 
         return rules, filters
 
@@ -1110,12 +1116,36 @@ class UK(object):
             )
             plt.savefig('Nowp Ukens konkurranse %d-%02d.svg' % (self.year, self.startweek), dpi = 200)
 
+    def format_msg(self, award, template):
+        tpl = self.config['award_message']
+        args = { 
+            'template': tpl[template], 
+            'shownext': tpl['shownext'],
+            'yearname': tpl['year'], 
+            'weekname': tpl['week'], 
+            'endweekname': tpl['severalweeks'],
+            'year': self.year, 
+            'week': self.startweek, 
+            'award': award, 
+            'yes': tpl['yes'], 'no': tpl['no'] 
+            }
+        if self.startweek == self.endweek:
+            mld += '{{%(template)s|%(shownext)s=%(no)s|%(yearname)s=%(year)d|%(weekname)s=%(week)02d|%(award)s=%(yes)s' % args
+        else:
+            args['endweek'] = self.endweek
+            mld += '{{%(template)s|%(shownext)s=%(no)s|%(yearname)s=%(year)d|%(weekname)s=%(week)02d|%(endweekname)s=%(endweek)02d|%(award)s=%(yes)s' % args
+
+    def msg_heading(self):
+        if self.startweek == self.endweek:
+            return '== ' + _('Ukens konkurranse uke %(week)d') % { 'week': self.startweek } + ' =='
+        else:
+            return '== ' + _('Ukens konkurranse uke %(startweek)d–%(endweek)d') % { 'startweek': self.startweek, 'endweek': self.endweek } + ' =='
+
     def deliver_prices(self):
 
-        if self.startweek == self.endweek:
-            heading = '== Ukens konkurranse uke %d == ' % self.startweek
-        else:
-            heading = '== Ukens konkurranse uke %d–%d == ' % (self.startweek, self.endweek)
+        config = self.config
+        heading = self.msg_heading()
+
         for i, u in enumerate(self.users):
 
             prizefound = False
@@ -1124,10 +1154,7 @@ class UK(object):
                 for r in self.prices:
                     if r[1] == 'winner':
                         prizefound = True
-                        if self.startweek == self.endweek:
-                            mld += '{{UK vinner|visuk=nei|år=%d|uke=%02d|%s=ja' % (self.year, self.startweek, r[0])
-                        else:
-                            mld += '{{UK vinner|visuk=nei|år=%d|uke=%02d|ukefler=%d|%s=ja' % (self.year, self.startweek, self.endweek, r[0])
+                        mld = self.format_msg('winner_template', r[0])
                         break
                 for r in self.prices:
                     if r[1] == 'pointlimit' and u.points >= r[2]:
@@ -1139,48 +1166,48 @@ class UK(object):
                 for r in self.prices:
                     if r[1] == 'pointlimit' and u.points >= r[2]:
                         prizefound = True
-                        if self.startweek == self.endweek:
-                            mld += '{{UK deltaker|visuk=nei|år=%d|uke=%d|%s=ja}}\n' % (self.year, self.startweek, r[0])
-                        else:
-                            mld += '{{UK deltaker|visuk=nei|år=%d|uke=%d|ukefler=%d|%s=ja}}\n' % (self.year, self.startweek, self.endweek, r[0])
+                        mld = format_msg('participant_template', r[0])
                         break
 
             now = datetime.now()
             yearweek = now.strftime('%Y-%V')
-            mld += 'Husk at denne ukens konkurranse er [[Wikipedia:Ukens konkurranse/Ukens konkurranse %s|{{Ukens konkurranse liste|uke=%s}}]]. Lykke til! ' % (yearweek, yearweek)
-            mld += 'Hilsen ' + ', '.join(['[[Bruker:%s|%s]]'%(s,s) for s in self.ledere]) + ' og ~~~~'
+            userprefix = self.homesite.namespaces[2];
+            usertalkprefix = self.homesite.namespaces[3];
+
+            mld += _('Husk at denne ukens konkurranse er [[Wikipedia:Ukens konkurranse/Ukens konkurranse %(week)s|{{Ukens konkurranse liste|uke=%(week)s}}]]. Lykke til!') % { 'week': yearweek } + ' '
+            mld += _('Hilsen') + ' ' + ', '.join(['[[%s:%s|%s]]'%(userprefix, s,s) for s in self.ledere]) + ' ' + _('og') + ' ~~~~'
 
             if prizefound:
-                page = self.sites['no'].pages['Brukerdiskusjon:' + u.name]
-                log(' -> Leverer melding til %s' % page.name)
+                page = self.homesite.pages['%s:%s' % (usertalkprefix, u.name)]
+                log(' -> Delivering message to %s' % page.name)
                 page.save(text = mld, bot = False, section = 'new', summary = heading)
 
     def deliver_leader_notification(self, pagename):
-        if self.startweek == self.endweek:
-            heading = '== Ukens konkurranse uke %d == ' % self.startweek
-        else:
-            heading = '== Ukens konkurranse uke %d–%d == ' % (self.startweek, self.endweek)
-        link = '//no.wikipedia.org/w/index.php?title=Bruker:UKBot/Premieutsendelse&action=edit&section=new&preload=Bruker:UKBot/Premieutsendelse/Preload&preloadtitle=send%20ut'
+        heading = self.msg_heading()
+        args = { prefix: self.homesite.site['server'] + self.homesite.site['script'], 'page': config['awardstatus']['pagename'], 'title': urllib.quote(config['awardstatus']['send']) }
+        link = '%(prefix)s?title=%(page)s&action=edit&section=new&preload=%(page)s/Preload&preloadtitle=%(title)s' % args
+        usertalkprefix = self.homesite.namespaces[3];
         for u in self.ledere:
             if self.startweek == self.endweek:
                 mld = '{{UK arrangør|visuk=nei|år=%d|uke=%02d|gul=ja}}\n' % (self.year, self.startweek)
             else:
                 mld = '{{UK arrangør|visuk=nei|år=%d|uke=%02d|ukefler=%d|gul=ja}}\n' % (self.year, self.startweek, self.endweek)
-            mld += 'Du må nå sjekke resultatene. Hvis det er feilmeldinger nederst på [[%s|konkurransesiden]] må du sjekke om de relaterte bidragene har fått poengene de skal ha. Se også etter om det er kommentarer eller klager på diskusjonssiden. Hvis alt ser greit ut kan du trykke [%s her] (og lagre), så sender jeg ut rosetter ved første anledning. ' % (pagename, link)
-            mld += 'Hilsen ~~~~'
+            mld += _('Du må nå sjekke resultatene. Hvis det er feilmeldinger nederst på [[%(page)s|konkurransesiden]] må du sjekke om de relaterte bidragene har fått poengene de skal ha. Se også etter om det er kommentarer eller klager på diskusjonssiden. Hvis alt ser greit ut kan du trykke [%(link)s her] (og lagre), så sender jeg ut rosetter ved første anledning. ') % { 'page': pagename, 'link': link }
+            mld += _('Hilsen') + ' ~~~~'
 
-            page = self.sites['no'].pages['Brukerdiskusjon:' + u]
+            page = self.homesite.pages['%s:%s' % (usertalkprefix, u)]
             log(' -> Leverer arrangørmelding til %s' % page.name)
             page.save(text = mld, bot = False, section = 'new', summary = heading)
     
     def deliver_receipt_to_leaders(self):
-        if self.startweek == self.endweek:
-            heading = 'Ukens konkurranse uke %d' % self.startweek
-        else:
-            heading = 'Ukens konkurranse uke %d–%d' % (self.startweek, self.endweek)
-        mld = '\n:Rosetter er nå [//no.wikipedia.org/w/index.php?title=Spesial%3ABidrag&contribs=user&target=UKBot&namespace=3 sendt ut]. ~~~~'
+        heading = self.msg_heading()
+        usertalkprefix = self.homesite.namespaces[3];
+
+        args = { prefix: self.homesite.site['server'] + self.homesite.site['script'], 'page': 'Special:Contributions' }
+        link = '%(prefix)s?title=%(page)s&contribs=user&target=UKBot&namespace=3' % args
+        mld = '\n:' + _('Rosetter er nå [%(link)s sendt ut].') % {'link':link} + ' ~~~~'
         for u in self.ledere:
-            page = self.sites['no'].pages['Brukerdiskusjon:' + u]
+            page = self.homesite.pages['%s:%s' % (usertalkprefix, u)]
             log(' -> Leverer kvittering til %s' % page.name)
             
             # Find section number
@@ -1221,6 +1248,7 @@ class UK(object):
         """
         Inform users about problems with their contribution(s)
         """
+        usertalkprefix = self.homesite.namespaces[3];
         cur = self.sql.cursor()
         for u in self.users:
             msgs = []
@@ -1261,7 +1289,7 @@ class UK(object):
                 #print msg
                 #print '------------------------------'
 
-                page = self.sites['no'].pages['Brukerdiskusjon:' + u.name]
+                page = self.homesite.pages['%s:%s' % (usertalkprefix, u.name)]
                 log(' -> Leverer advarsel til %s' % page.name)
                 if simulate:
                     log(msg)
@@ -1274,8 +1302,25 @@ class UK(object):
 # Main 
 ############################################################################################################################
 
+def init_localization(loc):
+    '''prepare l18n'''
+    locale.setlocale(locale.LC_ALL, loc)
+    # take first two characters of country code
+    loc = locale.getlocale()
+    filename = "l18n/messages_%s.mo" % loc[0][0:2]
+
+    try:
+        log( "Opening message file %s for locale %s" % (filename, loc[0]) )
+        trans = gettext.GNUTranslations(open( filename, "rb" ) )
+    except IOError:
+        log( "Locale not found. Using default messages" )
+        trans = gettext.NullTranslations()
+
+    trans.install()
+ 
+
 if __name__ == '__main__':
-    
+
     runstart = datetime.now()
     
     # Read args
@@ -1295,17 +1340,21 @@ if __name__ == '__main__':
     log('-----------------------------------------------------------------')
     log('UKBot starting at %s' % (runstart.strftime('%F %T')))
     
-    # "Hard" settings
+    # Settings
+    config = yaml.load(open('config.yml', 'r'))
+    log('Using locale %s' % config['locale'])
+    init_localization(config['locale'])
 
-    from wp_private import ukbotlogin
-    sites = {
-        'no': Site('no.wikipedia.org', *ukbotlogin),
-        'nn': Site('nn.wikipedia.org', *ukbotlogin),
-        'se': Site('se.wikipedia.org', *ukbotlogin)
-    }
-    cpage = 'Bruker:UKBot/cat-ignore'
-    del ukbotlogin
+    host = config['homesite']
+    homesite = Site(host, config['account']['user'], config['account']['pass'])
+    prefix = host.split('.')[0]
+    sites = { prefix: homesite }
+    if 'othersites' in config:
+        for host in config['othersites']:
+            prefix = host.split('.')[0]
+            sites[prefix] = Site(host, config['account']['user'], config['account']['pass'])
     
+    cpage = config['pages']['catignore']
     sql = sqlite3.connect('db/uk.db')
 
     # Determine kpage
@@ -1315,16 +1364,16 @@ if __name__ == '__main__':
         cur = sql.cursor()
         rows = cur.execute(u'SELECT name FROM contests WHERE ended=1 AND closed=0 LIMIT 1').fetchall()
         if len(rows) == 0:
-            log(" -> Fant ingen konkurranser å avslutte!")
+            log(" -> Found no contests to close!")
             sys.exit(0)
         cur.close()
         ktitle= rows[0][0]
         log(" -> Contest %s is to be closed" % rows[0])
-        lastrev = sites['no'].pages['Bruker:UKBot/Premieutsendelse'].revisions(prop='user|comment').next()
+        lastrev = homesite.pages[config['awardstatus']['pagename']].revisions(prop='user|comment').next()
         closeuser = lastrev['user']
         revc = lastrev['comment']
-        if revc != 'Nytt avsnitt: /* send ut */':
-            log('>> Ikke klar til utsendelse')
+        if revc.find('/* ' + config['awardstatus']['send'] + ' */') != -1:
+            log('>> Award delivery has not been confirmed yet')
             sys.exit(0)
     elif args.page != None:
         ktitle = args.page
@@ -1336,19 +1385,19 @@ if __name__ == '__main__':
     # Is ktitle redirect? Resolve
 
     log('@ ktitle is %s' % ktitle)
-    pp = sites['no'].api('query', prop = 'pageprops', titles = ktitle, redirects = '1')
+    pp = homesite.api('query', prop = 'pageprops', titles = ktitle, redirects = '1')
     if 'redirects' in pp['query']:
         ktitle = pp['query']['redirects'][0]['to']
         log('  -> Redirected to:  %s' % ktitle)
     
     # Check that we're not given some very wrong page
-
-    if not (re.match('^Wikipedia:Ukens konkurranse/Ukens konkurranse', ktitle) or re.match('^Bruker:UKBot/Sandkasse', ktitle)):
+    userprefix = homesite.namespaces[2]
+    if not (re.match('^'+config['pages']['base'], ktitle) or re.match('^' + userprefix + ':UKBot/Sandkasse', ktitle)):
         raise StandardError('I refuse to work with that page!')
     
     # Check if page exists
     
-    kpage = sites['no'].pages[ktitle]
+    kpage = homesite.pages[ktitle]
     if not kpage.exists:
         log('  !! kpage does not exist! Exiting')
         sys.exit(0)
@@ -1356,23 +1405,22 @@ if __name__ == '__main__':
     # Initialize the contest
 
     try:
-        uk = UK(kpage, sites['no'].pages[cpage].edit(), sites, sql, verbose = args.verbose)
+        uk = UK(kpage, homesite.pages[cpage].edit(), sites=sites, homesite=homesite, sql=sql, verbose=args.verbose, config=config)
     except ParseError as e:
         err = "\n* '''%s'''" % e.msg
-        out = '\n{{Ukens konkurranse robotinfo | error | %s }}' % err
-        kpage.save('dummy', summary = 'Resultatboten støtte på et problem', appendtext = out)
+        out = '\n{{%s | error | %s }}' % (config['templates']['botinfo'], err)
+        kpage.save('dummy', summary = _('UKBot encountered a problem'), appendtext = out)
         raise
     
     if args.close and closeuser not in uk.ledere:
         log('!! Konkurransen ble forsøkt avsluttet av %s, men konkurranseledere er oppgitt som: %s' % (closeuser, ', '.join(uk.ledere)))
         #log('!! Konkurransen ble forsøkt avsluttet av andre enn konkurranseleder')
-        print '!! Konkurransen ble forsokt avsluttet av andre enn konkurranseleder'
-        #sys.exit(0)
+        sys.exit(0)
 
     # Check if contest is to be ended
     
     log('@ Contest open from %s to %s' % (uk.start.strftime('%F %T'), uk.end.strftime('%F %T')))
-    osl = pytz.timezone('Europe/Oslo')
+    osl = pytz.timezone(config['timezone'])
     now = osl.localize(datetime.now())
     ending = False
     if args.close == False and now > uk.end:
@@ -1408,7 +1456,6 @@ if __name__ == '__main__':
         for site in sites.itervalues():
             u.add_contribs_from_wiki(site, uk.start, uk.end, fulltext = True, **extraargs)
 
-
         # And update db
         u.save_contribs_to_db(sql)
 
@@ -1429,11 +1476,11 @@ if __name__ == '__main__':
 
         except ParseError as e:
             err = "\n* '''%s'''" % e.msg
-            out = '\n{{Ukens konkurranse robotinfo | error | %s }}' % err
+            out = '\n{{%s | error | %s }}' % (config['templates']['botinfo'], err)
             if args.simulate:
                 print out
             else:
-                kpage.save('dummy', summary = 'Resultatboten støtte på et problem', appendtext = out)
+                kpage.save('dummy', summary = _('UKBot encountered a problem'), appendtext = out)
             raise
 
     # Sort users by points
@@ -1445,13 +1492,13 @@ if __name__ == '__main__':
     out = ''
     #out += '[[File:Nowp Ukens konkurranse %s.svg|thumb|400px|Resultater (oppdateres normalt hver natt i halv ett-tiden, viser kun de ti med høyest poengsum)]]\n' % uk.start.strftime('%Y-%W')
 
-    sammen = '{{Ukens konkurranse status'
+    sammen = '{{%s' % config['templates']['status']
     
     ft = [type(f) for f in uk.filters]
     rt = [type(r) for r in uk.rules]
 
-    if StubFilter in ft:
-        sammen += '|avstubbet=%d' % narticles
+    # if StubFilter in ft:
+    #     sammen += '|avstubbet=%d' % narticles
 
     if ByteRule in rt or WordRule in rt:
         if nnewpages > 0:
@@ -1477,11 +1524,17 @@ if __name__ == '__main__':
 
     now = datetime.now()
     if ending:
-        out += "''Konkurransen er nå avsluttet – takk til alle som deltok! Rosetter vil bli delt ut så snart konkurransearrangøren(e) har sjekket resultatene.''\n\n"
+        # Konkurransen er nå avsluttet – takk til alle som deltok! Rosetter vil bli delt ut så snart konkurransearrangøren(e) har sjekket resultatene.
+        out += "''" + _('This contest is closed – thanks to everyone who participated! Awards will be sent out as soon as the contest organizer has checked the results.') + "''\n\n"
     elif args.close:
-        out += "''Konkurransen er nå avsluttet – takk til alle som deltok!''\n\n"
+        out += "''" + _('This contest is closed – thanks to everyone who participated!') + "''\n\n"
     else:
-        out += "''Sist oppdatert %s. Konkurransen er åpen fra %s til %s.''\n\n" % (now.strftime('%e. %B %Y, %H:%M').decode('utf-8'), uk.start.strftime('%e. %B %Y, %H:%M').decode('utf-8'), uk.end.strftime('%e. %B %Y, %H:%M').decode('utf-8'))
+        oargs = { 
+            'lastupdate': now.strftime('%e. %B %Y, %H:%M').decode('utf-8'), 
+            'startdate': uk.start.strftime('%e. %B %Y, %H:%M').decode('utf-8'), 
+            'enddate': uk.end.strftime('%e. %B %Y, %H:%M').decode('utf-8') 
+        }
+        out += "''" + _('Last updated %(lastupdate)s. The contest is open from %(startdate)s to %(enddate)s.') % oargs + "''\n\n"
 
     for i,u in enumerate(uk.users):
         out += u.format_result( pos = i, closing = args.close, prices = uk.prices)
@@ -1505,28 +1558,30 @@ if __name__ == '__main__':
         if len(err) > 8:
             err = err[:8]
             err.append('(...)')
-        errors.append('\n* Boten støtte på følgende problemer med artikkelen [[:%s]]'%art + ''.join(['\n** %s' % e for e in err]))
+        errors.append('\n* ' + _('UKBot encountered the following problems with the article [[:%s]]') % art + ''.join(['\n** %s' % e for e in err]))
     
     for site in uk.sites.itervalues():
         for error in site.errors:
             errors.append('\n* %s' % error)
     
     if len(errors) == 0:
-        out += '{{Ukens konkurranse robotinfo | ok | %s }}' % now.strftime('%F %T')
+        out += '{{%s | ok | %s }}' % (config['templates']['botinfo'], now.strftime('%F %T'))
     else:
-        out += '{{Ukens konkurranse robotinfo | 1=note | 2=%s | 3=%s }}' % ( now.strftime('%F %T'), ''.join(errors) )
+        out += '{{%s | 1=note | 2=%s | 3=%s }}' % (config['templates']['botinfo'], now.strftime('%F %T'), ''.join(errors) )
     
-    out += '\n{{ukens konkurranse %s}}\n[[Kategori:Artikkelkonkurranser]]\n' % (uk.year)
+    out += '\n' + config['contestPages']['footer'] % { 'year': uk.year } + '\n'
+
+    ib = config['templates']['infobox']
 
     if not args.simulate:
         txt = kpage.edit()
         tp = TemplateEditor(txt)
-        tp.templates['infoboks ukens konkurranse'][0].parameters['status'] = sammen
+        tp.templates[ib['name'].lower()][0].parameters[ib['status']] = sammen
         txt = tp.get_wikitext()
         secstart = -1
         secend = -1
         for s in re.finditer(r'^[\s]*==([^=]+)==[\s]*\n', txt, flags = re.M):
-            if s.group(1).strip() == 'Resultater':
+            if s.group(1).strip() == config['contestPages']['resultsSection']:
                 secstart = s.end()
             elif secstart != -1:
                 secend = s.start()
@@ -1541,15 +1596,15 @@ if __name__ == '__main__':
 
             log(" -> Updating wiki, section = %d " % (uk.results_section))
             if ending:
-                kpage.save(txt, summary = 'Oppdaterer med siste resultater og merker konkurransen som avsluttet')
+                kpage.save(txt, summary = _('Updating with final results, the contest is now closed.'))
             elif args.close:
-                kpage.save(txt, summary = 'Kontrollerer og deler ut rosetter')
+                kpage.save(txt, summary = _('Checking results and handing out awards'))
             else:
-                kpage.save(txt, summary = 'Oppdaterer resultater')
+                kpage.save(txt, summary = _('Updating'))
 
     if args.output != '':
         print "Writing output to file"
-        f = codecs.open(args.output,'w','utf-8')
+        f = codecs.open(args.output, 'w', 'utf-8')
         f.write(out)
         f.close()
 
@@ -1557,8 +1612,9 @@ if __name__ == '__main__':
         log(" -> Ending contest")
         uk.deliver_leader_notification(ktitle)
 
-        page = sites['no'].pages['Bruker:UKBot/Premieutsendelse']
-        page.save(text = 'venter', summary = 'Venter', bot = True)
+        aws = config['awardstatus']
+        page = homesite.pages[aws['pagename']]
+        page.save(text = aws['wait'], summary = aws['wait'], bot = True)
 
         cur = sql.cursor()
         cur.execute(u'INSERT INTO contests (name, ended, closed) VALUES (?,1,0)', [ktitle] )
@@ -1581,8 +1637,9 @@ if __name__ == '__main__':
         sql.commit()
         cur.close()
 
-        page = sites['no'].pages['Bruker:UKBot/Premieutsendelse']
-        page.save(text = 'sendt ut', summary = 'Sendt ut', bot = True)
+        aws = config['awardstatus']
+        page = homesite.pages[aws['pagename']]
+        page.save(text = aws['sent'], summary = aws['sent'], bot = True)
 
         uk.deliver_receipt_to_leaders()
 
@@ -1596,32 +1653,39 @@ if __name__ == '__main__':
 
     # Update WP:UK
 
-    if re.match('^Wikipedia:Ukens konkurranse/Ukens konkurranse', ktitle) and not args.simulate and not args.close and not ending:
-        page = sites['no'].pages['WP:UK']
-        txt = '#OMDIRIGERING [[%s]]' % ktitle
-        if page.edit() != txt:
-            page.save(txt, summary = 'Omdirigering til ' + ktitle)
+    if 'redirect' in config['pages']:
+        if re.match('^' + config['pages']['base'], ktitle) and not args.simulate and not args.close and not ending:
+            page = homesite.pages[config['pages']['redirect']]
+            txt = _('#REDIRECT [[%s]]') % ktitle
+            if page.edit() != txt:
+                page.save(txt, summary = _('Redirecting to %s') % ktitle)
 
     # Update Wikipedia:Portal/Oppslagstavle
     
-    oppslagstavle = sites['no'].pages['Wikipedia:Portal/Oppslagstavle']
-    txt = oppslagstavle.edit()
+    if 'noticeboard' in config:
+        boardname = config['noticeboard']['name']
+        boardtpl = config['noticeboard']['template']
+        tplname = boardtpl['name']
+        oppslagstavle = homesite.pages[boardname]
+        txt = oppslagstavle.edit()
 
-    dp = DanmicholoParser(txt)
-    if len(dp.templates['la stå/uk']) != 1:
-        raise StandardError(u'Feil: Fant %d la stå/uk-maler i Wikipedia:Portal/Oppslagstavle' % len(dp.templates['la stå/uk']))
+        dp = DanmicholoParser(txt)
+        ntempl = len(dp.templates[tplname])
+        if ntempl != 1:
+            raise StandardError(u'Feil: Fant %d %s-maler i %s' % (ntempl, tplname, boardname))
 
-    tpl = dp.templates['la stå/uk'][0]
-    if int(tpl.parameters['uke']) != int(now.strftime('%V')):
-        log('-> Oppdaterer Wikipedia:Portal/Oppslagstavle')
-        tema = sites['no'].api('parse', text = '{{subst:Ukens konkurranse liste|uke=%s}}' % now.strftime('%Y-%V'), pst=1, onlypst=1)['parse']['text']['*']
-        tpl.parameters[1] = tema
-        tpl.parameters['dato'] = now.strftime('%e. %h')
-        tpl.parameters['år'] = now.strftime('%Y')
-        tpl.parameters['uke'] = now.strftime('%V')
-        txt2 = dp.get_wikitext()
-        if txt != txt2:
-            oppslagstavle.save(txt2, summary = 'Ukens konkurranse er: %s' % tema)
+        tpl = dp.templates[tplname][0]
+        if int(tpl.parameters['uke']) != int(now.strftime('%V')):
+            log('-> Updating %s' % boardname)
+            tpllist = config['templates']['contestlist']
+            tema = homesite.api('parse', text = '{{subst:%s|%s=%s}}' % (tpllist['name'], tpllist['week'], now.strftime('%Y-%V')), pst=1, onlypst=1)['parse']['text']['*']
+            tpl.parameters[1] = tema
+            tpl.parameters[boardtpl['date']] = now.strftime('%e. %h')
+            tpl.parameters[boardtpl['year']] = now.strftime('%Y')
+            tpl.parameters[boardtpl['week']] = now.strftime('%V')
+            txt2 = dp.get_wikitext()
+            if txt != txt2:
+                oppslagstavle.save(txt2, summary = _('Ukens konkurranse er: %s') % tema)
 
     # Make a nice plot
 

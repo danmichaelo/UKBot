@@ -67,7 +67,8 @@ class StubFilter(Filter):
             except DanmicholoParseError as e:
                 log(" >> DanmicholoParser failed to parse " + article_key)
                 parentid = firstrev.parentid
-                article.site.errors.append('Artikkelen %s kunne ikke analyseres fordi en av revisjone %d eller %d ikke kunne parses: %s' % (article_key, firstrev.parentid, lastrev.revid, e.msg))
+                args = { 'article': article_key, 'prevrev': firstrev.parentid, 'rev': lastrev.revid, 'error': e.msg }
+                article.site.errors.append(_('Could not analyze the article %(article)s because one of the revisions %(prevrev)d or %(rev)d could not be parsed: %(error)s') % args)
         
         log("  [+] Applying stub filter: %d -> %d" % (len(articles), len(out)))
 
@@ -105,13 +106,14 @@ class TemplateFilter(Filter):
                 t = self.has_template(firstrev.parenttext)
                 if t:
                     if self.verbose:
-                        log('      Fant malen {{%s}} i [[%s]] @ %d' % (t, article_key, firstrevid))
+                        log('      Found template {{%s}} in [[%s]] @ %d' % (t, article_key, firstrevid))
                     out[article_key] = article
 
             except DanmicholoParseError as e:
                 log(" >> DanmicholoParser failed to parse " + article_key)
                 parentid = firstrev.parentid
-                article.site.errors.append('Artikkelen %s kunne ikke analyseres fordi en av revisjone %d eller %d ikke kunne parses: %s' % (article_key, firstrev.parentid, lastrev.revid, e.msg))
+                args = { 'article': article_key, 'prevrev': firstrev.parentid, 'rev': lastrev.revid, 'error': e.msg }
+                article.site.errors.append(_('Could not analyze the article %(article)s because one of the revisions %(prevrev)d or %(rev)d could not be parsed: %(error)s') % args)
 
         log("  [+] Applying template filter: %d -> %d" % (len(articles), len(out)))
 
@@ -303,7 +305,7 @@ class CatFilter(Filter):
                         if i > 50:
                             raise CategoryLoopError(article.cat_path)
                 except CategoryLoopError as e:
-                    article.errors.append('Havnet i en endeløs kategorisløyfe : ' + ' → '.join(['[[:Kategori:'+c+'|'+c+']]' for c in e.catpath]))
+                    article.errors.append(_('Encountered an infinite category loop: ') + ' → '.join(['[[:Kategori:'+c+'|'+c+']]' for c in e.catpath]))
 
                 out[article_key] = article
 

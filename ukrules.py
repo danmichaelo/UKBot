@@ -29,7 +29,7 @@ class Rule(object):
 
         elif pmax > 0.0 and ab + points > pmax:
             # reaching max
-            rev.points.append([pmax - ab, ptype, txt + ' &gt; maks', points])
+            rev.points.append([pmax - ab, ptype, txt + ' &gt; ' + _('maks'), points])
 
         #elif not self.iszero(revpoints):
         else:
@@ -46,30 +46,30 @@ class NewPageRule(Rule):
 
     def test(self, rev):
         if rev.new and not rev.redirect:
-            rev.points.append([self.points, 'newpage', 'ny side'])
+            rev.points.append([self.points, 'newpage', _('ny side')])
 
 
-class StubRule(Rule):
+# class StubRule(Rule):
 
-    def __init__(self, points):
-        Rule.__init__(self)
-        self.points = float(points)
+#     def __init__(self, points):
+#         Rule.__init__(self)
+#         self.points = float(points)
 
-    def is_stub(self, text):
-        """ Checks if a given text is a stub """
+#     def is_stub(self, text):
+#         """ Checks if a given text is a stub """
 
-        dp = DanmicholoParser(text)
-        for tname, templ in dp.templates.iteritems():
-            if tname.find('stubb') != -1 or tname.find('spire') != -1:
-                return True
-        return False
+#         dp = DanmicholoParser(text)
+#         for tname, templ in dp.templates.iteritems():
+#             if tname.find('stubb') != -1 or tname.find('spire') != -1:
+#                 return True
+#         return False
 
-    def test(self, rev):
-        try:
-            if self.is_stub(rev.parenttext) and not self.is_stub(rev.text):
-                rev.points.append([self.points, 'stub', 'avstubbing'])
-        except DanmicholoParseError as e:
-            rev.article.errors.append('Problem ved parsing av [%s rev. %d] : %s' % (rev.get_link(), rev.revid, e.msg))
+#     def test(self, rev):
+#         try:
+#             if self.is_stub(rev.parenttext) and not self.is_stub(rev.text):
+#                 rev.points.append([self.points, 'stub', 'avstubbing'])
+#         except DanmicholoParseError as e:
+#             rev.article.errors.append(_('Encountered a problem while parsing [%(url)s rev. %(revid)d] : %(error)s' % { 'url': rev.get_link(), 'revid': rev.revid, 'error': e.msg })
     
 class TemplateRemovalRule(Rule):
 
@@ -98,10 +98,10 @@ class TemplateRemovalRule(Rule):
             pt = self.templatecount(rev.parenttext)
             ct = self.templatecount(rev.text)
             if ct < pt:
-                rev.points.append([(pt-ct)*self.points, 'templateremoval', 'fjerning av {{ml|%s}}'%self.template])
+                rev.points.append([(pt-ct)*self.points, 'templateremoval', _('removal of {{ml|%(template)s}}') % { 'template': self.template }])
                 self.total += (pt-ct)
         except DanmicholoParseError as e:
-            rev.article.errors.append('Problem ved parsing av [%s rev. %d] : %s' % (rev.get_link(), rev.revid, e.msg))
+            rev.article.errors.append(_('Encountered a problem while parsing [%(url)s rev. %(revid)d] : %(problem)s') % { 'url': rev.get_link(), 'revid': rev.revid, 'problem': e.msg })
 
 class QualiRule(Rule):
 
@@ -111,7 +111,7 @@ class QualiRule(Rule):
     
     def test(self, rev):
         if self.iszero(rev.article.get_points('quali')):
-            rev.points.append([self.points, 'quali', 'kvalifisert'])
+            rev.points.append([self.points, 'quali', _('qualified')])
 
 
 class ByteRule(Rule):
@@ -124,7 +124,7 @@ class ByteRule(Rule):
 
     def test(self, rev):
         revpoints = rev.bytes * self.points
-        self.add_points(rev, revpoints, 'byte', '%.f bytes' % rev.bytes, self.maxpoints, include_zero = True)
+        self.add_points(rev, revpoints, 'byte', _('%(bytes).f bytes') % { 'bytes': rev.bytes }, self.maxpoints, include_zero = True)
 
 
 class WordRule(Rule):
@@ -139,10 +139,10 @@ class WordRule(Rule):
         try:
             words = rev.words
             revpoints = words * self.points
-            self.add_points(rev, revpoints, 'word', '%.f ord' % words, self.maxpoints)
+            self.add_points(rev, revpoints, 'word', _('%(words).f words') % { 'words': words }, self.maxpoints)
 
         except DanmicholoParseError as e:
-            rev.errors.append('Ordtelling kunne ikke gjennomføres for revisjon %d pga. følgende feil: %s' % (rev.revid, e.msg))
+            rev.errors.append(_('Word count failed for revision %(revid)d due to the following error: %(error)s') % { 'revid': rev.revid, 'error': e.msg })
 
 
 class ImageRule(Rule):
@@ -163,7 +163,7 @@ class ImageRule(Rule):
 
         if imgs > 0:
             revpoints = imgs * self.points
-            self.add_points(rev, revpoints, 'image', '%d bilde%s' % (imgs, 'r' if imgs > 1 else ''), self.maxpoints)
+            self.add_points(rev, revpoints, 'image', '%d %s' % (imgs, _('images') if imgs > 1 else _('image')), self.maxpoints)
 
 class ExternalLinkRule(Rule):
     
@@ -184,7 +184,7 @@ class ExternalLinkRule(Rule):
 
         if links > 0:
             revpoints = links * self.points
-            self.add_points(rev, revpoints, 'link', '%d lenke%s' % (links, 'r' if links> 1 else ''), self.maxpoints)
+            self.add_points(rev, revpoints, 'link', '%d %s' % (links, _('links') if links> 1 else _('link')), self.maxpoints)
  
 
 class RefRule(Rule):
@@ -224,10 +224,10 @@ class RefRule(Rule):
             s = []
             if sources_added > 0:
                 p += sources_added * self.sourcepoints
-                s.append('%d kilde%s' % (sources_added, 'r' if sources_added > 1 else ''))
+                s.append('%d %s' % (sources_added, _('references') if sources_added > 1 else _('reference')))
             if refs_added > 0:
                 p += refs_added * self.refpoints
-                s.append('%d kildehenvisning%s' % (refs_added, 'er' if refs_added > 1 else ''))
+                s.append('%d %s' % (refs_added, _('reference pointers') if refs_added > 1 else _('reference pointer')))
             txt = ', '.join(s)
         
             rev.points.append([p, 'ref', txt])
@@ -252,7 +252,7 @@ class ByteBonusRule(Rule):
                     thisrev = True
         
         if abytes >= self.limit and thisrev == True:
-            rev.points.append([self.points, 'bytebonus', 'bonus %.f bytes' % self.limit ])
+            rev.points.append([self.points, 'bytebonus', _('bonus %(bytes).f bytes') % { 'bytes': self.limit} ])
 
 class WordBonusRule(Rule):
     
@@ -279,6 +279,6 @@ class WordBonusRule(Rule):
                     thisrev = True
 
         if awords >= self.limit and thisrev == True:
-            rev.points.append([self.points, 'wordbonus', 'bonus %d ord' % self.limit ])
+            rev.points.append([self.points, 'wordbonus', _('bonus %(words)d words') % { 'words': self.limit } ])
 
         

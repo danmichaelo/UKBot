@@ -17,7 +17,7 @@ if now.hour == 0:
 year, week, day = now.isocalendar()
 weekstart = now - datetime.timedelta(days = day-1)
 
-kpage = 'Wikipedia:Ukens konkurranse/Ukens konkurranse %s' % now.strftime('%Y-%W')
+kpage = 'Wikipedia:Ukens konkurranse/Ukens konkurranse %s' % now.strftime('%Y-%V')
 no = mwclient.Site('no.wikipedia.org')
 pp = no.api('query', prop = 'pageprops', titles = kpage, redirects = '1')
 if 'redirects' in pp['query']:
@@ -42,7 +42,7 @@ pagetext = """== {{int:filedesc}} ==
 == {{int:license-header}} ==
 {{PD-self}}
 
-[[Category:Ukens konkurranse]]""" % { 'yearweek': yearweek, 'week': now.strftime('%W'), 'year': now.strftime('%Y'), 'weekstart' : weekstart.strftime('%F') }
+[[Category:Ukens konkurranse]]""" % { 'yearweek': yearweek, 'week': now.strftime('%V'), 'year': now.strftime('%Y'), 'weekstart' : weekstart.strftime('%F') }
 
 from wp_private import ukbotlogin
 commons = mwclient.Site('commons.wikimedia.org')

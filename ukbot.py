@@ -927,7 +927,7 @@ class UK(object):
             startweek = Week(year, startweek)
             endweek = Week(year, endweek)
             self.start = osl.localize(datetime.combine(startweek.monday(), dt_time(0, 0, 0)))
-            self.end = osl.localize(datetime.combine(endweek.friday(), dt_time(23, 59, 59)))
+            self.end = osl.localize(datetime.combine(endweek.sunday(), dt_time(23, 59, 59)))
         elif infoboks.has_param('start') and infoboks.has_param('slutt'):
             startdt = infoboks.parameters['start']
             enddt = infoboks.parameters['slutt']
@@ -1108,7 +1108,7 @@ class UK(object):
                 # ncol = 4, loc = 3, bbox_to_anchor = (0., 1.02, 1., .102), mode = "expand", borderaxespad = 0.
                 loc = 2, bbox_to_anchor = (1.0, 1.0), borderaxespad = 0., frameon = 0.
             )
-            plt.savefig('Nowp Ukens konkurranse %d-%d.svg' % (self.year, self.startweek), dpi = 200)
+            plt.savefig('Nowp Ukens konkurranse %d-%02d.svg' % (self.year, self.startweek), dpi = 200)
 
     def deliver_prices(self):
 

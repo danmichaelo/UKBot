@@ -21,57 +21,60 @@ class Filter(object):
     def __init__(self, verbose):
         self.verbose = verbose
 
-class StubFilter(Filter):
-    """ Filters articles that was stubs, but is no more """
+    def extend(self, ffilter):
+        pass
 
-    def __init__(self, verbose):
-        Filter.__init__(self, verbose)
+#class StubFilter(Filter):
+#    """ Filters articles that was stubs, but is no more """
 
-    def is_stub(self, text):
-        """ Checks if a given text is a stub """
+#    def __init__(self, verbose):
+#        Filter.__init__(self, verbose)
 
-        m = re.search(r'{{[^}]*(?:stubb|spire)[^}]*}}', text, re.IGNORECASE)
-        if m:
-            if self.verbose:
-                log(" >> %s " % m.group(0), newline = False)
-            return True
-        return False
+#    def is_stub(self, text):
+#        """ Checks if a given text is a stub """
 
-    def filter(self, articles):
+#        m = re.search(r'{{[^}]*(?:stubb|spire)[^}]*}}', text, re.IGNORECASE)
+#        if m:
+#            if self.verbose:
+#                log(" >> %s " % m.group(0), newline = False)
+#            return True
+#        return False
 
-        out = odict()
-        for article_key, article in articles.iteritems():
+    #def filter(self, articles):
 
-            firstrevid = article.revisions.firstkey()
-            lastrevid = article.revisions.lastkey()
+    #    out = odict()
+    #    for article_key, article in articles.iteritems():
 
-            firstrev = article.revisions[firstrevid]
-            lastrev = article.revisions[lastrevid]
+    #        firstrevid = article.revisions.firstkey()
+    #        lastrevid = article.revisions.lastkey()
 
-            try:
+    #        firstrev = article.revisions[firstrevid]
+    #        lastrev = article.revisions[lastrevid]
+
+    #        try:
                 
-                # skip pages that are definitely not stubs to avoid timeconsuming parsing
-                if article.new == False and article.redirect == False and len(firstrev.parenttext) < 20000:  
+    #            # skip pages that are definitely not stubs to avoid timeconsuming parsing
+    #            if article.new == False and article.redirect == False and len(firstrev.parenttext) < 20000:  
 
-                    # Check if first revision is a stub
-                    if self.is_stub(firstrev.parenttext):
+    #                # Check if first revision is a stub
+    #                if self.is_stub(firstrev.parenttext):
 
-                        # Check if last revision is a stub
-                        if not self.is_stub(lastrev.text):
+    #                    # Check if last revision is a stub
+    #                    if not self.is_stub(lastrev.text):
 
-                            out[article_key] = article
+    #                        out[article_key] = article
 
-                        if self.verbose:
-                            log('')
+    #                    if self.verbose:
+    #                        log('')
                 
-            except DanmicholoParseError as e:
-                log(" >> DanmicholoParser failed to parse " + article_key)
-                parentid = firstrev.parentid
-                article.site.errors.append('Artikkelen %s kunne ikke analyseres fordi en av revisjone %d eller %d ikke kunne parses: %s' % (article_key, firstrev.parentid, lastrev.revid, e.msg))
+    #        except DanmicholoParseError as e:
+    #            log(" >> DanmicholoParser failed to parse " + article_key)
+    #            parentid = firstrev.parentid
+    #            article.site.errors.append('Artikkelen %s kunne ikke analyseres fordi en av revisjone %d eller %d ikke kunne parses: %s' % (article_key, firstrev.parentid, lastrev.revid, e.msg))
         
-        log("  [+] Applying stub filter: %d -> %d" % (len(articles), len(out)))
+    #    log("  [+] Applying stub filter: %d -> %d" % (len(articles), len(out)))
 
-        return out
+    #    return out
 
 class TemplateFilter(Filter):
     """ Filters articles that had any of a given set of templates (or their aliases) at a point"""
@@ -80,6 +83,9 @@ class TemplateFilter(Filter):
         Filter.__init__(self, verbose)
         templates.extend([a.lower() for a in aliases])
         self.templates = templates
+
+    def extend(self, templatefilter):
+        self.templates.extend(templatefilter.templates)
 
     def has_template(self, text):
         """ Checks if a given text contains the template"""
@@ -136,6 +142,8 @@ class CatFilter(Filter):
         if self.verbose:
             log("  CatFilter: %s" % (" OR ".join(self.include)))
 
+    def extend(self, catfilter):
+        self.include.extend(catfilter.include)
  
     def fetchcats(self, articles, debug=False):
         """ Fetches categories an overcategories for a set of articles """
@@ -386,6 +394,10 @@ class BackLinkFilter(Filter):
 
         #print self.links
 
+    def extend(self, blfilter):
+        self.links.extend(blfilter.links)
+        self.articles.extend(blfilter.articles)
+
     def filter(self, articles):
         out = odict()
         for article_key, article in articles.iteritems():
@@ -416,6 +428,10 @@ class ForwardLinkFilter(Filter):
                         self.links.append(site_key+':'+link.name)
 
         #print self.links
+    
+    def extend(self, flfilter):
+        self.links.extend(flfilter.links)
+        self.articles.extend(flfilter.articles)
 
     def filter(self, articles):
         out = odict()

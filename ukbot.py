@@ -780,20 +780,19 @@ class UK(object):
         #print dp.templates.keys()
         if 'ukens konkurranse kriterium' in dp.templates.keys():
             for templ in dp.templates['ukens konkurranse kriterium']:
-                nfilters += 1
                 anon = templ.get_anonymous_parameters()
                 named = templ.get_named_parameters()
                 key = anon[0].lower()
-
                 params = { 'verbose': self.verbose }
+
                 if key == 'ny':
-                    filters.append(NewPageFilter(**params))
+                    filt = NewPageFilter(**params)
 
                 elif key == 'eksisterende':
-                    filters.append(ExistingPageFilter(**params))
+                    filt = ExistingPageFilter(**params)
 
-                elif key == 'stubb':
-                    filters.append(StubFilter(**params))
+                #elif key == 'stubb':
+                #    filt = StubFilter(**params)
  
                 elif key == 'mal':
                     if len(anon) < 2:
@@ -801,13 +800,13 @@ class UK(object):
                     if templ.has_param('alias'):
                         params['aliases'] = [a.strip() for a in named['alias'].split(',')]
                     params['templates'] = anon[1:]
-                    filters.append(TemplateFilter(**params))
+                    filt = TemplateFilter(**params)
                 
                 elif key == 'bytes':
                     if len(anon) < 2:
                         raise ParseError('Ingen bytesgrense (andre argument) ble gitt til {{mlp|ukens konkurranse kriterium|bytes}}')
                     params['bytelimit'] = anon[1]
-                    filters.append(ByteFilter(**params))
+                    filt = ByteFilter(**params)
 
                 elif key == 'kategori':
                     if len(anon) < 2:
@@ -817,24 +816,34 @@ class UK(object):
                     params['ignore'] = catignore
                     if templ.has_param('maksdybde'):
                         params['maxdepth'] = int(named['maksdybde'])
-                    filters.append(CatFilter(**params))
+                    filt = CatFilter(**params)
 
                 elif key == 'tilbakelenke':
                     params['sites'] = self.sites
                     params['articles'] = anon[1:]
-                    filters.append(BackLinkFilter(**params))
+                    filt = BackLinkFilter(**params)
                 
                 elif key == 'fremlenke':
                     params['sites'] = self.sites
                     params['articles'] = anon[1:]
-                    filters.append(ForwardLinkFilter(**params))
+                    filt = ForwardLinkFilter(**params)
                 
                 elif key == 'navnerom':
                     params['namespace'] = int(anon[1])
-                    filters.append(NamespaceFilter(**params))
+                    filt = NamespaceFilter(**params)
 
                 else: 
                     raise ParseError('Ukjent argument gitt til {{ml|ukens konkurranse kriterium}}: '+key)
+                
+                foundfilter = False
+                for f in filters:
+                    if type(f) == type(filt):
+                        foundfilter = True
+                        f.extend(filt)
+                if not foundfilter:
+                    nfilters += 1
+                    filters.append(filt)
+
         log("@ Fant %d filtre" % (nfilters))
 
         # Read rules
@@ -1450,8 +1459,8 @@ if __name__ == '__main__':
     ft = [type(f) for f in uk.filters]
     rt = [type(r) for r in uk.rules]
 
-    if StubFilter in ft:
-        sammen += '|avstubbet=%d' % narticles
+    #if StubFilter in ft:
+    #    sammen += '|avstubbet=%d' % narticles
 
     if ByteRule in rt or WordRule in rt:
         if nnewpages > 0:

@@ -80,13 +80,24 @@ class TemplateRemovalRule(Rule):
         self.aliases = [a.lower() for a in aliases]
         self.total = 0
 
+    def testtpl(self, name):
+        tpl = self.template
+        if tpl[0] == '*' and tpl[-1] == '*':
+            return (name.find(tpl[1:-1]) != -1)
+        elif tpl[0] == '*':
+            return (name.endswith(tpl[1:]))
+        elif tpl[-1] == '*':
+            return (name.startswith(tpl[:-1]))
+        else:
+            return name == tpl
+
     def templatecount(self, text):
         """ Checks if a given text has the template"""
 
         dp = DanmicholoParser(text)
         tc = 0
         for tname, templ in dp.templates.iteritems():
-            if tname == self.template or tname in self.aliases:
+            if self.testtpl(tname) or tname in self.aliases:
                 tc += len(templ)
         return tc
 

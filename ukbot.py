@@ -1310,21 +1310,19 @@ class UK(object):
 ############################################################################################################################
 
 def init_localization(loc):
-    '''prepare l18n'''
+    '''prepare i18n'''
+    global _
     locale.setlocale(locale.LC_ALL, loc)
-    # take first two characters of country code
-    loc = locale.getlocale()
-    filename = "l18n/messages_%s.mo" % loc[0][0:2]
+    trans = gettext.translation('messages', 'locale', fallback=True)
+    _ = trans.ugettext
 
-    try:
-        log( "Opening message file %s for locale %s" % (filename, loc[0]) )
-        trans = gettext.GNUTranslations(open( filename, "rb" ) )
-    except IOError:
-        log( "Locale not found. Using default messages" )
-        trans = gettext.NullTranslations()
-
-    trans.install()
- 
+    # try:
+    #     log( "Opening message file %s for locale %s" % (filename, loc[0]) )
+    #     trans = gettext.GNUTranslations(open( filename, "rb" ) )
+    # except IOError:
+    #     log( "Locale not found. Using default messages" )
+    #     trans = gettext.NullTranslations()
+    # trans.install(unicode = True)
 
 if __name__ == '__main__':
 
@@ -1351,6 +1349,8 @@ if __name__ == '__main__':
     config = yaml.load(open('config.yml', 'r'))
     log('Using locale %s' % config['locale'])
     init_localization(config['locale'])
+    print _("Hello world")
+    sys.exit(0)
 
     host = config['homesite']
     homesite = Site(host, config['account']['user'], config['account']['pass'])

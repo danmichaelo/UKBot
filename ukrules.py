@@ -5,6 +5,7 @@ import urllib
 from bs4 import BeautifulSoup
 from danmicholoparser import DanmicholoParser, DanmicholoParseError, condition_for_soup
 from ukcommon import log
+import gettext
 
 class Rule(object):
 
@@ -224,10 +225,10 @@ class RefRule(Rule):
             s = []
             if sources_added > 0:
                 p += sources_added * self.sourcepoints
-                s.append('%d %s' % (sources_added, _('references') if sources_added > 1 else _('reference')))
+                s.append(gettext.ngettext('%d reference added', '%d references added', sources_added) % sources_added)
             if refs_added > 0:
                 p += refs_added * self.refpoints
-                s.append('%d %s' % (refs_added, _('reference pointers') if refs_added > 1 else _('reference pointer')))
+                s.append(gettext.ngettext('%d reference pointer added', '%d reference pointers added', refs_added) % refs_added)
             txt = ', '.join(s)
         
             rev.points.append([p, 'ref', txt])

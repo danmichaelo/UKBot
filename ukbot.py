@@ -25,7 +25,10 @@ from ukrules import *
 from ukfilters import *
 
 import locale
-locale.setlocale(locale.LC_TIME, 'no_NO.utf-8'.encode('utf-8'))
+locale.setlocale(locale.LC_TIME, 'no_NO'.encode('utf-8'))
+
+server_tz = pytz.utc
+wiki_tz = pytz.timezone('Europe/Oslo')
 
 rosettfiler = {
     'blå': 'Article blue.svg',
@@ -62,6 +65,12 @@ rosettfiler = {
 #pbar.maxval = pbar.currval + 1
 #pbar.update(pbar.currval+1)
 #pbar.finish()
+
+def unix_time(dt):
+    """ OS-independent method to get unix time from a datetime object (strftime('%s') does not work on solaris) """
+    epoch = pytz.utc.localize(datetime.utcfromtimestamp(0))
+    delta = dt - epoch
+    return delta.total_seconds()
 
 
 class ParseError(Exception):
@@ -480,7 +489,8 @@ class User(object):
 
             rev_id, site_key, parent_id, article_title, ts, size, parentsize = row
             article_key = site_key + ':' + article_title
-            ts = datetime.strptime(ts, '%Y-%m-%d %H:%M:%S').strftime('%s')
+            
+            ts = unix_time(wiki_tz.localize(datetime.strptime(ts, '%Y-%m-%d %H:%M:%S')))
 
             # Add article if not present
             if not article_key in self.articles:
@@ -561,7 +571,6 @@ class User(object):
         x = []
         y = []
         utc = pytz.utc
-        osl = pytz.timezone('Europe/Oslo')
         
         # loop over articles
         for article_key, article in self.articles.iteritems():
@@ -583,7 +592,7 @@ class User(object):
 
                         if rev.get_points() > 0:
                             #print self.name, rev.timestamp, rev.get_points()
-                            ts = float(utc.localize(datetime.fromtimestamp(rev.timestamp)).astimezone(osl).strftime('%s'))
+                            ts = float(unix_time(utc.localize(datetime.fromtimestamp(rev.timestamp)).astimezone(wiki_tz)))
                             x.append(ts)
                             y.append(float(rev.get_points()))
 
@@ -605,7 +614,6 @@ class User(object):
         entries = []
 
         utc = pytz.utc
-        osl = pytz.timezone('Europe/Oslo')
 
         if self.contest.verbose:
             log('Formatting results for user %s' % self.name)
@@ -629,7 +637,7 @@ class User(object):
                     if len(rev.points) > 0:
                         descr = ' + '.join(['%.1f p (%s)' % (p[0], p[2]) for p in rev.points])
                         dt = utc.localize(datetime.fromtimestamp(rev.timestamp))
-                        dt_str = dt.astimezone(osl).strftime('%A, %H:%M').decode('utf-8')
+                        dt_str = dt.astimezone(wiki_tz).strftime('%A, %H:%M').decode('utf-8')
                         out = '[%s %s]: %s' % (rev.get_link(), dt_str, descr)
                         if self.suspended_since != None and dt > self.suspended_since:
                             out = '<s>' + out + '</s>'
@@ -919,7 +927,6 @@ class UK(object):
             raise ParseError('Klarte ikke å tolke innholdet i {{tl|infoboks ukens konkurranse}}-malen.')
         
         utc = pytz.utc
-        osl = pytz.timezone('Europe/Oslo')
 
         if infoboks.has_param('år') and infoboks.has_param('uke'):
             year = int(re.sub('<\!--.+?-->', '', infoboks.parameters['år']).strip())
@@ -935,13 +942,13 @@ class UK(object):
             print year, startweek
             startweek = Week(year, startweek)
             endweek = Week(year, endweek)
-            self.start = osl.localize(datetime.combine(startweek.monday(), dt_time(0, 0, 0)))
-            self.end = osl.localize(datetime.combine(endweek.sunday(), dt_time(23, 59, 59)))
+            self.start = wiki_tz.localize(datetime.combine(startweek.monday(), dt_time(0, 0, 0)))
+            self.end = wiki_tz.localize(datetime.combine(endweek.sunday(), dt_time(23, 59, 59)))
         elif infoboks.has_param('start') and infoboks.has_param('slutt'):
             startdt = infoboks.parameters['start']
             enddt = infoboks.parameters['slutt']
-            self.start = osl.localize(datetime.strptime(startdt + ' 00 00 00 00', '%Y-%m-%d %H %M %S'))
-            self.end = osl.localize(datetime.strptime(enddt +' 23 59 59 00', '%Y-%m-%d %H %M %S'))
+            self.start = wiki_tz.localize(datetime.strptime(startdt + ' 00 00 00 00', '%Y-%m-%d %H %M %S'))
+            self.end = wiki_tz.localize(datetime.strptime(enddt +' 23 59 59 00', '%Y-%m-%d %H %M %S'))
         else:
             raise ParseError('Fant ikke uke/år eller start/slutt i {{tl|infoboks ukens konkurranse}}.')
 
@@ -981,7 +988,7 @@ class UK(object):
             for templ in dp.templates['uk bruker suspendert']:
                 uname = templ.parameters[1]
                 try:
-                    sdate = osl.localize(datetime.strptime(templ.parameters[2], '%Y-%m-%d %H:%M'))
+                    sdate = wiki_tz.localize(datetime.strptime(templ.parameters[2], '%Y-%m-%d %H:%M'))
                 except ValueError:
                     raise ParseError('Klarte ikke å tolke datoen gitt til {{ml|UK bruker suspendert}}-malen.')
 
@@ -1017,7 +1024,7 @@ class UK(object):
             for templ in dp.templates['uk poengtrekk']:
                 uname = templ.parameters[1]
                 aname = templ.parameters[2]
-                points = float(templ.parameters[3])
+                points = float(templ.parameters[3].replace(',', '.'))
                 reason  = templ.parameters[4]
                 ufound = False
                 log('poengtrekk: %s %s %d %s' % (uname, aname, points, reason))
@@ -1047,7 +1054,7 @@ class UK(object):
         ax.grid(True, which = 'major', color = 'gray', alpha = 0.5)
         fig.subplots_adjust(left=0.10, bottom=0.09, right=0.65, top=0.94)
 
-        t0 = float(self.start.strftime('%s'))
+        t0 = float(unix_time(self.start))
 
         ndays = 7
         if self.startweek != self.endweek:
@@ -1056,7 +1063,7 @@ class UK(object):
         xt = t0 + np.arange(ndays + 1) * 86400
         xt_mid = t0 + 43200 + np.arange(ndays) * 86400
 
-        now = float(datetime.now().strftime('%s'))
+        now = float(unix_time(server_tz.localize(datetime.now())))
 
         yall = []
         cnt = 0
@@ -1154,8 +1161,8 @@ class UK(object):
                             mld += '{{UK deltaker|visuk=nei|år=%d|uke=%d|ukefler=%d|%s=ja}}\n' % (self.year, self.startweek, self.endweek, r[0])
                         break
 
-            now = datetime.now()
-            yearweek = now.strftime('%Y-%V')
+            now = server_tz.localize(datetime.now())
+            yearweek = now.astimezone(wiki_tz).strftime('%Y-%V')
             mld += 'Husk at denne ukens konkurranse er [[Wikipedia:Ukens konkurranse/Ukens konkurranse %s|{{Ukens konkurranse liste|uke=%s}}]]. Lykke til! ' % (yearweek, yearweek)
             mld += 'Hilsen ' + ', '.join(['[[Bruker:%s|%s]]'%(s,s) for s in self.ledere]) + ' og ~~~~'
 
@@ -1285,7 +1292,7 @@ class UK(object):
 
 if __name__ == '__main__':
     
-    runstart = datetime.now()
+    runstart = server_tz.localize(datetime.now())
     
     # Read args
 
@@ -1302,7 +1309,7 @@ if __name__ == '__main__':
         ukcommon.logfile = open(args.log, 'a')
 
     log('-----------------------------------------------------------------')
-    log('UKBot starting at %s' % (runstart.strftime('%F %T')))
+    log('UKBot starting at %s (server time), %s (wiki time)' % (runstart.strftime('%F %T'), runstart.astimezone(wiki_tz).strftime('%F %T')))
     
     # "Hard" settings
 
@@ -1381,8 +1388,7 @@ if __name__ == '__main__':
     # Check if contest is to be ended
     
     log('@ Contest open from %s to %s' % (uk.start.strftime('%F %T'), uk.end.strftime('%F %T')))
-    osl = pytz.timezone('Europe/Oslo')
-    now = osl.localize(datetime.now())
+    now = server_tz.localize(datetime.now())
     ending = False
     if args.close == False and now > uk.end:
         ending = True
@@ -1484,13 +1490,13 @@ if __name__ == '__main__':
 
     #out += sammen + '\n'
 
-    now = datetime.now()
+    now = server_tz.localize(datetime.now())
     if ending:
         out += "''Konkurransen er nå avsluttet – takk til alle som deltok! Rosetter vil bli delt ut så snart konkurransearrangøren(e) har sjekket resultatene.''\n\n"
     elif args.close:
         out += "''Konkurransen er nå avsluttet – takk til alle som deltok!''\n\n"
     else:
-        out += "''Sist oppdatert %s. Konkurransen er åpen fra %s til %s.''\n\n" % (now.strftime('%e. %B %Y, %H:%M').decode('utf-8'), uk.start.strftime('%e. %B %Y, %H:%M').decode('utf-8'), uk.end.strftime('%e. %B %Y, %H:%M').decode('utf-8'))
+        out += "''Sist oppdatert %s. Konkurransen er åpen fra %s til %s.''\n\n" % (now.astimezone(wiki_tz).strftime('%e. %B %Y, %H:%M').decode('utf-8'), uk.start.strftime('%e. %B %Y, %H:%M').decode('utf-8'), uk.end.strftime('%e. %B %Y, %H:%M').decode('utf-8'))
 
     for i,u in enumerate(uk.users):
         out += u.format_result( pos = i, closing = args.close, prices = uk.prices)
@@ -1521,9 +1527,9 @@ if __name__ == '__main__':
             errors.append('\n* %s' % error)
     
     if len(errors) == 0:
-        out += '{{Ukens konkurranse robotinfo | ok | %s }}' % now.strftime('%F %T')
+        out += '{{Ukens konkurranse robotinfo | ok | %s }}' % now.astimezone(wiki_tz).strftime('%F %T')
     else:
-        out += '{{Ukens konkurranse robotinfo | 1=note | 2=%s | 3=%s }}' % ( now.strftime('%F %T'), ''.join(errors) )
+        out += '{{Ukens konkurranse robotinfo | 1=note | 2=%s | 3=%s }}' % ( now.astimezone(wiki_tz).strftime('%F %T'), ''.join(errors) )
     
     out += '\n{{ukens konkurranse %s}}\n[[Kategori:Artikkelkonkurranser]]\n' % (uk.year)
 
@@ -1621,13 +1627,14 @@ if __name__ == '__main__':
         raise StandardError(u'Feil: Fant %d la stå/uk-maler i Wikipedia:Portal/Oppslagstavle' % len(dp.templates['la stå/uk']))
 
     tpl = dp.templates['la stå/uk'][0]
-    if int(tpl.parameters['uke']) != int(now.strftime('%V')):
+    now2 = now.astimezone(wiki_tz)
+    if int(tpl.parameters['uke']) != int(now2.strftime('%V')):
         log('-> Oppdaterer Wikipedia:Portal/Oppslagstavle')
-        tema = sites['no'].api('parse', text = '{{subst:Ukens konkurranse liste|uke=%s}}' % now.strftime('%Y-%V'), pst=1, onlypst=1)['parse']['text']['*']
+        tema = sites['no'].api('parse', text = '{{subst:Ukens konkurranse liste|uke=%s}}' % now2.strftime('%Y-%V'), pst=1, onlypst=1)['parse']['text']['*']
         tpl.parameters[1] = tema
-        tpl.parameters['dato'] = now.strftime('%e. %h')
-        tpl.parameters['år'] = now.strftime('%Y')
-        tpl.parameters['uke'] = now.strftime('%V')
+        tpl.parameters['dato'] = now2.strftime('%e. %h')
+        tpl.parameters['år'] = now2.strftime('%Y')
+        tpl.parameters['uke'] = now2.strftime('%V')
         txt2 = dp.get_wikitext()
         if txt != txt2:
             oppslagstavle.save(txt2, summary = 'Ukens konkurranse er: %s' % tema)
@@ -1636,7 +1643,7 @@ if __name__ == '__main__':
 
     uk.plot()
 
-    runend = datetime.now()
+    runend = server_tz.localize(datetime.now())
     runtime = (runend - runstart).total_seconds()
     log('UKBot finishing at %s. Runtime was %.f seconds.' % (runend.strftime('%F %T'), runtime))
 

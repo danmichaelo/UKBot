@@ -113,7 +113,12 @@ class Article(object):
             if pd[0] == key:
                 self.add_point_deduction(pd[1], pd[2])
 
-    
+    def __eq__(other):
+        if self.site == other.site and self.name == other.name:
+            return True
+        else:
+            return False
+
     def __repr__(self):
         return ("<Article %s:%s for user %s>" % (self.site.key, self.name, self.user.name)).encode('utf-8')
 
@@ -524,16 +529,29 @@ class User(object):
         if nrevs > 0 or narts > 0:
             log(" -> Added %d revisions, %d articles from DB" % (nrevs, narts))
 
-    def filter(self, filters):
+    def filter(self, filters, serial=False):
 
-        for filter in filters:
-            if self.contest.verbose:
-                log('>> Before %s (%d) : %s' % (type(filter).__name__, len(self.articles), ', '.join(self.articles.keys())))
+        if serial:
+            for filter in filters:
+                if self.contest.verbose:
+                    log('>> Before %s (%d) : %s' % (type(filter).__name__, len(self.articles), ', '.join(self.articles.keys())))
 
-            self.articles = filter.filter(self.articles)
-            
+                self.articles = filter.filter(self.articles)
+                
+                if self.contest.verbose:
+                    log('>> After %s (%d) : %s' % (type(filter).__name__, len(self.articles), ', '.join(self.articles.keys())))
+        else:
+            articles = odict([])
             if self.contest.verbose:
-                log('>> After %s (%d) : %s' % (type(filter).__name__, len(self.articles), ', '.join(self.articles.keys())))
+                log('>> Before filtering: %d articles' % len(self.articles))
+            for filter in filters:
+                for a in filter.filter(self.articles):
+                    if a not in articles:
+                        print a
+                        articles[a] = self.articles[a]
+                if self.contest.verbose:
+                    log('>> After %s: %d articles' % (type(filter).__name__, len(articles)))
+            self.articles = articles
 
         # We should re-sort afterwards since not all filters preserve the order (notably the CatFilter)
         self.sort_contribs()
@@ -844,10 +862,10 @@ class UK(object):
                     raise ParseError('Ukjent argument gitt til {{ml|ukens konkurranse kriterium}}: '+key)
                 
                 foundfilter = False
-                for f in filters:
-                    if type(f) == type(filt):
-                        foundfilter = True
-                        f.extend(filt)
+                # for f in filters:
+                #     if type(f) == type(filt):
+                #         foundfilter = True
+                #         f.extend(filt)
                 if not foundfilter:
                     nfilters += 1
                     filters.append(filt)

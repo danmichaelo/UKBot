@@ -6,7 +6,13 @@ from __future__ import unicode_literals
 import sys, os, datetime
 import mwclient
 import locale
-locale.setlocale(locale.LC_TIME, 'no_NO.utf-8'.encode('utf-8'))
+for loc in ['nb_NO.UTF-8', 'nb_NO.utf8', 'no_NO']:
+    try:
+        locale.setlocale(locale.LC_TIME, loc.encode('utf-8'))
+        #logger.info('Locale set to %s' % loc)
+        break
+    except locale.Error:
+        pass
 
 now = datetime.datetime.now()
 

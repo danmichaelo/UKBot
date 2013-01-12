@@ -25,7 +25,14 @@ from ukrules import *
 from ukfilters import *
 
 import locale
-locale.setlocale(locale.LC_TIME, 'no_NO'.encode('utf-8'))
+#locale.setlocale(locale.LC_TIME, 'no_NO'.encode('utf-8'))
+for loc in ['nb_NO.UTF-8', 'nb_NO.utf8', 'no_NO']:
+    try:
+        locale.setlocale(locale.LC_ALL, loc.encode('utf-8'))
+        #logger.info('Locale set to %s' % loc)
+        break
+    except locale.Error:
+        pass
 
 server_tz = pytz.utc
 wiki_tz = pytz.timezone('Europe/Oslo')

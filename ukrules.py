@@ -81,13 +81,24 @@ class TemplateRemovalRule(Rule):
         self.aliases = [a.lower() for a in aliases]
         self.total = 0
 
+    def testtpl(self, name):
+        tpl = self.template
+        if tpl[0] == '*' and tpl[-1] == '*':
+            return (name.find(tpl[1:-1]) != -1)
+        elif tpl[0] == '*':
+            return (name.endswith(tpl[1:]))
+        elif tpl[-1] == '*':
+            return (name.startswith(tpl[:-1]))
+        else:
+            return name == tpl
+
     def templatecount(self, text):
         """ Checks if a given text has the template"""
 
         dp = DanmicholoParser(text)
         tc = 0
         for tname, templ in dp.templates.iteritems():
-            if tname == self.template or tname in self.aliases:
+            if self.testtpl(tname) or tname in self.aliases:
                 tc += len(templ)
         return tc
 
@@ -125,7 +136,8 @@ class ByteRule(Rule):
 
     def test(self, rev):
         revpoints = rev.bytes * self.points
-        self.add_points(rev, revpoints, 'byte', _('%(bytes).f bytes') % { 'bytes': rev.bytes }, self.maxpoints, include_zero = True)
+        if revpoints > 0.:
+            self.add_points(rev, revpoints, 'byte', _('%(bytes).f bytes') % { 'bytes': rev.bytes }, self.maxpoints, include_zero = True)
 
 
 class WordRule(Rule):
@@ -140,7 +152,8 @@ class WordRule(Rule):
         try:
             words = rev.words
             revpoints = words * self.points
-            self.add_points(rev, revpoints, 'word', _('%(words).f words') % { 'words': words }, self.maxpoints)
+            if revpoints > 0.:
+                self.add_points(rev, revpoints, 'word', _('%(words).f words') % { 'words': words }, self.maxpoints)
 
         except DanmicholoParseError as e:
             rev.errors.append(_('Word count failed for revision %(revid)d due to the following error: %(error)s') % { 'revid': rev.revid, 'error': e.msg })
@@ -220,7 +233,7 @@ class RefRule(Rule):
         
         self.totalsources += sources_added
         
-        if sources_added != 0 or refs_added != 0:
+        if sources_added > 0 or refs_added > 0:
             p = 0.
             s = []
             if sources_added > 0:
@@ -246,7 +259,8 @@ class ByteBonusRule(Rule):
         thisrev = False
         passedlimit = False
         for r in rev.article.revisions.itervalues():
-            abytes += r.bytes
+            if r.bytes > 0:
+                abytes += r.bytes
             if passedlimit == False and abytes >= self.limit:
                 passedlimit = True
                 if r == rev:
@@ -270,7 +284,8 @@ class WordBonusRule(Rule):
         passedlimit = False
         for r in rev.article.revisions.itervalues():
             try:
-                awords += r.words
+                if r.words > 0:
+                    awords += r.words
             except DanmicholoParseError as e:
                 pass # messages usually always passed from WordRule anyway
             

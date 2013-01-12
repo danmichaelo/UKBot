@@ -27,6 +27,18 @@ from ukrules import *
 from ukfilters import *
 
 import locale
+#locale.setlocale(locale.LC_TIME, 'no_NO'.encode('utf-8'))
+for loc in ['nb_NO.UTF-8', 'nb_NO.utf8', 'no_NO']:
+    try:
+        locale.setlocale(locale.LC_ALL, loc.encode('utf-8'))
+        #logger.info('Locale set to %s' % loc)
+        break
+    except locale.Error:
+        pass
+
+server_tz = pytz.utc
+#wiki_tz = pytz.timezone('Europe/Oslo')
+wikit_tz= pytz.timezone(self.contest.config['timezone'])
 
 # Suggested crontab:
 ## Oppdater resultater annenhver time mellom kl 8 og 22 samt kl 23 og 01...
@@ -48,6 +60,12 @@ import locale
 #pbar.maxval = pbar.currval + 1
 #pbar.update(pbar.currval+1)
 #pbar.finish()
+
+def unix_time(dt):
+    """ OS-independent method to get unix time from a datetime object (strftime('%s') does not work on solaris) """
+    epoch = pytz.utc.localize(datetime.utcfromtimestamp(0))
+    delta = dt - epoch
+    return delta.total_seconds()
 
 
 class ParseError(Exception):
@@ -90,7 +108,12 @@ class Article(object):
             if pd[0] == key:
                 self.add_point_deduction(pd[1], pd[2])
 
-    
+    def __eq__(other):
+        if self.site == other.site and self.name == other.name:
+            return True
+        else:
+            return False
+
     def __repr__(self):
         return ("<Article %s:%s for user %s>" % (self.site.key, self.name, self.user.name)).encode('utf-8')
 
@@ -468,7 +491,8 @@ class User(object):
 
             rev_id, site_key, parent_id, article_title, ts, size, parentsize = row
             article_key = site_key + ':' + article_title
-            ts = datetime.strptime(ts, '%Y-%m-%d %H:%M:%S').strftime('%s')
+            
+            ts = unix_time(wiki_tz.localize(datetime.strptime(ts, '%Y-%m-%d %H:%M:%S')))
 
             # Add article if not present
             if not article_key in self.articles:
@@ -502,16 +526,29 @@ class User(object):
         if nrevs > 0 or narts > 0:
             log(" -> Added %d revisions, %d articles from DB" % (nrevs, narts))
 
-    def filter(self, filters):
+    def filter(self, filters, serial=False):
 
-        for filter in filters:
-            if self.contest.verbose:
-                log('>> Before %s (%d) : %s' % (type(filter).__name__, len(self.articles), ', '.join(self.articles.keys())))
+        if serial:
+            for filter in filters:
+                if self.contest.verbose:
+                    log('>> Before %s (%d) : %s' % (type(filter).__name__, len(self.articles), ', '.join(self.articles.keys())))
 
-            self.articles = filter.filter(self.articles)
-            
+                self.articles = filter.filter(self.articles)
+                
+                if self.contest.verbose:
+                    log('>> After %s (%d) : %s' % (type(filter).__name__, len(self.articles), ', '.join(self.articles.keys())))
+        else:
+            articles = odict([])
             if self.contest.verbose:
-                log('>> After %s (%d) : %s' % (type(filter).__name__, len(self.articles), ', '.join(self.articles.keys())))
+                log('>> Before filtering: %d articles' % len(self.articles))
+            for filter in filters:
+                for a in filter.filter(self.articles):
+                    if a not in articles:
+                        print a
+                        articles[a] = self.articles[a]
+                if self.contest.verbose:
+                    log('>> After %s: %d articles' % (type(filter).__name__, len(articles)))
+            self.articles = articles
 
         # We should re-sort afterwards since not all filters preserve the order (notably the CatFilter)
         self.sort_contribs()
@@ -549,7 +586,6 @@ class User(object):
         x = []
         y = []
         utc = pytz.utc
-        osl = pytz.timezone(self.contest.config['timezone'])
         
         # loop over articles
         for article_key, article in self.articles.iteritems():
@@ -571,7 +607,7 @@ class User(object):
 
                         if rev.get_points() > 0:
                             #print self.name, rev.timestamp, rev.get_points()
-                            ts = float(utc.localize(datetime.fromtimestamp(rev.timestamp)).astimezone(osl).strftime('%s'))
+                            ts = float(unix_time(utc.localize(datetime.fromtimestamp(rev.timestamp)).astimezone(wiki_tz)))
                             x.append(ts)
                             y.append(float(rev.get_points()))
 
@@ -594,7 +630,6 @@ class User(object):
         config = self.contest.config
 
         utc = pytz.utc
-        osl = pytz.timezone(config['timezone'])
 
         if self.contest.verbose:
             log('Formatting results for user %s' % self.name)
@@ -618,7 +653,7 @@ class User(object):
                     if len(rev.points) > 0:
                         descr = ' + '.join(['%.1f p (%s)' % (p[0], p[2]) for p in rev.points])
                         dt = utc.localize(datetime.fromtimestamp(rev.timestamp))
-                        dt_str = dt.astimezone(osl).strftime('%A, %H:%M').decode('utf-8')
+                        dt_str = dt.astimezone(wiki_tz).strftime('%A, %H:%M').decode('utf-8')
                         out = '[%s %s]: %s' % (rev.get_link(), dt_str, descr)
                         if self.suspended_since != None and dt > self.suspended_since:
                             out = '<s>' + out + '</s>'
@@ -830,10 +865,10 @@ class UK(object):
                     raise ParseError(_('Unknown argument given to {{tl|%(template)s}}: %(argument)s') % { 'template': filtercfg['name'], 'argument': key })
                 
                 foundfilter = False
-                for f in filters:
-                    if type(f) == type(filt):
-                        foundfilter = True
-                        f.extend(filt)
+                # for f in filters:
+                #     if type(f) == type(filt):
+                #         foundfilter = True
+                #         f.extend(filt)
                 if not foundfilter:
                     nfilters += 1
                     filters.append(filt)
@@ -917,7 +952,6 @@ class UK(object):
             raise ParseError(_('Could not parse the {{tl|%(template)s}} template.') % { 'template': infoboxcfg['name'] })
         
         utc = pytz.utc
-        osl = pytz.timezone(config['timezone'])
 
         if infoboks.has_param(ibcfg['year']) and infoboks.has_param(ibcfg['week']):
             year = int(re.sub('<\!--.+?-->', '', infoboks.parameters[ibcfg['year']]).strip())
@@ -932,13 +966,13 @@ class UK(object):
 
             startweek = Week(year, startweek)
             endweek = Week(year, endweek)
-            self.start = osl.localize(datetime.combine(startweek.monday(), dt_time(0, 0, 0)))
-            self.end = osl.localize(datetime.combine(endweek.sunday(), dt_time(23, 59, 59)))
+            self.start = wiki_tz.localize(datetime.combine(startweek.monday(), dt_time(0, 0, 0)))
+            self.end = wiki_tz.localize(datetime.combine(endweek.sunday(), dt_time(23, 59, 59)))
         elif infoboks.has_param(ibcfg['start']) and infoboks.has_param(ibcfg['end']):
             startdt = infoboks.parameters[ibcfg['start']]
             enddt = infoboks.parameters[ibcfg['end']]
-            self.start = osl.localize(datetime.strptime(startdt + ' 00 00 00 00', '%Y-%m-%d %H %M %S'))
-            self.end = osl.localize(datetime.strptime(enddt +' 23 59 59 00', '%Y-%m-%d %H %M %S'))
+            self.start = wiki_tz.localize(datetime.strptime(startdt + ' 00 00 00 00', '%Y-%m-%d %H %M %S'))
+            self.end = wiki_tz.localize(datetime.strptime(enddt +' 23 59 59 00', '%Y-%m-%d %H %M %S'))
         else:
             args = { 'week': ibcfg['week'], 'year': ibcfg['year'], 'start': ibcfg['start'], 'end': ibcfg['end'], 'template': ibcfg['name'] }
             raise ParseError(_('Did not find %(week)s+%(year)s or %(start)s+%(end)s in {{tl|%(templates)s}}.') % args)
@@ -983,7 +1017,7 @@ class UK(object):
             for templ in dp.templates[sucfg['name'].lower()]:
                 uname = templ.parameters[1]
                 try:
-                    sdate = osl.localize(datetime.strptime(templ.parameters[2], '%Y-%m-%d %H:%M'))
+                    sdate = wiki_tz.localize(datetime.strptime(templ.parameters[2], '%Y-%m-%d %H:%M'))
                 except ValueError:
                     raise ParseError(_('Klarte ikke å tolke datoen gitt til {{ml|%(template)s}}-malen.') % sucfg['name'])
 
@@ -1021,7 +1055,7 @@ class UK(object):
             for templ in dp.templates[pocfg['name'].lower()]:
                 uname = templ.parameters[1]
                 aname = templ.parameters[2]
-                points = float(templ.parameters[3])
+                points = float(templ.parameters[3].replace(',', '.'))
                 reason  = templ.parameters[4]
                 ufound = False
                 log('poengtrekk: %s %s %d %s' % (uname, aname, points, reason))
@@ -1051,7 +1085,7 @@ class UK(object):
         ax.grid(True, which = 'major', color = 'gray', alpha = 0.5)
         fig.subplots_adjust(left=0.10, bottom=0.09, right=0.65, top=0.94)
 
-        t0 = float(self.start.strftime('%s'))
+        t0 = float(unix_time(self.start))
 
         ndays = 7
         if self.startweek != self.endweek:
@@ -1060,7 +1094,7 @@ class UK(object):
         xt = t0 + np.arange(ndays + 1) * 86400
         xt_mid = t0 + 43200 + np.arange(ndays) * 86400
 
-        now = float(datetime.now().strftime('%s'))
+        now = float(unix_time(server_tz.localize(datetime.now())))
 
         yall = []
         cnt = 0
@@ -1176,8 +1210,8 @@ class UK(object):
                         mld = format_msg('participant_template', r[0])
                         break
 
-            now = datetime.now()
-            yearweek = now.strftime('%Y-%V')
+            now = server_tz.localize(datetime.now())
+            yearweek = now.astimezone(wiki_tz).strftime('%Y-%V')
             userprefix = self.homesite.namespaces[2];
             usertalkprefix = self.homesite.namespaces[3];
 
@@ -1325,8 +1359,8 @@ def init_localization(loc):
     # trans.install(unicode = True)
 
 if __name__ == '__main__':
-
-    runstart = datetime.now()
+    
+    runstart = server_tz.localize(datetime.now())
     
     # Read args
 
@@ -1343,7 +1377,7 @@ if __name__ == '__main__':
         ukcommon.logfile = open(args.log, 'a')
 
     log('-----------------------------------------------------------------')
-    log('UKBot starting at %s' % (runstart.strftime('%F %T')))
+    log('UKBot starting at %s (server time), %s (wiki time)' % (runstart.strftime('%F %T'), runstart.astimezone(wiki_tz).strftime('%F %T')))
     
     # Settings
     config = yaml.load(open('config.yml', 'r'))
@@ -1427,8 +1461,7 @@ if __name__ == '__main__':
     # Check if contest is to be ended
     
     log('@ Contest open from %s to %s' % (uk.start.strftime('%F %T'), uk.end.strftime('%F %T')))
-    osl = pytz.timezone(config['timezone'])
-    now = osl.localize(datetime.now())
+    now = server_tz.localize(datetime.now())
     ending = False
     if args.close == False and now > uk.end:
         ending = True
@@ -1529,7 +1562,7 @@ if __name__ == '__main__':
 
     #out += sammen + '\n'
 
-    now = datetime.now()
+    now = server_tz.localize(datetime.now())
     if ending:
         # Konkurransen er nå avsluttet – takk til alle som deltok! Rosetter vil bli delt ut så snart konkurransearrangøren(e) har sjekket resultatene.
         out += "''" + _('This contest is closed – thanks to everyone who participated! Awards will be sent out as soon as the contest organizer has checked the results.') + "''\n\n"
@@ -1537,7 +1570,7 @@ if __name__ == '__main__':
         out += "''" + _('This contest is closed – thanks to everyone who participated!') + "''\n\n"
     else:
         oargs = { 
-            'lastupdate': now.strftime('%e. %B %Y, %H:%M').decode('utf-8'), 
+            'lastupdate': now.astimezone(wiki_tz).strftime('%e. %B %Y, %H:%M').decode('utf-8'), 
             'startdate': uk.start.strftime('%e. %B %Y, %H:%M').decode('utf-8'), 
             'enddate': uk.end.strftime('%e. %B %Y, %H:%M').decode('utf-8') 
         }
@@ -1572,9 +1605,9 @@ if __name__ == '__main__':
             errors.append('\n* %s' % error)
     
     if len(errors) == 0:
-        out += '{{%s | ok | %s }}' % (config['templates']['botinfo'], now.strftime('%F %T'))
+        out += '{{%s | ok | %s }}' % (config['templates']['botinfo'], now.astimezone(wiki_tz).strftime('%F %T'))
     else:
-        out += '{{%s | 1=note | 2=%s | 3=%s }}' % (config['templates']['botinfo'], now.strftime('%F %T'), ''.join(errors) )
+        out += '{{%s | 1=note | 2=%s | 3=%s }}' % (config['templates']['botinfo'], now.astimezone(wiki_tz).strftime('%F %T'), ''.join(errors) )
     
     out += '\n' + config['contestPages']['footer'] % { 'year': uk.year } + '\n'
 
@@ -1682,14 +1715,15 @@ if __name__ == '__main__':
             raise StandardError(u'Feil: Fant %d %s-maler i %s' % (ntempl, tplname, boardname))
 
         tpl = dp.templates[tplname][0]
-        if int(tpl.parameters['uke']) != int(now.strftime('%V')):
+        now2 = now.astimezone(wiki_tz)
+        if int(tpl.parameters['uke']) != int(now2.strftime('%V')):
             log('-> Updating %s' % boardname)
             tpllist = config['templates']['contestlist']
-            tema = homesite.api('parse', text = '{{subst:%s|%s=%s}}' % (tpllist['name'], tpllist['week'], now.strftime('%Y-%V')), pst=1, onlypst=1)['parse']['text']['*']
+            tema = homesite.api('parse', text = '{{subst:%s|%s=%s}}' % (tpllist['name'], tpllist['week'], now2.strftime('%Y-%V')), pst=1, onlypst=1)['parse']['text']['*']
             tpl.parameters[1] = tema
-            tpl.parameters[boardtpl['date']] = now.strftime('%e. %h')
-            tpl.parameters[boardtpl['year']] = now.strftime('%Y')
-            tpl.parameters[boardtpl['week']] = now.strftime('%V')
+            tpl.parameters[boardtpl['date']] = now2.strftime('%e. %h')
+            tpl.parameters[boardtpl['year']] = now2.strftime('%Y')
+            tpl.parameters[boardtpl['week']] = now2.strftime('%V')
             txt2 = dp.get_wikitext()
             if txt != txt2:
                 oppslagstavle.save(txt2, summary = _('Ukens konkurranse er: %s') % tema)
@@ -1698,7 +1732,7 @@ if __name__ == '__main__':
 
     uk.plot()
 
-    runend = datetime.now()
+    runend = server_tz.localize(datetime.now())
     runtime = (runend - runstart).total_seconds()
     log('UKBot finishing at %s. Runtime was %.f seconds.' % (runend.strftime('%F %T'), runtime))
 

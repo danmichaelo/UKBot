@@ -502,7 +502,7 @@ class User(object):
             rev_id, site_key, parent_id, article_title, ts, size, parentsize = row
             article_key = site_key + ':' + article_title
             
-            ts = unix_time(wiki_tz.localize(datetime.strptime(ts, '%Y-%m-%d %H:%M:%S')))
+            ts = unix_time(pytz.utc.localize(datetime.strptime(ts, '%Y-%m-%d %H:%M:%S')))
 
             # Add article if not present
             if not article_key in self.articles:
@@ -554,7 +554,7 @@ class User(object):
             for filter in filters:
                 for a in filter.filter(self.articles):
                     if a not in articles:
-                        print a
+                        #print a
                         articles[a] = self.articles[a]
                 if self.contest.verbose:
                     log('>> After %s: %d articles' % (type(filter).__name__, len(articles)))
@@ -1088,7 +1088,7 @@ class UK(object):
         xt = t0 + np.arange(ndays + 1) * 86400
         xt_mid = t0 + 43200 + np.arange(ndays) * 86400
 
-        now = float(unix_time(server_tz.localize(datetime.now())))
+        now = float(unix_time(server_tz.localize(datetime.now()).astimezone(pytz.utc)))
 
         yall = []
         cnt = 0

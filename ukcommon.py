@@ -20,13 +20,20 @@ def init_localization(cl = ''):
             #['nb_NO.UTF-8', 'nb_NO.utf8', 'no_NO']:
         for loc in cl:
             try:
-                print "Trying", loc.encode('utf-8'), 'utf-8'
+                print "Trying (", loc.encode('utf-8'), 'utf-8',")"
                 locale.setlocale(locale.LC_ALL, (loc.encode('utf-8'), 'utf-8'))
                 log('Using locale %s' % loc)
                 #logger.info('Locale set to %s' % loc)
                 break
             except locale.Error:
-                pass
+                try:
+                    locstr = (loc + '.UTF-8').encode('utf-8')
+                    print "Trying",locstr
+                    locale.setlocale(locale.LC_ALL, locstr )
+                    log('Using locale %s' % loc)
+                    break
+                except locale.Error:
+                    pass
     lang, charset = locale.getlocale()
     if lang == None:
         raise StandardError("Failed to set locale!")

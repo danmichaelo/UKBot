@@ -982,7 +982,7 @@ class UK(object):
             year = int(re.sub('<\!--.+?-->', '', infoboks.parameters[commonargs['year']]).strip())
             startweek = int(re.sub('<\!--.+?-->', '', infoboks.parameters[commonargs['week']]).strip())
             if infoboks.has_param(commonargs['week2']):
-                endweek = re.sub('<\!--.+?-->', '', infoboks.parameters[ibcfg['week2']]).strip()
+                endweek = re.sub('<\!--.+?-->', '', infoboks.parameters[commonargs['week2']]).strip()
                 if endweek == '':
                     endweek = startweek
             else:

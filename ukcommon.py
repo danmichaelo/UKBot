@@ -37,5 +37,5 @@ def init_localization(cl = ''):
     lang, charset = locale.getlocale()
     if lang == None:
         raise StandardError("Failed to set locale!")
-    trans = gettext.translation('messages', 'locale', fallback=True, languages=[lang])
-    return trans.ugettext
+    t = gettext.translation('messages', 'locale', fallback=True, languages=[lang])
+    return t, t.ugettext

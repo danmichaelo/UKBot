@@ -7,8 +7,8 @@ msgid ""
 msgstr ""
 "Project-Id-Version: UKBot\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2013-01-20 21:19+0100\n"
-"PO-Revision-Date: 2013-01-20 21:20+0100\n"
+"POT-Creation-Date: 2013-01-20 21:33+0100\n"
+"PO-Revision-Date: 2013-01-20 21:34+0100\n"
 "Last-Translator: Dan Michael Heggø <danmichaelo@gmail.com>\n"
 "Language-Team: \n"
 "Language: Norsk bokmål\n"
@@ -351,16 +351,16 @@ msgstr "lenke"
 
 #: ukrules.py:244
 #, python-format
-msgid "One reference"
+msgid "one reference"
 msgid_plural "%(num)d references"
-msgstr[0] "Én kilde lagt til"
-msgstr[1] "%(num)d kilder lagt til"
+msgstr[0] "én kilde"
+msgstr[1] "%(num)d kilder"
 
 #: ukrules.py:247
 #, python-format
-msgid "One reference pointer"
+msgid "one reference pointer"
 msgid_plural "%(num)d reference pointers"
-msgstr[0] "Én henvisning til navngitt kilde"
+msgstr[0] "én henvisning til navngitt kilde"
 msgstr[1] "%(num)d henvisninger til navngitte kilder"
 
 #: ukrules.py:273

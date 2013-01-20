@@ -241,10 +241,10 @@ class RefRule(Rule):
             s = []
             if sources_added > 0:
                 p += sources_added * self.sourcepoints
-                s.append(t.ungettext('One reference', '%(num)d references', sources_added) % { 'num': sources_added })
+                s.append(t.ungettext('one reference', '%(num)d references', sources_added) % { 'num': sources_added })
             if refs_added > 0:
                 p += refs_added * self.refpoints
-                s.append(t.ungettext('One reference pointer', '%(num)d reference pointers', refs_added) % { 'num': refs_added })
+                s.append(t.ungettext('one reference pointer', '%(num)d reference pointers', refs_added) % { 'num': refs_added })
             txt = ', '.join(s)
         
             rev.points.append([p, 'ref', txt])

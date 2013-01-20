@@ -1,0 +1,371 @@
+# Norwegian Bokmål translation for UKBot
+# Copyright (C) 2013
+# This file is distributed under the same license as the UKBot package.
+# Dan Michael Heggø <danmichaelo@gmail.com>, 2013
+#
+msgid ""
+msgstr ""
+"Project-Id-Version: UKBot\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2013-01-20 17:22+0100\n"
+"PO-Revision-Date: 2013-01-20 17:23+0100\n"
+"Last-Translator: Dan Michael Heggø <danmichaelo@gmail.com>\n"
+"Language-Team: \n"
+"Language: Norsk bokmål\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=2; plural=(n != 1);\n"
+"X-Generator: Poedit 1.5.4\n"
+
+#: ukbot.py:215
+#, python-format
+msgid ""
+"A problem encountered with revision %(revid)d may have influenced the word "
+"count for this revision: <nowiki>%(problems)s</nowiki> "
+msgstr ""
+"Det oppsto et problem med revisjon %(revid)d, som kan ha "
+"påvirketordtellingen for denne revisjonen: <nowiki>%(problems)s</nowiki> "
+
+#: ukbot.py:660
+msgid "Category hit"
+msgstr "Kategoritreff"
+
+#: ukbot.py:668
+msgid "Notes"
+msgstr "Merknader"
+
+#: ukbot.py:670
+#, python-format
+msgid "Total: {{formatnum:%(bytecount)d}} bytes, %(wordcount)d words"
+msgstr "Totalt: {{formatnum:%(bytecount)d}} bytes, %(wordcount)d ord"
+
+#: ukbot.py:682
+msgid ""
+"<strong>Note:</strong> The contributions to this article are currently "
+"disqualified."
+msgstr ""
+"<strong>Merk:</strong> Bidragene til denne artikkelen er for tiden "
+"diskvalifisert."
+
+#: ukbot.py:708
+msgid "suspended since"
+msgstr "suspendert siden"
+
+#: ukbot.py:711
+msgid "No qualifying contributions registered yet"
+msgstr "Ingen kvalifiserte bidrag har blitt registrert enda"
+
+#: ukbot.py:713
+msgid "articles"
+msgstr "artikler"
+
+#: ukbot.py:715
+msgid "{{Kolonner}}\n"
+msgstr "{{Kolonner}}\n"
+
+#: ukbot.py:740
+#, python-format
+msgid "Found no \"%(section)s\" sections in the page \"%(page)s\""
+msgstr "Fant ingen \"%(section)s\"-seksjoner på siden \"%(page)s\""
+
+#: ukbot.py:762
+msgid "Couldn't find the list of participants!"
+msgstr "Fant ikke deltakerlisten!"
+
+#: ukbot.py:785
+#, python-format
+msgid ""
+"There are no point rules defined for this contest. Point rules are defined "
+"by {{tl|%(template)s}}."
+msgstr ""
+"Denne konkurransen har ingen poengregler. Poengregler defineres med {{tl|"
+"%(template)s}}."
+
+#: ukbot.py:792
+#, python-format
+msgid "This contest is missing a {{tl|%(template)s}} template."
+msgstr "Denne konkurransen mangler en {{tl|%(template)s}}-mal."
+
+#: ukbot.py:797
+msgid "Could not parse the catignore page"
+msgstr "Klarte ikke å tolke catignore-siden"
+
+#: ukbot.py:821
+#, python-format
+msgid ""
+"No template (second argument) given to {{mlp|%(template)s|%(firstarg)s}}"
+msgstr ""
+"Ingen mal (andre argument) ble gitt til {{mlp|%(template)s|%(firstarg)s}}"
+
+#: ukbot.py:829
+#, python-format
+msgid ""
+"No byte limit (second argument) given to {{mlp|%(template)s|%(firstarg)s}}"
+msgstr ""
+"Ingen bytegrense (andre argument) ble gitt til {{mlp|%(template)s|"
+"%(firstarg)s}}"
+
+#: ukbot.py:835
+#, python-format
+msgid "No categories given to {{mlp|%(template)s|%(firstarg)s}}"
+msgstr "Ingen kategorier gitt til {{mlp|%(template)s|%(firstarg)s}}"
+
+#: ukbot.py:858
+#, python-format
+msgid "Unknown argument given to {{tl|%(template)s}}: %(argument)s"
+msgstr "Ukjent argument gitt til {{tl|%(template)s}}: %(argument)s"
+
+#: ukbot.py:935
+#, python-format
+msgid "Unkown argument given to {{ml|%(template)s}}: %(argument)s"
+msgstr "Ukjent argument gitt til {{ml|%(template)s}}: %(argument)s"
+
+#: ukbot.py:945
+#, python-format
+msgid "Could not parse the {{tl|%(template)s}} template."
+msgstr "Klarte ikke å tolke {{tl|%(template)s}}-malen."
+
+#: ukbot.py:971
+#, python-format
+msgid ""
+"Did not find %(week)s+%(year)s or %(start)s+%(end)s in {{tl|%(templates)s}}."
+msgstr ""
+"Fant ikke %(week)s+%(year)s eller %(start)s+%(end)s i {{tl|%(templates)s}}."
+
+#: ukbot.py:980
+#, python-format
+msgid "Did not find any organizers in {{tl|%(template)s}}."
+msgstr "Fant ingen organisatorer i {{tl|%(template)s}}."
+
+#: ukbot.py:1002
+#, python-format
+msgid ""
+"Found no winner award in {{tl|%(template)s}}. Winner award is set by one of "
+"the following: %(awards)s."
+msgstr ""
+"Fant ingen vinnerpremie i {{tl|%(template)s}}. Vinnerpremien settes som en "
+"av følgende: %(awards)s."
+
+#: ukbot.py:1015
+#, python-format
+msgid "Couldn't parse the date given to the {{ml|%(template)s}} template."
+msgstr "Klarte ikke å tolke datoen gitt til {{ml|%(template)s}}-malen."
+
+#: ukbot.py:1044
+#, python-format
+msgid ""
+"Could not find the user %(user)s given to the {{ml|%(template)s}} template."
+msgstr "Fant ikke brukeren %(user)s gitt til {{ml|%(template)s}}-malen."
+
+#: ukbot.py:1060
+#, python-format
+msgid ""
+"Couldn't find the user %(user)s given to the {{ml|%(template)s}} template."
+msgstr "Fant ikke brukeren %(user)s gitt til {{ml|%(template)s}}-malen."
+
+#: ukbot.py:1175
+#, python-format
+msgid "Weekly contest for week %(week)d"
+msgstr "Ukens konkurranse uke %(week)d"
+
+#: ukbot.py:1177
+#, python-format
+msgid "Weekly contest for week %(startweek)d–%(endweek)d"
+msgstr "Ukens konkurranse uke %(startweek)d–%(endweek)d"
+
+#: ukbot.py:1212
+#, python-format
+msgid ""
+"Note that the contest this week is [[%(url)s|{{%(template)s|$(weekarg)s="
+"%(week)s}}]]. Join in!"
+msgstr ""
+"Husk at denne ukens konkurranse er [[%(url)s|{{%(template)s|$(weekarg)s="
+"%(week)s}}]]. Lykke til!"
+
+#: ukbot.py:1218
+msgid "Regards"
+msgstr "Hilsen"
+
+#: ukbot.py:1218
+msgid "and"
+msgstr "og"
+
+#: ukbot.py:1261
+#, python-format
+msgid ""
+"Now you must check if the results look ok. If there are error messages at "
+"the bottom of the [[%(page)s|contest page]], you should check that the "
+"related contributions have been awarded the correct number of points. Also "
+"check if there are comments or complaints on the discussion page. If "
+"everything looks fine, [%(link)s click here] (and save) to indicate that I "
+"can send out the awards at first occasion."
+msgstr ""
+"Du må nå sjekke resultatene. Hvis det er feilmeldinger nederst på [[%(page)s|"
+"konkurransesiden]] må du sjekke om de relaterte bidragene har fått poengene "
+"de skal ha. Se også etter om det er kommentarer eller klager på "
+"diskusjonssiden. Hvis alt ser greit ut kan du trykke [%(link)s her] (og "
+"lagre), så sender jeg ut rosetter ved første anledning."
+
+#: ukbot.py:1262
+msgid "Thanks, ~~~~"
+msgstr "Hilsen ~~~~"
+
+#: ukbot.py:1274
+#, python-format
+msgid "Awards have been [%(link)s sent out]."
+msgstr "Rosetter er nå [%(link)s sendt ut]."
+
+#: ukbot.py:1470 ukbot.py:1540
+msgid "UKBot encountered a problem"
+msgstr "UKBot støtte på et problem"
+
+#: ukbot.py:1585
+msgid ""
+"This contest is closed – thanks to everyone who participated! Awards will be "
+"sent out as soon as the contest organizer has checked the results."
+msgstr ""
+"Konkurransen er avsluttet – takk til alle som deltok! Rosetter vil sendes ut "
+"så snart konkurransearrangøren har sjekket resultatene."
+
+#: ukbot.py:1587
+msgid "This contest is closed – thanks to everyone who participated!"
+msgstr "Denne konkurransen er avsluttet – takk til alle som deltok!"
+
+#: ukbot.py:1594
+#, python-format
+msgid ""
+"Last updated %(lastupdate)s. The contest is open from %(startdate)s to "
+"%(enddate)s."
+msgstr ""
+"Sist oppdatert %(lastupdate)s. Konkurransen er åpen fra %(startdate)s til "
+"%(enddate)s."
+
+#: ukbot.py:1618
+#, python-format
+msgid "UKBot encountered the following problems with the article [[:%s]]"
+msgstr "UKBot støtte på problemer med artikkelen [[:%s]]"
+
+#: ukbot.py:1656
+msgid "Updating with final results, the contest is now closed."
+msgstr ""
+"Oppdaterer med endelige resultater og merker konkurransen som avsluttet."
+
+#: ukbot.py:1658
+msgid "Checking results and handing out awards"
+msgstr "Sjekker resultater og deler ut rosetter"
+
+#: ukbot.py:1660
+msgid "Updating"
+msgstr "Oppdaterer"
+
+#: ukbot.py:1716
+#, python-format
+msgid "#REDIRECT [[%s]]"
+msgstr "#OMDIRIGERING [[%s]]"
+
+#: ukbot.py:1718
+#, python-format
+msgid "Redirecting to %s"
+msgstr "Omdirigerer til %s"
+
+#: ukbot.py:1746
+#, python-format
+msgid "The weekly contest is: %(link)s"
+msgstr "Ukens konkurranse er: %(link)s"
+
+#: ukfilters.py:122
+#, python-format
+msgid ""
+"Could not analyze the article %(article)s because one of the revisions "
+"%(prevrev)d or %(rev)d could not be parsed: %(error)s"
+msgstr ""
+"Kunne ikke analysere artikkelen %(article)s fordi en av revisjonene "
+"%(prevrev)d eller %(rev)d ikke kunne tolkes: %(error)s"
+
+#: ukfilters.py:316
+msgid "Encountered an infinite category loop: "
+msgstr "Havnet i en endeløs kategoriløkke: "
+
+#: ukrules.py:36
+msgid "max"
+msgstr "maks"
+
+#: ukrules.py:53
+msgid "new page"
+msgstr "ny side"
+
+#: ukrules.py:116
+#, python-format
+msgid "removal of {{ml|%(template)s}}"
+msgstr "fjerning av {{ml|%(template)s}}"
+
+#: ukrules.py:119
+#, python-format
+msgid ""
+"Encountered a problem while parsing [%(url)s rev. %(revid)d] : %(problem)s"
+msgstr ""
+"Støtte på et problem med tolkningen av [%(url)s rev. %(revid)d] : %(problem)s"
+
+#: ukrules.py:129
+msgid "qualified"
+msgstr "kvalifisert"
+
+#: ukrules.py:143
+#, python-format
+msgid "%(bytes).f bytes"
+msgstr "%(bytes).f bytes"
+
+#: ukrules.py:159
+#, python-format
+msgid "%(words).f words"
+msgstr "%(words).f ord"
+
+#: ukrules.py:162
+#, python-format
+msgid ""
+"Word count failed for revision %(revid)d due to the following error: "
+"%(error)s"
+msgstr ""
+"Ordtelling feilet for revisjon %(revid)d pga. følgende problem: %(error)s"
+
+#: ukrules.py:183
+msgid "images"
+msgstr "bilder"
+
+#: ukrules.py:183
+msgid "image"
+msgstr "bilde"
+
+#: ukrules.py:204
+msgid "links"
+msgstr "lenker"
+
+#: ukrules.py:204
+msgid "link"
+msgstr "lenke"
+
+#: ukrules.py:244
+#, fuzzy, python-format
+msgid "One reference added"
+msgid_plural "%(num)d references added"
+msgstr[0] "Én kilde lagt til"
+msgstr[1] "%d kilder lagt til"
+
+#: ukrules.py:247
+#, fuzzy, python-format
+msgid "One reference pointer added"
+msgid_plural "%(num)d reference pointers added"
+msgstr[0] "Én henvisning til navngitt kilde"
+msgstr[1] "%d henvisninger til navngitte kilder"
+
+#: ukrules.py:273
+#, python-format
+msgid "bonus %(bytes).f bytes"
+msgstr "bonus %(bytes).f bytes"
+
+#: ukrules.py:301
+#, python-format
+msgid "bonus %(words)d words"
+msgstr "bonus %(words)d ord"
+

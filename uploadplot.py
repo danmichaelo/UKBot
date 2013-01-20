@@ -5,14 +5,24 @@ from __future__ import unicode_literals
 
 import sys, os, datetime
 import mwclient
+import yaml
+import pytz
 import locale
-for loc in ['nb_NO.UTF-8', 'nb_NO.utf8', 'no_NO']:
-    try:
-        locale.setlocale(locale.LC_TIME, loc.encode('utf-8'))
-        #logger.info('Locale set to %s' % loc)
-        break
-    except locale.Error:
-        pass
+from ukcommon import init_localization
+# Read args
+
+parser = argparse.ArgumentParser( description = 'The UKBot' )
+parser.add_argument('--config', nargs='?', default='config.yml', help='Config file')
+args = parser.parse_args()
+
+config = yaml.load(open(args.config, 'r'))
+wiki_tz = pytz.timezone(config['wiki_timezone'])
+server_tz = pytz.timezone(config['server_timezone'])
+
+_ = init_localization(config['locale'])
+
+runstart = server_tz.localize(datetime.now())
+#log('UKBot-uploader starting at %s (server time), %s (wiki time)' % (runstart.strftime('%F %T'), runstart.astimezone(wiki_tz).strftime('%F %T')))
 
 now = datetime.datetime.now()
 
@@ -23,14 +33,14 @@ if now.hour == 0:
 year, week, day = now.isocalendar()
 weekstart = now - datetime.timedelta(days = day-1)
 
-kpage = 'Wikipedia:Ukens konkurranse/Ukens konkurranse %s' % now.strftime('%Y-%V')
-no = mwclient.Site('no.wikipedia.org')
+kpage = '%s %s' % (config['pages']['base'], now.strftime('%Y-%V'))
+no = mwclient.Site(config['homesite'])
 pp = no.api('query', prop = 'pageprops', titles = kpage, redirects = '1')
 if 'redirects' in pp['query']:
     kpage = pp['query']['redirects'][0]['to']
 
 yearweek = kpage.split()[-1]
-filename = 'Nowp Ukens konkurranse %s.svg' % yearweek
+filename = config['figname'] % yearweek
 
 if not os.path.isfile(filename):
     sys.stderr.write('File "%s" was not found\n' % filename)

@@ -2,10 +2,13 @@
 from __future__ import unicode_literals
 import re
 import urllib
+import gettext
 from bs4 import BeautifulSoup
 from danmicholoparser import DanmicholoParser, DanmicholoParseError, condition_for_soup
-from ukcommon import log
+from ukcommon import log, init_localization
 import gettext
+
+_ = init_localization()
 
 class Rule(object):
 
@@ -30,7 +33,7 @@ class Rule(object):
 
         elif pmax > 0.0 and ab + points > pmax:
             # reaching max
-            rev.points.append([pmax - ab, ptype, txt + ' &gt; ' + _('maks'), points])
+            rev.points.append([pmax - ab, ptype, txt + ' &gt; ' + _('max'), points])
 
         #elif not self.iszero(revpoints):
         else:
@@ -47,7 +50,7 @@ class NewPageRule(Rule):
 
     def test(self, rev):
         if rev.new and not rev.redirect:
-            rev.points.append([self.points, 'newpage', _('ny side')])
+            rev.points.append([self.points, 'newpage', _('new page')])
 
 
 # class StubRule(Rule):
@@ -238,10 +241,10 @@ class RefRule(Rule):
             s = []
             if sources_added > 0:
                 p += sources_added * self.sourcepoints
-                s.append(gettext.ngettext('%d reference added', '%d references added', sources_added) % sources_added)
+                s.append(gettext.ngettext('One reference added', '%(num)d references added', sources_added) % { 'num': sources_added })
             if refs_added > 0:
                 p += refs_added * self.refpoints
-                s.append(gettext.ngettext('%d reference pointer added', '%d reference pointers added', refs_added) % refs_added)
+                s.append(gettext.ngettext('One reference pointer added', '%(num)d reference pointers added', refs_added) % { 'num': refs_added })
             txt = ', '.join(s)
         
             rev.points.append([p, 'ref', txt])

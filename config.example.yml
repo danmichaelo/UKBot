@@ -1,0 +1,95 @@
+locale: [nb_NO, no_NO]
+server_timezone: UTC
+wiki_timezone: Europe/Oslo
+homesite: no.wikipedia.org
+figname: Nowp Ukens konkurranse %(year)d-%(week)02d.svg
+# othersites:
+#     - nn.wikipedia.org
+#     - se.wikipedia.org
+account:
+    user: 
+    pass: 
+awards:
+    blå: { file: Article blue.svg, winner: true }
+    rød: { file: Article red.svg, winner: true }
+    gul: { file: Article yellow.svg, organizer: true }
+    oransj: { file: Article orange.svg }
+    orange: { file: Article orange.svg }
+    grønn: { file: Article green.svg }
+    grå: { file: Article grey.svg }
+    lyslilla: { file: Article MediumPurple.svg }
+    lilla: { file: Article purple.svg }
+    brun: { file: Article brown.svg }
+award_message:
+    winner_template: UK vinner          # template name
+    participant_template: UK deltaker   # template name
+    organizer_template: UK arrangør     # template name
+    extraargs: "|visuk=nei"             # template argument
+templates:
+    botinfo: Ukens konkurranse robotinfo
+    status: Ukens konkurranse status
+    commonargs:
+        year: år
+        week: uke
+        week2: ukefler
+        yes: ja
+        no: nei
+    infobox: 
+        name: Infoboks ukens konkurranse
+        status: status
+        start: start
+        end: slutt
+        organizer: leder
+        winner: vinner
+    suspended:
+        name: UK bruker suspendert
+    disqualified:
+        name: UK bidrag diskvalifisert
+    penalty:
+        name: UK poengtrekk
+    contestlist:
+        name: Ukens konkurranse-liste
+    rule:
+        name: Ukens konkurranse poeng
+        new: ny
+        qualified: kvalifisert
+        byte: byte
+        word: ord
+        maxpoints: makspoeng
+        image: bilde
+        external_link: ekstern lenke
+        ref: ref
+        templateremoval: malfjerning
+        bytebonus: bytebonus
+        wordbonus: ordbonus
+        alias: alias
+    filter:
+        name: Ukens konkurranse kriterium
+        new: ny
+        existing: eksisterende
+        template: mal
+        bytes: bytes
+        category: kategori
+        backlink: tilbakelenke
+        forwardlink: fremlenke
+        namespace: navnerom
+        alias: alias
+        maxdepth: maksdybde
+pages:
+    catignore: Bruker:UKBot/cat-ignore
+    base: Wikipedia:Ukens konkurranse/Ukens konkurranse
+    redirect: WP:UK
+contestPages:
+    resultsSection: Resultater
+    participantsSection: 'Delta[kg]ere'
+    footer: '{{ukens konkurranse %(year)s}}\n[[Kategori:Artikkelkonkurranser]]'
+awardstatus: 
+    pagename: Bruker:UKBot/Premieutsendelse
+    wait: Venter
+    send: Send ut
+    sent: Sendt
+noticeboard: 
+    name: Wikipedia:Portal/Oppslagstavle
+    template: 
+        name: la stå/uk
+        date: dato

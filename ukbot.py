@@ -22,24 +22,41 @@ import codecs
 import mwclient
 from danmicholoparser import DanmicholoParser, DanmicholoParseError, TemplateEditor
 import ukcommon
-from ukcommon import log
-from ukrules import *
-from ukfilters import *
+from ukcommon import log, init_localization
 
 import locale
 #locale.setlocale(locale.LC_TIME, 'no_NO'.encode('utf-8'))
-for loc in ['nb_NO.UTF-8', 'nb_NO.utf8', 'no_NO']:
-    try:
-        locale.setlocale(locale.LC_ALL, loc.encode('utf-8'))
-        #logger.info('Locale set to %s' % loc)
-        break
-    except locale.Error:
-        pass
 
-server_tz = pytz.utc
-#wiki_tz = pytz.timezone('Europe/Oslo')
-wikit_tz= pytz.timezone(self.contest.config['timezone'])
+    
+# Read args
 
+parser = argparse.ArgumentParser( description = 'The UKBot' )
+parser.add_argument('--page', required=False, help='Name of the contest page to work with')
+parser.add_argument('--simulate', action='store_true', default=False, help='Do not write results to wiki')
+parser.add_argument('--output', nargs='?', default='', help='Write results to file')
+parser.add_argument('--log', nargs='?', default = '', help='Log file')
+parser.add_argument('--verbose', action='store_true', default=False, help='More verbose logging')
+parser.add_argument('--close', action='store_true', help='Close contest')
+parser.add_argument('--config', nargs='?', default='config.yml', help='Config file')
+args = parser.parse_args()
+
+if args.log != '':
+    ukcommon.logfile = open(args.log, 'a')
+
+config = yaml.load(open(args.config, 'r'))
+wiki_tz = pytz.timezone(config['wiki_timezone'])
+server_tz = pytz.timezone(config['server_timezone'])
+
+_ = init_localization(config['locale'])
+
+runstart = server_tz.localize(datetime.now())
+log('-----------------------------------------------------------------')
+log('UKBot starting at %s (server time), %s (wiki time)' % (runstart.strftime('%F %T'), runstart.astimezone(wiki_tz).strftime('%F %T')))
+
+from ukrules import *
+from ukfilters import *
+    
+    # Settings
 # Suggested crontab:
 ## Oppdater resultater annenhver time mellom kl 8 og 22 samt kl 23 og 01...
 #0 8-22/2,23,1 * * * nice -n 11 /uio/arkimedes/s01/dmheggo/wikipedia/UKBot/bot.sh
@@ -334,7 +351,8 @@ class User(object):
         for c in site.usercontributions(self.name, ts_start, ts_end, 'newer', prop = 'ids|title|timestamp|comment', **args):
             #pageid = c['pageid']
             article_comment = c['comment']
-            if not article_comment[:13] == 'Tilbakestilte':
+            rollback = _('Reverted')
+            if not article_comment[:len(rollback)] == rollback:
                 rev_id = c['revid']
                 article_title = c['title']
                 article_key = site_key + ':' + article_title
@@ -713,7 +731,8 @@ class User(object):
         suspended = ''
         if self.suspended_since != None:
             suspended = ', ' + _('suspended since') + ' %s' % self.suspended_since.strftime('%A, %H.%M').decode('utf-8')
-        out = '=== %s [[Bruker:%s|%s]] (%.f p%s) ===\n' % (ros, self.name, self.name, self.points, suspended)
+        userprefix = self.contest.homesite.namespaces[2]
+        out = '=== %s [[%s:%s|%s]] (%.f p%s) ===\n' % (ros, userprefix, self.name, self.name, self.points, suspended)
         if len(entries) == 0:
             out += "''" + _('No qualifying contributions registered yet') + "''"
         else:
@@ -744,7 +763,7 @@ class UK(object):
         txt = page.edit(readonly = True)
         m = re.search('==\s*'+resultsSection+'\s*==', txt)
         if not m:
-            raise ParseError(_('Found no "%(section)s sections in the page "%(page)s"') % { 'section': resultsSection, 'page': self.page.name })
+            raise ParseError(_('Found no "%(section)s" sections in the page "%(page)s"') % { 'section': resultsSection, 'page': self.page.name })
 
         txt = txt[:m.end()]
 
@@ -766,7 +785,7 @@ class UK(object):
         lst = []
         m = re.search('==\s*' + self.config['contestPages']['participantsSection'] + '\s*==', txt)
         if not m:
-            raise ParseError(_('Fant ikke deltakerlisten!'))
+            raise ParseError(_("Couldn't find the list of participants!"))
         deltakerliste = txt[m.end():]
         m = re.search('==[^=]+==', deltakerliste)
         if not m:
@@ -786,22 +805,26 @@ class UK(object):
         config = self.config
 
         dp = DanmicholoParser(txt)
-        dp2 = DanmicholoParser(catignore_txt)
-        
-        if not config['templates']['rule']['name'].lower() in dp.templates.keys():
-            raise ParseError(_('Denne konkurransen har ingen poengregler. Poengregler defineres med {{tl|%(template)s}}.') % { 'template': config['templates']['rule']['name'] })
-        
-        #if not 'ukens konkurranse kriterium' in dp.templates.keys():
-        #    raise ParseError('Denne konkurransen har ingen bidragskriterier. Kriterier defineres med {{tl|ukens konkurranse kriterium}}.')
-        
-        infobox = config['templates']['infobox']
-        if not infobox['name'].lower() in dp.templates.keys():
-            raise ParseError(_('This contest is missing a {{tl|%(template)s}} template.') % { 'template': infobox['name'] })
+        if catignore_txt == '':
+            catignore = []
+            log('Note: Empty catignore page')
+        else:
+            dp2 = DanmicholoParser(catignore_txt)
+            
+            if not config['templates']['rule']['name'].lower() in dp.templates.keys():
+                raise ParseError(_('There are no point rules defined for this contest. Point rules are defined by {{tl|%(template)s}}.') % { 'template': config['templates']['rule']['name'] })
+            
+            #if not 'ukens konkurranse kriterium' in dp.templates.keys():
+            #    raise ParseError('Denne konkurransen har ingen bidragskriterier. Kriterier defineres med {{tl|ukens konkurranse kriterium}}.')
+            
+            infobox = config['templates']['infobox']
+            if not infobox['name'].lower() in dp.templates.keys():
+                raise ParseError(_('This contest is missing a {{tl|%(template)s}} template.') % { 'template': infobox['name'] })
 
-        try:
-            catignore = dp2.tags['pre'][0]['content'].splitlines()
-        except (IndexError, KeyError):
-            raise ParseError(_('Could not parse the catignore page'))
+            try:
+                catignore = dp2.tags['pre'][0]['content'].splitlines()
+            except (IndexError, KeyError):
+                raise ParseError(_('Could not parse the catignore page'))
 
         ######################## Read filters ########################
 
@@ -826,8 +849,8 @@ class UK(object):
                 elif key == filtercfg['template']:
                     if len(anon) < 2:
                         raise ParseError(_('No template (second argument) given to {{mlp|%(template)s|%(firstarg)s}}') % {'template': filtercfg['name'], 'firstarg': filtercfg['template'] })
-                    if templ.has_param('alias'):
-                        params['aliases'] = [a.strip() for a in named['alias'].split(',')]
+                    if templ.has_param(filtercfg['alias']):
+                        params['aliases'] = [a.strip() for a in named[filtercfg['alias']].split(',')]
                     params['templates'] = anon[1:]
                     filt = TemplateFilter(**params)
                 
@@ -843,8 +866,8 @@ class UK(object):
                     params['sites'] = self.sites
                     params['catnames'] = anon[1:]
                     params['ignore'] = catignore
-                    if templ.has_param('maksdybde'):
-                        params['maxdepth'] = int(named['maksdybde'])
+                    if templ.has_param(filtercfg['maxdepth']):
+                        params['maxdepth'] = int(named[filtercfg['maxdepth']])
                     filt = CatFilter(**params)
 
                 elif key == filtercfg['backlink']:
@@ -928,8 +951,8 @@ class UK(object):
             
             elif key == rulecfg['templateremoval']:
                 params = { 'points': anon[1], 'template': anon[2] }
-                if templ.has_param('alias'):
-                    params['aliases'] = [a.strip() for a in named['alias'].split(',')]
+                if templ.has_param(rulecfg['alias']):
+                    params['aliases'] = [a.strip() for a in named[rulecfg['alias']].split(',')]
                 rules.append(TemplateRemovalRule(**params))
 
             elif key == rulecfg['bytebonus']:
@@ -939,13 +962,15 @@ class UK(object):
                 rules.append(WordBonusRule(anon[1], anon[2]))
 
             else:
-                raise ParseError(_('Unkown argument given to {{ml|%(template)s}}: %(argument)s') % { 'template': rulecfg['name'], 'argument': key })            ######################## Read rules ########################
+                raise ParseError(_('Unkown argument given to {{ml|%(template)s}}: %(argument)s') % { 'template': rulecfg['name'], 'argument': key })
 
         log("@ Found %d filters and %d rules" % (nfilters, nrules))
  
         ######################## Read infobox ########################
 
         ibcfg = config['templates']['infobox']
+        commonargs = config['templates']['commonargs']
+
         try:
             infoboks = dp.templates[ibcfg['name'].lower()][0]
         except:
@@ -953,11 +978,11 @@ class UK(object):
         
         utc = pytz.utc
 
-        if infoboks.has_param(ibcfg['year']) and infoboks.has_param(ibcfg['week']):
-            year = int(re.sub('<\!--.+?-->', '', infoboks.parameters[ibcfg['year']]).strip())
-            startweek = int(re.sub('<\!--.+?-->', '', infoboks.parameters[ibcfg['week']]).strip())
-            if infoboks.has_param(ibcfg['severalweeks']):
-                endweek = re.sub('<\!--.+?-->', '', infoboks.parameters[ibcfg['severalweeks']]).strip()
+        if infoboks.has_param(commonargs['year']) and infoboks.has_param(commonargs['week']):
+            year = int(re.sub('<\!--.+?-->', '', infoboks.parameters[commonargs['year']]).strip())
+            startweek = int(re.sub('<\!--.+?-->', '', infoboks.parameters[commonargs['week']]).strip())
+            if infoboks.has_param(commonargs['week2']):
+                endweek = re.sub('<\!--.+?-->', '', infoboks.parameters[ibcfg['week2']]).strip()
                 if endweek == '':
                     endweek = startweek
             else:
@@ -974,14 +999,14 @@ class UK(object):
             self.start = wiki_tz.localize(datetime.strptime(startdt + ' 00 00 00 00', '%Y-%m-%d %H %M %S'))
             self.end = wiki_tz.localize(datetime.strptime(enddt +' 23 59 59 00', '%Y-%m-%d %H %M %S'))
         else:
-            args = { 'week': ibcfg['week'], 'year': ibcfg['year'], 'start': ibcfg['start'], 'end': ibcfg['end'], 'template': ibcfg['name'] }
+            args = { 'week': commonargs['week'], 'year': commonargs['year'], 'start': ibcfg['start'], 'end': ibcfg['end'], 'template': ibcfg['name'] }
             raise ParseError(_('Did not find %(week)s+%(year)s or %(start)s+%(end)s in {{tl|%(templates)s}}.') % args)
 
         self.year = self.start.isocalendar()[0]
         self.startweek = self.start.isocalendar()[1]
         self.endweek = self.end.isocalendar()[1]
 
-        userprefix = self.homesite.namespaces[2];
+        userprefix = self.homesite.namespaces[2]
         self.ledere = re.findall(r'\[\[%s:([^\|\]]+)' % userprefix, infoboks.parameters[ibcfg['organizer']])
         if len(self.ledere) == 0:
             raise ParseError(_('Did not find any organizers in {{tl|%(template)s}}.') % { 'template': ibcfg['name'] })
@@ -1019,7 +1044,7 @@ class UK(object):
                 try:
                     sdate = wiki_tz.localize(datetime.strptime(templ.parameters[2], '%Y-%m-%d %H:%M'))
                 except ValueError:
-                    raise ParseError(_('Klarte ikke å tolke datoen gitt til {{ml|%(template)s}}-malen.') % sucfg['name'])
+                    raise ParseError(_("Couldn't parse the date given to the {{ml|%(template)s}} template.") % sucfg['name'])
 
                 #print 'Suspendert bruker:',uname,sdate
                 ufound = False
@@ -1048,7 +1073,7 @@ class UK(object):
                                 u.disqualified_articles.append(aname)
                                 ufound = True
                         if not ufound:
-                            raise ParseError(_('Fant ikke brukeren %(user)s gitt til {{ml|%(template)s}}-malen.') % { 'user': uname, 'template': dicfg['name'] })
+                            raise ParseError(_('Could not find the user %(user)s given to the {{ml|%(template)s}} template.') % { 'user': uname, 'template': dicfg['name'] })
         
         pocfg = config['templates']['penalty']
         if pocfg['name'].lower() in dp.templates:
@@ -1064,7 +1089,7 @@ class UK(object):
                         u.point_deductions.append([aname, points, reason])
                         ufound = True
                 if not ufound:
-                    raise ParseError(_('Fant ikke brukeren %(user)s gitt til {{ml|%(template)s}}-malen.') % { 'user': uname, 'template': dicfg['name'] })
+                    raise ParseError(_("Couldn't find the user %(user)s given to the {{ml|%(template)s}} template.") % { 'user': uname, 'template': dicfg['name'] })
 
         # try:
         #     infoboks = dp.templates['infoboks ukens konkurranse'][0]
@@ -1155,32 +1180,33 @@ class UK(object):
                 # ncol = 4, loc = 3, bbox_to_anchor = (0., 1.02, 1., .102), mode = "expand", borderaxespad = 0.
                 loc = 2, bbox_to_anchor = (1.0, 1.0), borderaxespad = 0., frameon = 0.
             )
-            plt.savefig('Nowp Ukens konkurranse %d-%02d.svg' % (self.year, self.startweek), dpi = 200)
+            plt.savefig(self.config['figname'] % { 'year': self.year, 'week': self.startweek}, dpi = 200)
 
     def format_msg(self, award, template):
         tpl = self.config['award_message']
         args = { 
             'template': tpl[template], 
-            'shownext': tpl['shownext'],
-            'yearname': tpl['year'], 
-            'weekname': tpl['week'], 
-            'endweekname': tpl['severalweeks'],
+            'yearname': self.config['templates']['commonargs']['year'],
+            'weekname': self.config['templates']['commonargs']['week'], 
+            'week2name': self.config['templates']['commonargs']['week2'], 
+            'extraargs': tpl['extraargs'],
             'year': self.year, 
             'week': self.startweek, 
             'award': award, 
-            'yes': tpl['yes'], 'no': tpl['no'] 
+            'yes': self.config['templates']['commonargs']['yes'],
+            'no': self.config['templates']['commonargs']['no']
             }
         if self.startweek == self.endweek:
-            mld += '{{%(template)s|%(shownext)s=%(no)s|%(yearname)s=%(year)d|%(weekname)s=%(week)02d|%(award)s=%(yes)s' % args
+            mld += '{{%(template)s|%(yearname)s=%(year)d|%(weekname)s=%(week)02d|%(award)s=%(yes)s%(extraargs)s' % args
         else:
-            args['endweek'] = self.endweek
-            mld += '{{%(template)s|%(shownext)s=%(no)s|%(yearname)s=%(year)d|%(weekname)s=%(week)02d|%(endweekname)s=%(endweek)02d|%(award)s=%(yes)s' % args
+            args['week2'] = self.endweek
+            mld += '{{%(template)s|%(yearname)s=%(year)d|%(weekname)s=%(week)02d|%(week2name)s=%(week2)02d|%(award)s=%(yes)s%(extraargs)s' % args
 
     def msg_heading(self):
         if self.startweek == self.endweek:
-            return '== ' + _('Ukens konkurranse uke %(week)d') % { 'week': self.startweek } + ' =='
+            return '== ' + _('Weekly contest for week %(week)d') % { 'week': self.startweek } + ' =='
         else:
-            return '== ' + _('Ukens konkurranse uke %(startweek)d–%(endweek)d') % { 'startweek': self.startweek, 'endweek': self.endweek } + ' =='
+            return '== ' + _('Weekly contest for week %(startweek)d–%(endweek)d') % { 'startweek': self.startweek, 'endweek': self.endweek } + ' =='
 
     def deliver_prices(self):
 
@@ -1199,7 +1225,7 @@ class UK(object):
                         break
                 for r in self.prices:
                     if r[1] == 'pointlimit' and u.points >= r[2]:
-                        mld += '|%s=ja' % r[0]
+                        mld += '|%s=%s' % (r[0], self.config['templates']['commonargs']['yes'])
                         break
                 mld += '}}\n'
             else:
@@ -1215,8 +1241,13 @@ class UK(object):
             userprefix = self.homesite.namespaces[2];
             usertalkprefix = self.homesite.namespaces[3];
 
-            mld += _('Husk at denne ukens konkurranse er [[Wikipedia:Ukens konkurranse/Ukens konkurranse %(week)s|{{Ukens konkurranse liste|uke=%(week)s}}]]. Lykke til!') % { 'week': yearweek } + ' '
-            mld += _('Hilsen') + ' ' + ', '.join(['[[%s:%s|%s]]'%(userprefix, s,s) for s in self.ledere]) + ' ' + _('og') + ' ~~~~'
+            mld += _("Note that the contest this week is [[%(url)s|{{%(template)s|$(weekarg)s=%(week)s}}]]. Join in!") % { 
+                'url': self.config['pages']['base'] + yearweek,
+                'template': self.config['templates']['contestlist']['name'],
+                'weekarg': self.config['templates']['commonargs']['week'],
+                'week': yearweek
+                } + ' '
+            mld += _('Regards') + ' ' + ', '.join(['[[%s:%s|%s]]'%(userprefix, s,s) for s in self.ledere]) + ' ' + _('and') + ' ~~~~'
 
             if prizefound:
                 page = self.homesite.pages['%s:%s' % (usertalkprefix, u.name)]
@@ -1228,13 +1259,39 @@ class UK(object):
         args = { prefix: self.homesite.site['server'] + self.homesite.site['script'], 'page': config['awardstatus']['pagename'], 'title': urllib.quote(config['awardstatus']['send']) }
         link = '%(prefix)s?title=%(page)s&action=edit&section=new&preload=%(page)s/Preload&preloadtitle=%(title)s' % args
         usertalkprefix = self.homesite.namespaces[3];
+        oaward = ''
+        for key, award in self.config['awards']:
+            if 'organizer' in award:
+                oaward = key
+        if oaward == '':
+            raise StandardError('No organizer award found in config')
         for u in self.ledere:
             if self.startweek == self.endweek:
-                mld = '{{UK arrangør|visuk=nei|år=%d|uke=%02d|gul=ja}}\n' % (self.year, self.startweek)
+                mld = '{{%(template)s|%(yeararg)s=%(year)d|%(weekarg)s=%(week)02d|%(organizeraward)s=%(yes)s%(extraargs)s}}\n' % {
+                    'template': self.config['award_message']['organizer_template'],
+                    'yeararg': self.config['templates']['commonargs']['year'],
+                    'weekarg': self.config['templates']['commonargs']['week'],
+                    'year': self.year, 
+                    'week': self.startweek,
+                    'extraargs': self.config['award_message']['extraargs'],
+                    'organizeraward': oaward,
+                    'yes': self.config['templates']['commonargs']['yes']
+                }
             else:
-                mld = '{{UK arrangør|visuk=nei|år=%d|uke=%02d|ukefler=%d|gul=ja}}\n' % (self.year, self.startweek, self.endweek)
-            mld += _('Du må nå sjekke resultatene. Hvis det er feilmeldinger nederst på [[%(page)s|konkurransesiden]] må du sjekke om de relaterte bidragene har fått poengene de skal ha. Se også etter om det er kommentarer eller klager på diskusjonssiden. Hvis alt ser greit ut kan du trykke [%(link)s her] (og lagre), så sender jeg ut rosetter ved første anledning. ') % { 'page': pagename, 'link': link }
-            mld += _('Hilsen') + ' ~~~~'
+                mld = '{{%(template)s|%(yeararg)s=%(year)d|%(weekarg)s=%(week)02d|%(week2arg)s=%(week2)02d|%(organizeraward)s=%(yes)s%(extraargs)s}}\n' % {
+                    'template': self.config['award_message']['organizer_template'],
+                    'yeararg': self.config['templates']['commonargs']['year'],
+                    'weekarg': self.config['templates']['commonargs']['week'],
+                    'week2arg': self.config['templates']['commonargs']['week2'],
+                    'year': self.year, 
+                    'week': self.startweek,
+                    'week2': self.endweek,
+                    'extraargs': self.config['award_message']['extraargs'],
+                    'organizeraward': oaward,
+                    'yes': self.config['templates']['commonargs']['yes']
+                }
+            mld += _('Now you must check if the results look ok. If there are error messages at the bottom of the [[%(page)s|contest page]], you should check that the related contributions have been awarded the correct number of points. Also check if there are comments or complaints on the discussion page. If everything looks fine, [%(link)s click here] (and save) to indicate that I can send out the awards at first occasion.') % { 'page': pagename, 'link': link }
+            mld += _('Thanks, ~~~~')
 
             page = self.homesite.pages['%s:%s' % (usertalkprefix, u)]
             log(' -> Leverer arrangørmelding til %s' % page.name)
@@ -1246,7 +1303,7 @@ class UK(object):
 
         args = { prefix: self.homesite.site['server'] + self.homesite.site['script'], 'page': 'Special:Contributions' }
         link = '%(prefix)s?title=%(page)s&contribs=user&target=UKBot&namespace=3' % args
-        mld = '\n:' + _('Rosetter er nå [%(link)s sendt ut].') % {'link':link} + ' ~~~~'
+        mld = '\n:' + _('Awards have been [%(link)s sent out].') % {'link':link} + ' ~~~~'
         for u in self.ledere:
             page = self.homesite.pages['%s:%s' % (usertalkprefix, u)]
             log(' -> Leverer kvittering til %s' % page.name)
@@ -1343,12 +1400,6 @@ class UK(object):
 # Main 
 ############################################################################################################################
 
-def init_localization(loc):
-    '''prepare i18n'''
-    global _
-    locale.setlocale(locale.LC_ALL, loc)
-    trans = gettext.translation('messages', 'locale', fallback=True)
-    _ = trans.ugettext
 
     # try:
     #     log( "Opening message file %s for locale %s" % (filename, loc[0]) )
@@ -1360,31 +1411,6 @@ def init_localization(loc):
 
 if __name__ == '__main__':
     
-    runstart = server_tz.localize(datetime.now())
-    
-    # Read args
-
-    parser = argparse.ArgumentParser( description = 'The UKBot' )
-    parser.add_argument('--page', required=False, help='Name of the contest page to work with')
-    parser.add_argument('--simulate', action='store_true', default=False, help='Do not write results to wiki')
-    parser.add_argument('--output', nargs='?', default='', help='Write results to file')
-    parser.add_argument('--log', nargs='?', default = '', help='Log file')
-    parser.add_argument('--verbose', action='store_true', default=False, help='More verbose logging')
-    parser.add_argument('--close', action='store_true', help='Close contest')
-    args = parser.parse_args()
-
-    if args.log != '':
-        ukcommon.logfile = open(args.log, 'a')
-
-    log('-----------------------------------------------------------------')
-    log('UKBot starting at %s (server time), %s (wiki time)' % (runstart.strftime('%F %T'), runstart.astimezone(wiki_tz).strftime('%F %T')))
-    
-    # Settings
-    config = yaml.load(open('config.yml', 'r'))
-    log('Using locale %s' % config['locale'])
-    init_localization(config['locale'])
-    print _("Hello world")
-    sys.exit(0)
 
     host = config['homesite']
     homesite = Site(host, config['account']['user'], config['account']['pass'])
@@ -1417,7 +1443,7 @@ if __name__ == '__main__':
             log('>> Award delivery has not been confirmed yet')
             sys.exit(0)
     elif args.page != None:
-        ktitle = args.page
+        ktitle = args.page.decode('utf-8')
     else:
         log('  !! No page given! Exiting')
         sys.exit(1)
@@ -1433,7 +1459,7 @@ if __name__ == '__main__':
     
     # Check that we're not given some very wrong page
     userprefix = homesite.namespaces[2]
-    if not (re.match('^'+config['pages']['base'], ktitle) or re.match('^' + userprefix + ':UKBot/Sandkasse', ktitle)):
+    if not (re.match('^'+config['pages']['base'], ktitle) or re.match('^' + userprefix + ':UKBot/', ktitle)):
         raise StandardError('I refuse to work with that page!')
     
     # Check if page exists
@@ -1450,7 +1476,10 @@ if __name__ == '__main__':
     except ParseError as e:
         err = "\n* '''%s'''" % e.msg
         out = '\n{{%s | error | %s }}' % (config['templates']['botinfo'], err)
-        kpage.save('dummy', summary = _('UKBot encountered a problem'), appendtext = out)
+        if args.simulate:
+            print out.encode('utf-8')
+        else:
+            kpage.save('dummy', summary = _('UKBot encountered a problem'), appendtext = out)
         raise
     
     if args.close and closeuser not in uk.ledere:
@@ -1719,14 +1748,15 @@ if __name__ == '__main__':
         if int(tpl.parameters['uke']) != int(now2.strftime('%V')):
             log('-> Updating %s' % boardname)
             tpllist = config['templates']['contestlist']
-            tema = homesite.api('parse', text = '{{subst:%s|%s=%s}}' % (tpllist['name'], tpllist['week'], now2.strftime('%Y-%V')), pst=1, onlypst=1)['parse']['text']['*']
+            commonargs = config['templates']['commonargs']
+            tema = homesite.api('parse', text = '{{subst:%s|%s=%s}}' % (tpllist['name'], commonargs['week'], now2.strftime('%Y-%V')), pst=1, onlypst=1)['parse']['text']['*']
             tpl.parameters[1] = tema
             tpl.parameters[boardtpl['date']] = now2.strftime('%e. %h')
             tpl.parameters[boardtpl['year']] = now2.strftime('%Y')
             tpl.parameters[boardtpl['week']] = now2.strftime('%V')
             txt2 = dp.get_wikitext()
             if txt != txt2:
-                oppslagstavle.save(txt2, summary = _('Ukens konkurranse er: %s') % tema)
+                oppslagstavle.save(txt2, summary = _('The weekly contest is: %(link)s') % { 'link': tema })
 
     # Make a nice plot
 

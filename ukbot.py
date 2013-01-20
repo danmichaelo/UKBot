@@ -47,7 +47,7 @@ config = yaml.load(open(args.config, 'r'))
 wiki_tz = pytz.timezone(config['wiki_timezone'])
 server_tz = pytz.timezone(config['server_timezone'])
 
-_ = init_localization(config['locale'])
+t, _ = init_localization(config['locale'])
 
 runstart = server_tz.localize(datetime.now())
 log('-----------------------------------------------------------------')

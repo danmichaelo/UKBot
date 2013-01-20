@@ -7,8 +7,8 @@ msgid ""
 msgstr ""
 "Project-Id-Version: UKBot\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2013-01-20 20:10+0100\n"
-"PO-Revision-Date: 2013-01-20 20:11+0100\n"
+"POT-Creation-Date: 2013-01-20 21:19+0100\n"
+"PO-Revision-Date: 2013-01-20 21:20+0100\n"
 "Last-Translator: Dan Michael Heggø <danmichaelo@gmail.com>\n"
 "Language-Team: \n"
 "Language: Norsk bokmål\n"
@@ -350,14 +350,14 @@ msgid "link"
 msgstr "lenke"
 
 #: ukrules.py:244
-#, fuzzy, python-format
+#, python-format
 msgid "One reference"
 msgid_plural "%(num)d references"
 msgstr[0] "Én kilde lagt til"
 msgstr[1] "%(num)d kilder lagt til"
 
 #: ukrules.py:247
-#, fuzzy, python-format
+#, python-format
 msgid "One reference pointer"
 msgid_plural "%(num)d reference pointers"
 msgstr[0] "Én henvisning til navngitt kilde"

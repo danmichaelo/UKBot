@@ -1007,7 +1007,7 @@ class UK(object):
         self.endweek = self.end.isocalendar()[1]
 
         userprefix = self.homesite.namespaces[2]
-        self.ledere = re.findall(r'\[\[%s:([^\|\]]+)' % userprefix, infoboks.parameters[ibcfg['organizer']])
+        self.ledere = re.findall(r'\[\[(?:User|%s):([^\|\]]+)' % userprefix, infoboks.parameters[ibcfg['organizer']], re.I)
         if len(self.ledere) == 0:
             raise ParseError(_('Did not find any organizers in {{tl|%(template)s}}.') % { 'template': ibcfg['name'] })
 
@@ -1193,8 +1193,8 @@ class UK(object):
             'year': self.year, 
             'week': self.startweek, 
             'award': award, 
-            'yes': self.config['templates']['commonargs']['yes'],
-            'no': self.config['templates']['commonargs']['no']
+            'yes': self.config['templates']['commonargs'][True],
+            'no': self.config['templates']['commonargs'][False]
             }
         if self.startweek == self.endweek:
             mld += '{{%(template)s|%(yearname)s=%(year)d|%(weekname)s=%(week)02d|%(award)s=%(yes)s%(extraargs)s' % args
@@ -1225,7 +1225,7 @@ class UK(object):
                         break
                 for r in self.prices:
                     if r[1] == 'pointlimit' and u.points >= r[2]:
-                        mld += '|%s=%s' % (r[0], self.config['templates']['commonargs']['yes'])
+                        mld += '|%s=%s' % (r[0], self.config['templates']['commonargs'][True])
                         break
                 mld += '}}\n'
             else:
@@ -1256,11 +1256,11 @@ class UK(object):
 
     def deliver_leader_notification(self, pagename):
         heading = self.msg_heading()
-        args = { prefix: self.homesite.site['server'] + self.homesite.site['script'], 'page': config['awardstatus']['pagename'], 'title': urllib.quote(config['awardstatus']['send']) }
+        args = { 'prefix': self.homesite.site['server'] + self.homesite.site['script'], 'page': config['awardstatus']['pagename'], 'title': urllib.quote(config['awardstatus']['send']) }
         link = '%(prefix)s?title=%(page)s&action=edit&section=new&preload=%(page)s/Preload&preloadtitle=%(title)s' % args
         usertalkprefix = self.homesite.namespaces[3];
         oaward = ''
-        for key, award in self.config['awards']:
+        for key, award in self.config['awards'].items():
             if 'organizer' in award:
                 oaward = key
         if oaward == '':
@@ -1275,7 +1275,7 @@ class UK(object):
                     'week': self.startweek,
                     'extraargs': self.config['award_message']['extraargs'],
                     'organizeraward': oaward,
-                    'yes': self.config['templates']['commonargs']['yes']
+                    'yes': self.config['templates']['commonargs'][True]
                 }
             else:
                 mld = '{{%(template)s|%(yeararg)s=%(year)d|%(weekarg)s=%(week)02d|%(week2arg)s=%(week2)02d|%(organizeraward)s=%(yes)s%(extraargs)s}}\n' % {
@@ -1288,7 +1288,7 @@ class UK(object):
                     'week2': self.endweek,
                     'extraargs': self.config['award_message']['extraargs'],
                     'organizeraward': oaward,
-                    'yes': self.config['templates']['commonargs']['yes']
+                    'yes': self.config['templates']['commonargs'][True]
                 }
             mld += _('Now you must check if the results look ok. If there are error messages at the bottom of the [[%(page)s|contest page]], you should check that the related contributions have been awarded the correct number of points. Also check if there are comments or complaints on the discussion page. If everything looks fine, [%(link)s click here] (and save) to indicate that I can send out the awards at first occasion.') % { 'page': pagename, 'link': link }
             mld += _('Thanks, ~~~~')
@@ -1734,6 +1734,7 @@ if __name__ == '__main__':
     if 'noticeboard' in config:
         boardname = config['noticeboard']['name']
         boardtpl = config['noticeboard']['template']
+        commonargs = config['templates']['commonargs']
         tplname = boardtpl['name']
         oppslagstavle = homesite.pages[boardname]
         txt = oppslagstavle.edit()
@@ -1752,8 +1753,8 @@ if __name__ == '__main__':
             tema = homesite.api('parse', text = '{{subst:%s|%s=%s}}' % (tpllist['name'], commonargs['week'], now2.strftime('%Y-%V')), pst=1, onlypst=1)['parse']['text']['*']
             tpl.parameters[1] = tema
             tpl.parameters[boardtpl['date']] = now2.strftime('%e. %h')
-            tpl.parameters[boardtpl['year']] = now2.strftime('%Y')
-            tpl.parameters[boardtpl['week']] = now2.strftime('%V')
+            tpl.parameters[commonargs['year']] = now2.strftime('%Y')
+            tpl.parameters[commonargs['week']] = now2.strftime('%V')
             txt2 = dp.get_wikitext()
             if txt != txt2:
                 oppslagstavle.save(txt2, summary = _('The weekly contest is: %(link)s') % { 'link': tema })

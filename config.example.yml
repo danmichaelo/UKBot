@@ -82,7 +82,7 @@ pages:
 contestPages:
     resultsSection: Resultater
     participantsSection: 'Delta[kg]ere'
-    footer: '{{ukens konkurranse %(year)s}}\n[[Kategori:Artikkelkonkurranser]]'
+    footer: "{{ukens konkurranse %(year)s}}\n[[Kategori:Artikkelkonkurranser]]"
 awardstatus: 
     pagename: Bruker:UKBot/Premieutsendelse
     wait: Venter

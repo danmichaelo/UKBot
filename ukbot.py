@@ -1189,7 +1189,7 @@ class UK(object):
             'yearname': self.config['templates']['commonargs']['year'],
             'weekname': self.config['templates']['commonargs']['week'], 
             'week2name': self.config['templates']['commonargs']['week2'], 
-            'extraargs': tpl['extraargs'],
+            'extraargs': (tpl['extraargs'] if 'extraargs' in tpl else ''),
             'year': self.year, 
             'week': self.startweek, 
             'award': award, 
@@ -1273,7 +1273,7 @@ class UK(object):
                     'weekarg': self.config['templates']['commonargs']['week'],
                     'year': self.year, 
                     'week': self.startweek,
-                    'extraargs': self.config['award_message']['extraargs'],
+                    'extraargs': (self.config['award_message']['extraargs'] if 'extraargs' in self.config['award_message'] else ''),
                     'organizeraward': oaward,
                     'yes': self.config['templates']['commonargs'][True]
                 }
@@ -1286,7 +1286,7 @@ class UK(object):
                     'year': self.year, 
                     'week': self.startweek,
                     'week2': self.endweek,
-                    'extraargs': self.config['award_message']['extraargs'],
+                    'extraargs': (self.config['award_message']['extraargs'] if 'extraargs' in self.config['award_message'] else ''),
                     'organizeraward': oaward,
                     'yes': self.config['templates']['commonargs'][True]
                 }
@@ -1561,33 +1561,35 @@ if __name__ == '__main__':
     out = ''
     #out += '[[File:Nowp Ukens konkurranse %s.svg|thumb|400px|Resultater (oppdateres normalt hver natt i halv ett-tiden, viser kun de ti med høyest poengsum)]]\n' % uk.start.strftime('%Y-%W')
 
-    sammen = '{{%s' % config['templates']['status']
+    sammen = ''
+    if 'status' in config['templates']:
+        sammen = '{{%s' % config['templates']['status']
     
-    ft = [type(f) for f in uk.filters]
-    rt = [type(r) for r in uk.rules]
+        ft = [type(f) for f in uk.filters]
+        rt = [type(r) for r in uk.rules]
 
-    #if StubFilter in ft:
-    #    sammen += '|avstubbet=%d' % narticles
+        #if StubFilter in ft:
+        #    sammen += '|avstubbet=%d' % narticles
 
-    if ByteRule in rt or WordRule in rt:
-        if nnewpages > 0:
-            sammen += '|nye=%d' % nnewpages
-        if nbytes >= 10000:
-            sammen += '|kilobytes=%.f' % (nbytes/1000.)
-        else:
-            sammen += '|bytes=%d' % (nbytes)
-        sammen += '|ord=%d' % (nwords)
+        if ByteRule in rt or WordRule in rt:
+            if nnewpages > 0:
+                sammen += '|nye=%d' % nnewpages
+            if nbytes >= 10000:
+                sammen += '|kilobytes=%.f' % (nbytes/1000.)
+            else:
+                sammen += '|bytes=%d' % (nbytes)
+            sammen += '|ord=%d' % (nwords)
 
-    ts = [r for r in uk.rules if type(r) == RefRule]
-    if len(ts) == 1:
-        sammen += '|ref=%d' % (ts[0].totalsources)
+        ts = [r for r in uk.rules if type(r) == RefRule]
+        if len(ts) == 1:
+            sammen += '|ref=%d' % (ts[0].totalsources)
 
-    ts = [r for r in uk.rules if type(r) == TemplateRemovalRule]
-    if len(ts) > 0:
-        for i,r in enumerate(ts):
-            sammen += '|mal%d=%s|mal%dn=%d' % (i+1, r.template, i+1, r.total)
+        ts = [r for r in uk.rules if type(r) == TemplateRemovalRule]
+        if len(ts) > 0:
+            for i,r in enumerate(ts):
+                sammen += '|mal%d=%s|mal%dn=%d' % (i+1, r.template, i+1, r.total)
 
-    sammen += '}}'
+        sammen += '}}'
 
     #out += sammen + '\n'
 
@@ -1645,7 +1647,8 @@ if __name__ == '__main__':
     if not args.simulate:
         txt = kpage.edit()
         tp = TemplateEditor(txt)
-        tp.templates[ib['name'].lower()][0].parameters[ib['status']] = sammen
+        if sammen != '':
+            tp.templates[ib['name'].lower()][0].parameters[ib['status']] = sammen
         txt = tp.get_wikitext()
         secstart = -1
         secend = -1

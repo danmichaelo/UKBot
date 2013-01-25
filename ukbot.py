@@ -848,7 +848,7 @@ class UK(object):
  
                 elif key == filtercfg['template']:
                     if len(anon) < 2:
-                        raise ParseError(_('No template (second argument) given to {{mlp|%(template)s|%(firstarg)s}}') % {'template': filtercfg['name'], 'firstarg': filtercfg['template'] })
+                        raise ParseError(_('No template (second argument) given to {{tlx|%(template)s|%(firstarg)s}}') % {'template': filtercfg['name'], 'firstarg': filtercfg['template'] })
                     if templ.has_param(filtercfg['alias']):
                         params['aliases'] = [a.strip() for a in named[filtercfg['alias']].split(',')]
                     params['templates'] = anon[1:]
@@ -856,13 +856,13 @@ class UK(object):
                 
                 elif key == filtercfg['bytes']:
                     if len(anon) < 2:
-                        raise ParseError(_('No byte limit (second argument) given to {{mlp|%(template)s|%(firstarg)s}}') % {'template': filtercfg['name'], 'firstarg': filtercfg['bytes'] })
+                        raise ParseError(_('No byte limit (second argument) given to {{tlx|%(template)s|%(firstarg)s}}') % {'template': filtercfg['name'], 'firstarg': filtercfg['bytes'] })
                     params['bytelimit'] = anon[1]
                     filt = ByteFilter(**params)
 
                 elif key == filtercfg['category']:
                     if len(anon) < 2:
-                        raise ParseError(_('No categories given to {{mlp|%(template)s|%(firstarg)s}}') % {'template': filtercfg['name'], 'firstarg': filtercfg['bytes'] })
+                        raise ParseError(_('No categories given to {{tlx|%(template)s|%(firstarg)s}}') % {'template': filtercfg['name'], 'firstarg': filtercfg['bytes'] })
                     params['sites'] = self.sites
                     params['catnames'] = anon[1:]
                     params['ignore'] = catignore
@@ -965,7 +965,7 @@ class UK(object):
                 rules.append(WordBonusRule(anon[1], anon[2]))
 
             else:
-                raise ParseError(_('Unkown argument given to {{ml|%(template)s}}: %(argument)s') % { 'template': rulecfg['name'], 'argument': key })
+                raise ParseError(_('Unkown argument given to {{tl|%(template)s}}: %(argument)s') % { 'template': rulecfg['name'], 'argument': key })
 
         log("@ Found %d filters and %d rules" % (nfilters, nrules))
  
@@ -1047,7 +1047,7 @@ class UK(object):
                 try:
                     sdate = wiki_tz.localize(datetime.strptime(templ.parameters[2], '%Y-%m-%d %H:%M'))
                 except ValueError:
-                    raise ParseError(_("Couldn't parse the date given to the {{ml|%(template)s}} template.") % sucfg['name'])
+                    raise ParseError(_("Couldn't parse the date given to the {{tl|%(template)s}} template.") % sucfg['name'])
 
                 #print 'Suspendert bruker:',uname,sdate
                 ufound = False
@@ -1059,7 +1059,7 @@ class UK(object):
                 if not ufound:
                     pass
                     # TODO: logging.warning 
-                    #raise ParseError('Fant ikke brukeren %s gitt til {{ml|UK bruker suspendert}}-malen.' % uname)
+                    #raise ParseError('Fant ikke brukeren %s gitt til {{tl|UK bruker suspendert}}-malen.' % uname)
         
         dicfg = config['templates']['disqualified']
         if dicfg['name'].lower() in dp.templates:
@@ -1076,7 +1076,7 @@ class UK(object):
                                 u.disqualified_articles.append(aname)
                                 ufound = True
                         if not ufound:
-                            raise ParseError(_('Could not find the user %(user)s given to the {{ml|%(template)s}} template.') % { 'user': uname, 'template': dicfg['name'] })
+                            raise ParseError(_('Could not find the user %(user)s given to the {{tl|%(template)s}} template.') % { 'user': uname, 'template': dicfg['name'] })
         
         pocfg = config['templates']['penalty']
         if pocfg['name'].lower() in dp.templates:
@@ -1092,7 +1092,7 @@ class UK(object):
                         u.point_deductions.append([aname, points, reason])
                         ufound = True
                 if not ufound:
-                    raise ParseError(_("Couldn't find the user %(user)s given to the {{ml|%(template)s}} template.") % { 'user': uname, 'template': dicfg['name'] })
+                    raise ParseError(_("Couldn't find the user %(user)s given to the {{tl|%(template)s}} template.") % { 'user': uname, 'template': dicfg['name'] })
 
         # try:
         #     infoboks = dp.templates['infoboks ukens konkurranse'][0]

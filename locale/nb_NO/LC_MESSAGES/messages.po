@@ -7,8 +7,8 @@ msgid ""
 msgstr ""
 "Project-Id-Version: UKBot\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2013-01-25 18:42+0100\n"
-"PO-Revision-Date: 2013-01-25 18:44+0100\n"
+"POT-Creation-Date: 2013-01-25 19:06+0100\n"
+"PO-Revision-Date: 2013-01-25 19:08+0100\n"
 "Last-Translator: Dan Michael Heggø <danmichaelo@gmail.com>\n"
 "Language-Team: \n"
 "Language: Norsk bokmål\n"
@@ -98,21 +98,21 @@ msgstr "Klarte ikke å tolke catignore-siden"
 #: ukbot.py:851
 #, python-format
 msgid ""
-"No template (second argument) given to {{mlp|%(template)s|%(firstarg)s}}"
+"No template (second argument) given to {{tlx|%(template)s|%(firstarg)s}}"
 msgstr ""
 "Ingen mal (andre argument) ble gitt til {{mlp|%(template)s|%(firstarg)s}}"
 
 #: ukbot.py:859
 #, python-format
 msgid ""
-"No byte limit (second argument) given to {{mlp|%(template)s|%(firstarg)s}}"
+"No byte limit (second argument) given to {{tlx|%(template)s|%(firstarg)s}}"
 msgstr ""
 "Ingen bytegrense (andre argument) ble gitt til {{mlp|%(template)s|"
 "%(firstarg)s}}"
 
 #: ukbot.py:865
 #, python-format
-msgid "No categories given to {{mlp|%(template)s|%(firstarg)s}}"
+msgid "No categories given to {{tlx|%(template)s|%(firstarg)s}}"
 msgstr "Ingen kategorier gitt til {{mlp|%(template)s|%(firstarg)s}}"
 
 #: ukbot.py:888
@@ -122,7 +122,7 @@ msgstr "Ukjent argument gitt til {{tl|%(template)s}}: %(argument)s"
 
 #: ukbot.py:968
 #, python-format
-msgid "Unkown argument given to {{ml|%(template)s}}: %(argument)s"
+msgid "Unkown argument given to {{tl|%(template)s}}: %(argument)s"
 msgstr "Ukjent argument gitt til {{ml|%(template)s}}: %(argument)s"
 
 #: ukbot.py:980
@@ -153,19 +153,19 @@ msgstr ""
 
 #: ukbot.py:1050
 #, python-format
-msgid "Couldn't parse the date given to the {{ml|%(template)s}} template."
+msgid "Couldn't parse the date given to the {{tl|%(template)s}} template."
 msgstr "Klarte ikke å tolke datoen gitt til {{ml|%(template)s}}-malen."
 
 #: ukbot.py:1079
 #, python-format
 msgid ""
-"Could not find the user %(user)s given to the {{ml|%(template)s}} template."
+"Could not find the user %(user)s given to the {{tl|%(template)s}} template."
 msgstr "Fant ikke brukeren %(user)s gitt til {{ml|%(template)s}}-malen."
 
 #: ukbot.py:1095
 #, python-format
 msgid ""
-"Couldn't find the user %(user)s given to the {{ml|%(template)s}} template."
+"Couldn't find the user %(user)s given to the {{tl|%(template)s}} template."
 msgstr "Fant ikke brukeren %(user)s gitt til {{ml|%(template)s}}-malen."
 
 #: ukbot.py:1210
@@ -305,7 +305,7 @@ msgstr "omdirigering"
 
 #: ukrules.py:125
 #, python-format
-msgid "removal of {{ml|%(template)s}}"
+msgid "removal of {{tl|%(template)s}}"
 msgstr "fjerning av {{ml|%(template)s}}"
 
 #: ukrules.py:128
@@ -376,3 +376,6 @@ msgstr "bonus %(bytes).f bytes"
 #, python-format
 msgid "bonus %(words)d words"
 msgstr "bonus %(words)d ord"
+
+#~ msgid "Unkown argument given to {{ml|%(template)s}}: %(argument)s"
+#~ msgstr "Ukjent argument gitt til {{ml|%(template)s}}: %(argument)s"

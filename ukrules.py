@@ -122,7 +122,7 @@ class TemplateRemovalRule(Rule):
             pt = self.templatecount(rev.parenttext)
             ct = self.templatecount(rev.text)
             if ct < pt:
-                rev.points.append([(pt-ct)*self.points, 'templateremoval', _('removal of {{ml|%(template)s}}') % { 'template': self.template }])
+                rev.points.append([(pt-ct)*self.points, 'templateremoval', _('removal of {{tl|%(template)s}}') % { 'template': self.template }])
                 self.total += (pt-ct)
         except DanmicholoParseError as e:
             rev.article.errors.append(_('Encountered a problem while parsing [%(url)s rev. %(revid)d] : %(problem)s') % { 'url': rev.get_link(), 'revid': rev.revid, 'problem': e.msg })

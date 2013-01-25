@@ -98,23 +98,23 @@ msgstr "Catignore-sivun sisältöä ei ymmärretty"
 #: ukbot.py:851
 #, python-format
 msgid ""
-"No template (second argument) given to {{mlp|%(template)s|%(firstarg)s}}"
+"No template (second argument) given to {{tlx|%(template)s|%(firstarg)s}}"
 msgstr ""
-"Mallineita (toinen argumentti) ei ole annettu kohteeseen {{mlp|%(template)s|"
+"Mallineita (toinen argumentti) ei ole annettu kohteeseen {{tlx|%(template)s|"
 "%(firstarg)s}}"
 
 #: ukbot.py:859
 #, python-format
 msgid ""
-"No byte limit (second argument) given to {{mlp|%(template)s|%(firstarg)s}}"
+"No byte limit (second argument) given to {{tlx|%(template)s|%(firstarg)s}}"
 msgstr ""
-"Tavurajaa (toinen argumentti) ei ole annettu kohteeseen {{mlp|%(template)s|"
+"Tavurajaa (toinen argumentti) ei ole annettu kohteeseen {{tlx|%(template)s|"
 "%(firstarg)s}}"
 
 #: ukbot.py:865
 #, python-format
-msgid "No categories given to {{mlp|%(template)s|%(firstarg)s}}"
-msgstr "Kohteeseen {{mlp|%(template)s|%(firstarg)s}} ei ole annettu luokkia"
+msgid "No categories given to {{tlx|%(template)s|%(firstarg)s}}"
+msgstr "Kohteeseen {{tlx|%(template)s|%(firstarg)s}} ei ole annettu luokkia"
 
 #: ukbot.py:888
 #, python-format

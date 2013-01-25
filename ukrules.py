@@ -52,6 +52,15 @@ class NewPageRule(Rule):
         if rev.new and not rev.redirect:
             rev.points.append([self.points, 'newpage', _('new page')])
 
+class RedirectRule(Rule):
+    
+    def __init__(self, points):
+        Rule.__init__(self)
+        self.points = float(points)
+
+    def test(self, rev):
+        if rev.new and rev.redirect:
+            rev.points.append([self.points, 'redirect', _('redirect')])
 
 # class StubRule(Rule):
 

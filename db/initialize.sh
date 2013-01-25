@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/bash
 DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 if [ ! -f "$DIR/uk.db" ]; then
     echo "Creating uk.db from baseline.sql"

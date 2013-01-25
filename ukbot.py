@@ -914,6 +914,9 @@ class UK(object):
 
             if key == rulecfg['new']:
                 rules.append(NewPageRule(anon[1]))
+            
+            elif key == rulecfg['redirect']:
+                rules.append(RedirectRule(anon[1]))
 
             elif key == rulecfg['qualified']:
                 rules.append(QualiRule(anon[1]))
@@ -1291,7 +1294,7 @@ class UK(object):
                     'yes': self.config['templates']['commonargs'][True]
                 }
             mld += _('Now you must check if the results look ok. If there are error messages at the bottom of the [[%(page)s|contest page]], you should check that the related contributions have been awarded the correct number of points. Also check if there are comments or complaints on the discussion page. If everything looks fine, [%(link)s click here] (and save) to indicate that I can send out the awards at first occasion.') % { 'page': pagename, 'link': link }
-            mld += _('Thanks, ~~~~')
+            mld += ' ' + _('Thanks, ~~~~')
 
             page = self.homesite.pages['%s:%s' % (usertalkprefix, u)]
             log(' -> Leverer arrangørmelding til %s' % page.name)

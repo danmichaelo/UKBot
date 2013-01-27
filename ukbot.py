@@ -888,10 +888,10 @@ class UK(object):
                     raise ParseError(_('Unknown argument given to {{tl|%(template)s}}: %(argument)s') % { 'template': filtercfg['name'], 'argument': key })
                 
                 foundfilter = False
-                # for f in filters:
-                #     if type(f) == type(filt):
-                #         foundfilter = True
-                #         f.extend(filt)
+                for f in filters:
+                    if type(f) == type(filt):
+                        foundfilter = True
+                        f.extend(filt)
                 if not foundfilter:
                     nfilters += 1
                     filters.append(filt)
@@ -1574,6 +1574,7 @@ if __name__ == '__main__':
         #if StubFilter in ft:
         #    sammen += '|avstubbet=%d' % narticles
 
+        trn = 0
         for f in uk.rules:
             if type(f) == NewPageRule:
                 sammen += '|%s=%d' % (f.key, nnewpages)
@@ -1585,10 +1586,11 @@ if __name__ == '__main__':
             elif type(f) == WordRule:
                 sammen += '|%s=%d' % (f.key, nwords)
             elif type(f) == RefRule:
-                sammen += '|%s=%d' % (f.key, ts[0].totalsources)
+                sammen += '|%s=%d' % (f.key, f.totalsources)
             elif type(f) == TemplateRemovalRule:
+                trn += 1
                 sammen += '|%(key)s%(idx)d=%(tpl)s|%(key)s%(idx)dn=%(cnt)d' % {
-                        'key' : f.key, 'idx': i+1, 'tpl': r.template, 'cnt': r.total }
+                        'key' : f.key, 'idx': trn, 'tpl': f.template, 'cnt': f.total }
 
         sammen += '}}'
 

@@ -12,8 +12,8 @@ t, _ = init_localization()
 
 class Rule(object):
 
-    def __init__(self):
-        pass
+    def __init__(self, key):
+        self.key = key
 
     def iszero(self, f):
         f = float(f)
@@ -44,8 +44,8 @@ class Rule(object):
 
 class NewPageRule(Rule):
     
-    def __init__(self, points):
-        Rule.__init__(self)
+    def __init__(self, key, points):
+        Rule.__init__(self, key)
         self.points = float(points)
 
     def test(self, rev):
@@ -54,8 +54,8 @@ class NewPageRule(Rule):
 
 class RedirectRule(Rule):
     
-    def __init__(self, points):
-        Rule.__init__(self)
+    def __init__(self, key, points):
+        Rule.__init__(self, key)
         self.points = float(points)
 
     def test(self, rev):
@@ -86,8 +86,8 @@ class RedirectRule(Rule):
     
 class TemplateRemovalRule(Rule):
 
-    def __init__(self, points, template, aliases = []):
-        Rule.__init__(self)
+    def __init__(self, key, points, template, aliases = []):
+        Rule.__init__(self, key)
         self.points = float(points)
         self.template = template.lower()
         self.aliases = [a.lower() for a in aliases]
@@ -129,8 +129,8 @@ class TemplateRemovalRule(Rule):
 
 class QualiRule(Rule):
 
-    def __init__(self, points):
-        Rule.__init__(self)
+    def __init__(self, key, points):
+        Rule.__init__(self, key)
         self.points = float(points)
     
     def test(self, rev):
@@ -140,8 +140,8 @@ class QualiRule(Rule):
 
 class ByteRule(Rule):
 
-    def __init__(self, points, maxpoints = -1):
-        Rule.__init__(self)
+    def __init__(self, key, points, maxpoints = -1):
+        Rule.__init__(self, key)
         self.points = float(points)
         self.maxpoints = float(maxpoints)
 
@@ -154,8 +154,8 @@ class ByteRule(Rule):
 
 class WordRule(Rule):
 
-    def __init__(self, points, maxpoints = -1):
-        Rule.__init__(self)
+    def __init__(self, key, points, maxpoints = -1):
+        Rule.__init__(self, key)
         self.points = float(points)
         self.maxpoints = float(maxpoints)
 
@@ -173,8 +173,8 @@ class WordRule(Rule):
 
 class ImageRule(Rule):
     
-    def __init__(self, points, maxpoints = -1):
-        Rule.__init__(self)
+    def __init__(self, key, points, maxpoints = -1):
+        Rule.__init__(self, key)
         self.points = float(points)
         self.maxpoints = float(maxpoints)
 
@@ -193,8 +193,8 @@ class ImageRule(Rule):
 
 class ExternalLinkRule(Rule):
     
-    def __init__(self, points, maxpoints = -1):
-        Rule.__init__(self)
+    def __init__(self, key, points, maxpoints = -1):
+        Rule.__init__(self, key)
         self.points = float(points)
         self.maxpoints = float(maxpoints)
 
@@ -215,12 +215,12 @@ class ExternalLinkRule(Rule):
 
 class RefRule(Rule):
     
-    def __init__(self, sourcepoints, refpoints):
+    def __init__(self, key, sourcepoints, refpoints):
         """
         sourcepoints: points for adding new sources
         refpoints: points for referring to existing sources
         """
-        Rule.__init__(self)
+        Rule.__init__(self, key)
         self.sourcepoints = float(sourcepoints)
         self.refpoints = float(refpoints)
         self.totalsources = 0
@@ -261,8 +261,8 @@ class RefRule(Rule):
 
 class ByteBonusRule(Rule):
     
-    def __init__(self, points, limit):
-        Rule.__init__(self)
+    def __init__(self, key, points, limit):
+        Rule.__init__(self, key)
         self.points = float(points)
         self.limit = int(limit)
 
@@ -283,8 +283,8 @@ class ByteBonusRule(Rule):
 
 class WordBonusRule(Rule):
     
-    def __init__(self, points, limit):
-        Rule.__init__(self)
+    def __init__(self, key, points, limit):
+        Rule.__init__(self, key)
         self.points = float(points)
         self.limit = int(limit)
 

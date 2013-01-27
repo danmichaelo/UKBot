@@ -913,56 +913,56 @@ class UK(object):
             maxpoints = rulecfg['maxpoints']
 
             if key == rulecfg['new']:
-                rules.append(NewPageRule(anon[1]))
+                rules.append(NewPageRule(key, anon[1]))
             
             elif key == rulecfg['redirect']:
-                rules.append(RedirectRule(anon[1]))
+                rules.append(RedirectRule(key, anon[1]))
 
             elif key == rulecfg['qualified']:
-                rules.append(QualiRule(anon[1]))
+                rules.append(QualiRule(key, anon[1]))
             
             # elif key == 'stubb':
             #     rules.append(StubRule(anon[1]))
 
             elif key == rulecfg['byte']:
-                params = { 'points': anon[1] }
+                params = { 'key': key, 'points': anon[1] }
                 if templ.has_param(maxpoints):
                     params['maxpoints'] = named[maxpoints]
                 rules.append(ByteRule(**params))
 
             elif key == rulecfg['word']:
-                params = { 'points': anon[1] }
+                params = { 'key': key, 'points': anon[1] }
                 if templ.has_param(maxpoints):
                     params['maxpoints'] = named[maxpoints]
                 rules.append(WordRule(**params))
 
             elif key == rulecfg['image']:
-                params = { 'points': anon[1] }
+                params = { 'key': key, 'points': anon[1] }
                 if templ.has_param(maxpoints):
                     params['maxpoints'] = named[maxpoints]
                 rules.append(ImageRule(**params))
 
             elif key == rulecfg['external_link']:
-                params = { 'points': anon[1] }
+                params = { 'key': key, 'points': anon[1] }
                 if templ.has_param(maxpoints):
                     params['maxpoints'] = named[maxpoints]
                 rules.append(ExternalLinkRule(**params))
             
             elif key == rulecfg['ref']:
-                params = { 'sourcepoints': anon[1], 'refpoints': anon[2] }
+                params = { 'key': key, 'sourcepoints': anon[1], 'refpoints': anon[2] }
                 rules.append(RefRule(**params))
             
             elif key == rulecfg['templateremoval']:
-                params = { 'points': anon[1], 'template': anon[2] }
+                params = { 'key': key, 'points': anon[1], 'template': anon[2] }
                 if templ.has_param(rulecfg['alias']):
                     params['aliases'] = [a.strip() for a in named[rulecfg['alias']].split(',')]
                 rules.append(TemplateRemovalRule(**params))
 
             elif key == rulecfg['bytebonus']:
-                rules.append(ByteBonusRule(anon[1], anon[2]))
+                rules.append(ByteBonusRule(key, anon[1], anon[2]))
 
             elif key == rulecfg['wordbonus']:
-                rules.append(WordBonusRule(anon[1], anon[2]))
+                rules.append(WordBonusRule(key, anon[1], anon[2]))
 
             else:
                 raise ParseError(_('Unkown argument given to {{tl|%(template)s}}: %(argument)s') % { 'template': rulecfg['name'], 'argument': key })
@@ -1574,23 +1574,21 @@ if __name__ == '__main__':
         #if StubFilter in ft:
         #    sammen += '|avstubbet=%d' % narticles
 
-        if ByteRule in rt or WordRule in rt:
-            if nnewpages > 0:
-                sammen += '|nye=%d' % nnewpages
-            if nbytes >= 10000:
-                sammen += '|kilobytes=%.f' % (nbytes/1000.)
-            else:
-                sammen += '|bytes=%d' % (nbytes)
-            sammen += '|ord=%d' % (nwords)
-
-        ts = [r for r in uk.rules if type(r) == RefRule]
-        if len(ts) == 1:
-            sammen += '|ref=%d' % (ts[0].totalsources)
-
-        ts = [r for r in uk.rules if type(r) == TemplateRemovalRule]
-        if len(ts) > 0:
-            for i,r in enumerate(ts):
-                sammen += '|mal%d=%s|mal%dn=%d' % (i+1, r.template, i+1, r.total)
+        for f in uk.rules:
+            if type(f) == NewPageRule:
+                sammen += '|%s=%d' % (f.key, nnewpages)
+            elif type(f) == ByteRule:
+                if nbytes >= 10000:
+                    sammen += '|kilo%s=%.f' % (f.key/1000.)
+                else:
+                    sammen += '|%s=%d' % (f.key, nbytes)
+            elif type(f) == WordRule:
+                sammen += '|%s=%d' % (f.key, nwords)
+            elif type(f) == RefRule:
+                sammen += '|%s=%d' % (f.key, ts[0].totalsources)
+            elif type(f) == TemplateRemovalRule:
+                sammen += '|%(key)s%(idx)d=%(tpl)s|%(key)s%(idx)dn=%(cnt)d' % {
+                        'key' : f.key, 'idx': i+1, 'tpl': r.template, 'cnt': r.total }
 
         sammen += '}}'
 

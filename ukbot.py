@@ -1238,14 +1238,15 @@ class UK(object):
                         prizefound = True
                         mld = self.format_msg('participant_template', r[0])
                         break
+                mld += '}}\n'
 
             now = server_tz.localize(datetime.now())
             yearweek = now.astimezone(wiki_tz).strftime('%Y-%V')
             userprefix = self.homesite.namespaces[2];
             usertalkprefix = self.homesite.namespaces[3];
 
-            mld += _("Note that the contest this week is [[%(url)s|{{%(template)s|$(weekarg)s=%(week)s}}]]. Join in!") % { 
-                'url': self.config['pages']['base'] + yearweek,
+            mld += _("Note that the contest this week is [[%(url)s|{{%(template)s|%(weekarg)s=%(week)s}}]]. Join in!") % { 
+                'url': self.config['pages']['base'] + ' ' + yearweek,
                 'template': self.config['templates']['contestlist']['name'],
                 'weekarg': self.config['templates']['commonargs']['week'],
                 'week': yearweek

@@ -1236,7 +1236,7 @@ class UK(object):
                 for r in self.prices:
                     if r[1] == 'pointlimit' and u.points >= r[2]:
                         prizefound = True
-                        mld = format_msg('participant_template', r[0])
+                        mld = self.format_msg('participant_template', r[0])
                         break
 
             now = server_tz.localize(datetime.now())
@@ -1314,7 +1314,11 @@ class UK(object):
             # Find section number
             txt = page.edit()
             sections = [s.strip() for s in re.findall('^[\s]*==([^=]+)==', txt, flags = re.M)]
-            csection = sections.index(heading) + 1
+            try:
+                csection = sections.index(heading) + 1
+            except ValueError:
+                log('[ERROR] Fant ikke "%s" i "%s' % (heading, page.name))
+                return
 
             # Append text to section
             txt = page.edit(section = csection)

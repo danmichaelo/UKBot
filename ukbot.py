@@ -1185,7 +1185,7 @@ class UK(object):
             )
             plt.savefig(self.config['figname'] % { 'year': self.year, 'week': self.startweek}, dpi = 200)
 
-    def format_msg(self, award, template):
+    def format_msg(self, template, award):
         tpl = self.config['award_message']
         args = { 
             'template': tpl[template], 
@@ -1200,10 +1200,10 @@ class UK(object):
             'no': self.config['templates']['commonargs'][False]
             }
         if self.startweek == self.endweek:
-            mld += '{{%(template)s|%(yearname)s=%(year)d|%(weekname)s=%(week)02d|%(award)s=%(yes)s%(extraargs)s' % args
+            return '{{%(template)s|%(yearname)s=%(year)d|%(weekname)s=%(week)02d|%(award)s=%(yes)s%(extraargs)s' % args
         else:
             args['week2'] = self.endweek
-            mld += '{{%(template)s|%(yearname)s=%(year)d|%(weekname)s=%(week)02d|%(week2name)s=%(week2)02d|%(award)s=%(yes)s%(extraargs)s' % args
+            return '{{%(template)s|%(yearname)s=%(year)d|%(weekname)s=%(week)02d|%(week2name)s=%(week2)02d|%(award)s=%(yes)s%(extraargs)s' % args
 
     def msg_heading(self):
         if self.startweek == self.endweek:
@@ -1304,7 +1304,7 @@ class UK(object):
         heading = self.msg_heading()
         usertalkprefix = self.homesite.namespaces[3];
 
-        args = { prefix: self.homesite.site['server'] + self.homesite.site['script'], 'page': 'Special:Contributions' }
+        args = { 'prefix': self.homesite.site['server'] + self.homesite.site['script'], 'page': 'Special:Contributions' }
         link = '%(prefix)s?title=%(page)s&contribs=user&target=UKBot&namespace=3' % args
         mld = '\n:' + _('Awards have been [%(link)s sent out].') % {'link':link} + ' ~~~~'
         for u in self.ledere:
@@ -1442,7 +1442,7 @@ if __name__ == '__main__':
         lastrev = homesite.pages[config['awardstatus']['pagename']].revisions(prop='user|comment').next()
         closeuser = lastrev['user']
         revc = lastrev['comment']
-        if revc.find('/* ' + config['awardstatus']['send'] + ' */') != -1:
+        if revc.find('/* ' + config['awardstatus']['send'] + ' */') == -1:
             log('>> Award delivery has not been confirmed yet')
             sys.exit(0)
     elif args.page != None:

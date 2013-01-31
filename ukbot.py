@@ -1585,7 +1585,7 @@ if __name__ == '__main__':
                 sammen += '|%s=%d' % (f.key, nnewpages)
             elif type(f) == ByteRule:
                 if nbytes >= 10000:
-                    sammen += '|kilo%s=%.f' % (f.key/1000.)
+                    sammen += '|kilo%s=%.f' % (f.key, nbytes/1000.)
                 else:
                     sammen += '|%s=%d' % (f.key, nbytes)
             elif type(f) == WordRule:

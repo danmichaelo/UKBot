@@ -722,11 +722,11 @@ class User(object):
             if pos == 0:
                 for r in prices:
                     if r[1] == 'winner':
-                        ros += '[[Fil:%s|20px]] ' % config['awards'][r[0]]
+                        ros += '[[Fil:%s|20px]] ' % config['awards'][r[0]]['file']
                         break
             for r in prices:
                 if r[1] == 'pointlimit' and self.points >= r[2]:
-                    ros += '[[Fil:%s|20px]] ' % config['awards'][r[0]]
+                    ros += '[[Fil:%s|20px]] ' % config['awards'][r[0]]['file']
                     break
         suspended = ''
         if self.suspended_since != None:

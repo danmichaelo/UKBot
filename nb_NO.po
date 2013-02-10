@@ -7,8 +7,8 @@ msgid ""
 msgstr ""
 "Project-Id-Version: UKBot\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2013-01-25 21:03+0100\n"
-"PO-Revision-Date: 2013-01-25 19:08+0100\n"
+"POT-Creation-Date: 2013-02-10 23:04+0100\n"
+"PO-Revision-Date: 2013-02-10 23:01+0100\n"
 "Last-Translator: Dan Michael Heggø <danmichaelo@gmail.com>\n"
 "Language-Team: \n"
 "Language: Norsk bokmål\n"
@@ -178,24 +178,24 @@ msgstr "Ukens konkurranse uke %(week)d"
 msgid "Weekly contest for week %(startweek)d–%(endweek)d"
 msgstr "Ukens konkurranse uke %(startweek)d–%(endweek)d"
 
-#: ukbot.py:1247
-#, python-format
+#: ukbot.py:1248
+#, fuzzy, python-format
 msgid ""
-"Note that the contest this week is [[%(url)s|{{%(template)s|$(weekarg)s="
+"Note that the contest this week is [[%(url)s|{{%(template)s|%(weekarg)s="
 "%(week)s}}]]. Join in!"
 msgstr ""
 "Husk at denne ukens konkurranse er [[%(url)s|{{%(template)s|$(weekarg)s="
 "%(week)s}}]]. Lykke til!"
 
-#: ukbot.py:1253
+#: ukbot.py:1254
 msgid "Regards"
 msgstr "Hilsen"
 
-#: ukbot.py:1253
+#: ukbot.py:1254
 msgid "and"
 msgstr "og"
 
-#: ukbot.py:1296
+#: ukbot.py:1297
 #, python-format
 msgid ""
 "Now you must check if the results look ok. If there are error messages at "
@@ -211,20 +211,20 @@ msgstr ""
 "diskusjonssiden. Hvis alt ser greit ut kan du trykke [%(link)s her] (og "
 "lagre), så sender jeg ut rosetter ved første anledning."
 
-#: ukbot.py:1297
+#: ukbot.py:1298
 msgid "Thanks, ~~~~"
 msgstr "Hilsen ~~~~"
 
-#: ukbot.py:1309
+#: ukbot.py:1310
 #, python-format
 msgid "Awards have been [%(link)s sent out]."
 msgstr "Rosetter er nå [%(link)s sendt ut]."
 
-#: ukbot.py:1485 ukbot.py:1555
+#: ukbot.py:1490 ukbot.py:1560
 msgid "UKBot encountered a problem"
 msgstr "UKBot støtte på et problem"
 
-#: ukbot.py:1602
+#: ukbot.py:1607
 msgid ""
 "This contest is closed – thanks to everyone who participated! Awards will be "
 "sent out as soon as the contest organizer has checked the results."
@@ -232,11 +232,11 @@ msgstr ""
 "Konkurransen er avsluttet – takk til alle som deltok! Rosetter vil sendes ut "
 "så snart konkurransearrangøren har sjekket resultatene."
 
-#: ukbot.py:1604
+#: ukbot.py:1609
 msgid "This contest is closed – thanks to everyone who participated!"
 msgstr "Denne konkurransen er avsluttet – takk til alle som deltok!"
 
-#: ukbot.py:1611
+#: ukbot.py:1616
 #, python-format
 msgid ""
 "Last updated %(lastupdate)s. The contest is open from %(startdate)s to "
@@ -245,35 +245,35 @@ msgstr ""
 "Sist oppdatert %(lastupdate)s. Konkurransen er åpen fra %(startdate)s til "
 "%(enddate)s."
 
-#: ukbot.py:1635
+#: ukbot.py:1640
 #, python-format
 msgid "UKBot encountered the following problems with the article [[:%s]]"
 msgstr "UKBot støtte på problemer med artikkelen [[:%s]]"
 
-#: ukbot.py:1674
+#: ukbot.py:1679
 msgid "Updating with final results, the contest is now closed."
 msgstr ""
 "Oppdaterer med endelige resultater og merker konkurransen som avsluttet."
 
-#: ukbot.py:1676
+#: ukbot.py:1681
 msgid "Checking results and handing out awards"
 msgstr "Sjekker resultater og deler ut rosetter"
 
-#: ukbot.py:1678
+#: ukbot.py:1683
 msgid "Updating"
 msgstr "Oppdaterer"
 
-#: ukbot.py:1734
+#: ukbot.py:1739
 #, python-format
 msgid "#REDIRECT [[%s]]"
 msgstr "#OMDIRIGERING [[%s]]"
 
-#: ukbot.py:1736
+#: ukbot.py:1741
 #, python-format
 msgid "Redirecting to %s"
 msgstr "Omdirigerer til %s"
 
-#: ukbot.py:1766
+#: ukbot.py:1771
 #, python-format
 msgid "The weekly contest is: %(link)s"
 msgstr "Ukens konkurranse er: %(link)s"

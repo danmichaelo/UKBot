@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: UKBot\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2013-01-25 21:03+0100\n"
+"POT-Creation-Date: 2013-02-10 23:04+0100\n"
 "PO-Revision-Date: 2013-01-25 19:07+0100\n"
 "Last-Translator: Dan Michael Heggø <danmichaelo@gmail.com>\n"
 "Language-Team: \n"
@@ -183,24 +183,24 @@ msgstr "Viikon %(week)d kilpailu"
 msgid "Weekly contest for week %(startweek)d–%(endweek)d"
 msgstr "Viikkojen %(startweek)d–%(endweek)d kilpailu"
 
-#: ukbot.py:1247
-#, python-format
+#: ukbot.py:1248
+#, fuzzy, python-format
 msgid ""
-"Note that the contest this week is [[%(url)s|{{%(template)s|$(weekarg)s="
+"Note that the contest this week is [[%(url)s|{{%(template)s|%(weekarg)s="
 "%(week)s}}]]. Join in!"
 msgstr ""
 "Muista, että tämän viikon kilpailu on [[%(url)s|{{%(template)s|$(weekarg)s="
 "%(week)s}}]]. Onnea matkaan!"
 
-#: ukbot.py:1253
+#: ukbot.py:1254
 msgid "Regards"
 msgstr "Terveisin"
 
-#: ukbot.py:1253
+#: ukbot.py:1254
 msgid "and"
 msgstr "ja"
 
-#: ukbot.py:1296
+#: ukbot.py:1297
 #, python-format
 msgid ""
 "Now you must check if the results look ok. If there are error messages at "
@@ -216,20 +216,20 @@ msgstr ""
 "tai valituksia. Jos kaikki näyttää olevan kunnossa, paina [%(link)s tästä] "
 "(ja tallenna), niin rusetit lähetetään melko nopeasti."
 
-#: ukbot.py:1297
+#: ukbot.py:1298
 msgid "Thanks, ~~~~"
 msgstr "Terveisin, ~~~~"
 
-#: ukbot.py:1309
+#: ukbot.py:1310
 #, python-format
 msgid "Awards have been [%(link)s sent out]."
 msgstr "Rusetit on nyt [%(link)s jaettu]."
 
-#: ukbot.py:1485 ukbot.py:1555
+#: ukbot.py:1490 ukbot.py:1560
 msgid "UKBot encountered a problem"
 msgstr "UKBot havaitsi ongelman"
 
-#: ukbot.py:1602
+#: ukbot.py:1607
 msgid ""
 "This contest is closed – thanks to everyone who participated! Awards will be "
 "sent out as soon as the contest organizer has checked the results."
@@ -237,11 +237,11 @@ msgstr ""
 "Tämä kilpailu on päättynyt – kiitos kaikille osallistuneille! Rusetit "
 "jaetaan heti kun kilpailun järjestäjä on tarkistanut tulokset."
 
-#: ukbot.py:1604
+#: ukbot.py:1609
 msgid "This contest is closed – thanks to everyone who participated!"
 msgstr "Tämä kilpailu on päättynyt – kiitos kaikille osallistuneille!"
 
-#: ukbot.py:1611
+#: ukbot.py:1616
 #, python-format
 msgid ""
 "Last updated %(lastupdate)s. The contest is open from %(startdate)s to "
@@ -250,34 +250,34 @@ msgstr ""
 "Päivitetty viimeksi %(lastupdate)s. Kilpailu on avoinna  %(startdate)s - "
 "%(enddate)s."
 
-#: ukbot.py:1635
+#: ukbot.py:1640
 #, python-format
 msgid "UKBot encountered the following problems with the article [[:%s]]"
 msgstr "UKBot havaitsi seuraavat ongelmat artikkeliin [[:%s]] liittyen"
 
-#: ukbot.py:1674
+#: ukbot.py:1679
 msgid "Updating with final results, the contest is now closed."
 msgstr "Lisätään lopulliset tulokset ja merkitään kilpailu päättyneeksi."
 
-#: ukbot.py:1676
+#: ukbot.py:1681
 msgid "Checking results and handing out awards"
 msgstr "Tarkistetaan tulokset ja jaetaan rusetit"
 
-#: ukbot.py:1678
+#: ukbot.py:1683
 msgid "Updating"
 msgstr "Päivitetään"
 
-#: ukbot.py:1734
+#: ukbot.py:1739
 #, python-format
 msgid "#REDIRECT [[%s]]"
 msgstr "#OHJAUS [[%s]]"
 
-#: ukbot.py:1736
+#: ukbot.py:1741
 #, python-format
 msgid "Redirecting to %s"
 msgstr "Ohjaus sivulle %s"
 
-#: ukbot.py:1766
+#: ukbot.py:1771
 #, python-format
 msgid "The weekly contest is: %(link)s"
 msgstr "Viikon kilpailu on: %(link)s"

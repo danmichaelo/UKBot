@@ -99,7 +99,9 @@ update-po:
 .SUFFIXES: .po .mo
  
 .po.mo:
-	$(MSGFMT) --check --statistics --verbose -o $@ $<
+	$(MSGFMT) --verbose -o $@ $<
+
+#	$(MSGFMT) --check --statistics --verbose -o $@ $<
 
 
 makedb:

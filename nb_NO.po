@@ -179,12 +179,12 @@ msgid "Weekly contest for week %(startweek)d–%(endweek)d"
 msgstr "Ukens konkurranse uke %(startweek)d–%(endweek)d"
 
 #: ukbot.py:1248
-#, fuzzy, python-format
+#, python-format
 msgid ""
 "Note that the contest this week is [[%(url)s|{{%(template)s|%(weekarg)s="
 "%(week)s}}]]. Join in!"
 msgstr ""
-"Husk at denne ukens konkurranse er [[%(url)s|{{%(template)s|$(weekarg)s="
+"Husk at denne ukens konkurranse er [[%(url)s|{{%(template)s|%(weekarg)s="
 "%(week)s}}]]. Lykke til!"
 
 #: ukbot.py:1254

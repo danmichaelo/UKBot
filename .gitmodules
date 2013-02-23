@@ -1,3 +1,6 @@
 [submodule "danmicholoparser"]
 	path = danmicholoparser
 	url = git://github.com/danmichaelo/danmicholoparser.git
+[submodule "mwclient"]
+	path = mwclient
+	url = git@github.com:danmichaelo/mwclient.git

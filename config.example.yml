@@ -2,6 +2,7 @@ locale: [nb_NO, no_NO]
 server_timezone: UTC
 wiki_timezone: Europe/Oslo
 homesite: no.wikipedia.org
+db: storage/ukbot.db
 figname: Nowp Ukens konkurranse %(year)d-%(week)02d.svg
 # othersites:
 #     - nn.wikipedia.org

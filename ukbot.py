@@ -99,7 +99,7 @@ class Site(mwclient.Site):
         self.name = host
         self.key = host.split('.')[0]
         log('@ Initializing site: %s' % host)
-        mwclient.Site.__init__(self, host)
+        mwclient.Site.__init__(self, host, user_agent='UKBot ([[no:Bruker:UKBot]])')
         # Login to increase api limit from 50 to 500 
         self.login(username, password)
 
@@ -1430,7 +1430,7 @@ if __name__ == '__main__':
             sites[prefix] = Site(host, config['account']['user'], config['account']['pass'])
     
     cpage = config['pages']['catignore']
-    sql = sqlite3.connect('db/uk.db')
+    sql = sqlite3.connect(config['db'])
 
     # Determine kpage
 

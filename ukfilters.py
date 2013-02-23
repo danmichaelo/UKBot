@@ -383,7 +383,7 @@ class BackLinkFilter(Filter):
         for site_key, site in self.sites.iteritems():
             for aname in self.articles:
                 aname2 = aname
-                kv = aname.split(':')
+                kv = aname.split(':', 1)
                 if len(kv) == 2 and len(kv[0]) == 2:
                     if kv[0] != site_key:
                         continue

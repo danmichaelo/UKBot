@@ -9,24 +9,28 @@ from datetime import datetime, timedelta
 from datetime import time as dt_time
 import gettext
 import pytz
-from isoweek import Week # Sort-of necessary until datetime supports %V, see http://bugs.python.org/issue12006 
-                         # and See http://stackoverflow.com/questions/5882405/get-date-from-iso-week-number-in-python
+from isoweek import Week  # Sort-of necessary until datetime supports %V, see http://bugs.python.org/issue12006 
+                          # and See http://stackoverflow.com/questions/5882405/get-date-from-iso-week-number-in-python
 import re
 import sqlite3
 import yaml
 from odict import odict
 import urllib
-import argparse 
+import argparse
 import codecs
 
 import mwclient
-from danmicholoparser import DanmicholoParser, DanmicholoParseError, TemplateEditor
+from danmicholoparser import DanmicholoParseError, TemplateEditor, MainText
 import ukcommon
 from ukcommon import log, init_localization
 
 import locale
-#locale.setlocale(locale.LC_TIME, 'no_NO'.encode('utf-8'))
 
+import logging
+logger = logging.getLogger()
+logger.setLevel(logging.WARN)
+
+#locale.setlocale(locale.LC_TIME, 'no_NO'.encode('utf-8'))
     
 # Read args
 
@@ -232,18 +236,20 @@ class Revision(object):
         try:
             return self._wordcount
         except:
-            dp = DanmicholoParser(self.text)
-            dp2 = DanmicholoParser(self.parenttext)
             try:
-                self._wordcount = len(dp.maintext.split()) - len(dp2.maintext.split())
+                mt1 = MainText(self.text)
+                txt1 = mt1.maintext
+                mt2 = MainText(self.parenttext)
+                txt2 = mt2.maintext
+                self._wordcount = len(txt1.split()) - len(txt2.split())
                 s = _('A problem encountered with revision %(revid)d may have influenced the word count for this revision: <nowiki>%(problems)s</nowiki> ')
                 #s = _('Et problem med revisjon %d kan ha påvirket ordtellingen for denne: <nowiki>%s</nowiki> ')
-                if len(dp.parse_errors) > 0:
-                    self.errors.append(s % { 'revid': self.revid, 'problems': dp.parse_errors[0] })
-                if len(dp2.parse_errors) > 0:
-                    self.errors.append(s % { 'revid': self.parentid, 'problems': dp2.parse_errors[0] })
+                if len(mt1.parse_errors) > 0:
+                    self.errors.append(s % {'revid': self.revid, 'problems': mt1.parse_errors[0]})
+                if len(mt2.parse_errors) > 0:
+                    self.errors.append(s % {'revid': self.parentid, 'problems': mt2.parse_errors[0]})
             except DanmicholoParseError as e:
-                log("!!!>> FAIL: %s @ %d" % (self.article.name,self.revid))
+                log("!!!>> FAIL: %s @ %d" % (self.article.name, self.revid))
                 self._wordcount = 0
                 #raise
             return self._wordcount
@@ -608,6 +614,7 @@ class User(object):
         # loop over articles
         for article_key, article in self.articles.iteritems():
             log('.', newline = False)
+            #log(article_key)
             
             # loop over revisions
             for revid, rev in article.revisions.iteritems():
@@ -616,6 +623,7 @@ class User(object):
 
                 # loop over rules
                 for rule in rules:
+                    #log('   %d : %s' % (revid, type(rule).__name__))
                     rule.test(rev)
 
                 if not article.disqualified:
@@ -804,25 +812,25 @@ class UK(object):
         filters = []
         config = self.config
 
-        dp = DanmicholoParser(txt)
+        dp = TemplateEditor(txt)
         if catignore_txt == '':
             catignore = []
             log('Note: Empty catignore page')
         else:
-            dp2 = DanmicholoParser(catignore_txt)
             
-            if not config['templates']['rule']['name'].lower() in dp.templates.keys():
+            if not config['templates']['rule']['name'] in dp.templates:
                 raise ParseError(_('There are no point rules defined for this contest. Point rules are defined by {{tl|%(template)s}}.') % { 'template': config['templates']['rule']['name'] })
             
             #if not 'ukens konkurranse kriterium' in dp.templates.keys():
             #    raise ParseError('Denne konkurransen har ingen bidragskriterier. Kriterier defineres med {{tl|ukens konkurranse kriterium}}.')
             
             infobox = config['templates']['infobox']
-            if not infobox['name'].lower() in dp.templates.keys():
+            if not infobox['name'] in dp.templates:
                 raise ParseError(_('This contest is missing a {{tl|%(template)s}} template.') % { 'template': infobox['name'] })
 
             try:
-                catignore = dp2.tags['pre'][0]['content'].splitlines()
+                m = re.search(r'<pre>(.*?)</pre>', catignore_txt, flags=re.DOTALL)
+                catignore = m.group(1).strip().splitlines()
             except (IndexError, KeyError):
                 raise ParseError(_('Could not parse the catignore page'))
 
@@ -831,12 +839,14 @@ class UK(object):
         nfilters = 0
         #print dp.templates.keys()
         filtercfg = config['templates']['filter']
-        if filtercfg['name'].lower() in dp.templates.keys():
-            for templ in dp.templates[filtercfg['name'].lower()]:
+        if filtercfg['name'] in dp.templates:
+            for templ in dp.templates[filtercfg['name']]:
+
+                params = templ.parameters
                 anon = templ.get_anonymous_parameters()
-                named = templ.get_named_parameters()
-                key = anon[0].lower()
-                params = { 'verbose': self.verbose }
+
+                key = anon[1].lower()
+                params = {'verbose': self.verbose}
                 if key == filtercfg['new']:
                     filt = NewPageFilter(**params)
 
@@ -847,41 +857,41 @@ class UK(object):
                 #     filt = StubFilter(**params)
  
                 elif key == filtercfg['template']:
-                    if len(anon) < 2:
+                    if len(anon) < 3:
                         raise ParseError(_('No template (second argument) given to {{tlx|%(template)s|%(firstarg)s}}') % {'template': filtercfg['name'], 'firstarg': filtercfg['template'] })
                     if templ.has_param(filtercfg['alias']):
-                        params['aliases'] = [a.strip() for a in named[filtercfg['alias']].split(',')]
-                    params['templates'] = anon[1:]
+                        params['aliases'] = [a.strip() for a in params[filtercfg['alias']].split(',')]
+                    params['templates'] = anon[2:]
                     filt = TemplateFilter(**params)
                 
                 elif key == filtercfg['bytes']:
-                    if len(anon) < 2:
+                    if len(anon) < 3:
                         raise ParseError(_('No byte limit (second argument) given to {{tlx|%(template)s|%(firstarg)s}}') % {'template': filtercfg['name'], 'firstarg': filtercfg['bytes'] })
-                    params['bytelimit'] = anon[1]
+                    params['bytelimit'] = anon[2]
                     filt = ByteFilter(**params)
 
                 elif key == filtercfg['category']:
-                    if len(anon) < 2:
+                    if len(anon) < 3:
                         raise ParseError(_('No categories given to {{tlx|%(template)s|%(firstarg)s}}') % {'template': filtercfg['name'], 'firstarg': filtercfg['bytes'] })
                     params['sites'] = self.sites
-                    params['catnames'] = anon[1:]
+                    params['catnames'] = anon[2:]
                     params['ignore'] = catignore
                     if templ.has_param(filtercfg['maxdepth']):
-                        params['maxdepth'] = int(named[filtercfg['maxdepth']])
+                        params['maxdepth'] = int(params[filtercfg['maxdepth']])
                     filt = CatFilter(**params)
 
                 elif key == filtercfg['backlink']:
                     params['sites'] = self.sites
-                    params['articles'] = anon[1:]
+                    params['articles'] = anon[2:]
                     filt = BackLinkFilter(**params)
                 
                 elif key == filtercfg['forwardlink']:
                     params['sites'] = self.sites
-                    params['articles'] = anon[1:]
+                    params['articles'] = anon[2:]
                     filt = ForwardLinkFilter(**params)
                 
                 elif key == filtercfg['namespace']:
-                    params['namespace'] = int(anon[1])
+                    params['namespace'] = int(anon[2])
                     filt = NamespaceFilter(**params)
 
                 else: 
@@ -900,69 +910,65 @@ class UK(object):
 
         rulecfg = config['templates']['rule']
         nrules = 0
-        for templ in dp.templates[rulecfg['name'].lower()]:
+        for templ in dp.templates[rulecfg['name']]:
             nrules += 1
             p = templ.parameters
-            anon = [[k,p[k]] for k in p.keys() if type(k) == int]
-            anon = sorted(anon, key = lambda x: x[0])
-            anon = [a[1] for a in anon]
-            named = [[k,p[k]] for k in p.keys() if type(k) != int]
-
-            named = odict(named)
-            key = anon[0].lower()
+            anon = templ.get_anonymous_parameters()
+            
+            key = anon[1].lower()
             maxpoints = rulecfg['maxpoints']
 
             if key == rulecfg['new']:
-                rules.append(NewPageRule(key, anon[1]))
+                rules.append(NewPageRule(key, anon[2]))
             
             elif key == rulecfg['redirect']:
-                rules.append(RedirectRule(key, anon[1]))
+                rules.append(RedirectRule(key, anon[2]))
 
             elif key == rulecfg['qualified']:
-                rules.append(QualiRule(key, anon[1]))
+                rules.append(QualiRule(key, anon[2]))
             
             # elif key == 'stubb':
             #     rules.append(StubRule(anon[1]))
 
             elif key == rulecfg['byte']:
-                params = { 'key': key, 'points': anon[1] }
+                params = { 'key': key, 'points': anon[2] }
                 if templ.has_param(maxpoints):
-                    params['maxpoints'] = named[maxpoints]
+                    params['maxpoints'] = p[maxpoints]
                 rules.append(ByteRule(**params))
 
             elif key == rulecfg['word']:
-                params = { 'key': key, 'points': anon[1] }
+                params = { 'key': key, 'points': anon[2] }
                 if templ.has_param(maxpoints):
-                    params['maxpoints'] = named[maxpoints]
+                    params['maxpoints'] = p[maxpoints]
                 rules.append(WordRule(**params))
 
             elif key == rulecfg['image']:
-                params = { 'key': key, 'points': anon[1] }
+                params = { 'key': key, 'points': anon[2] }
                 if templ.has_param(maxpoints):
-                    params['maxpoints'] = named[maxpoints]
+                    params['maxpoints'] = p[maxpoints]
                 rules.append(ImageRule(**params))
 
             elif key == rulecfg['external_link']:
-                params = { 'key': key, 'points': anon[1] }
+                params = { 'key': key, 'points': anon[2] }
                 if templ.has_param(maxpoints):
-                    params['maxpoints'] = named[maxpoints]
+                    params['maxpoints'] = p[maxpoints]
                 rules.append(ExternalLinkRule(**params))
             
             elif key == rulecfg['ref']:
-                params = { 'key': key, 'sourcepoints': anon[1], 'refpoints': anon[2] }
+                params = { 'key': key, 'sourcepoints': anon[2], 'refpoints': anon[3] }
                 rules.append(RefRule(**params))
             
             elif key == rulecfg['templateremoval']:
-                params = { 'key': key, 'points': anon[1], 'template': anon[2] }
+                params = { 'key': key, 'points': anon[2], 'template': anon[3] }
                 if templ.has_param(rulecfg['alias']):
-                    params['aliases'] = [a.strip() for a in named[rulecfg['alias']].split(',')]
+                    params['aliases'] = [a.strip() for a in p[rulecfg['alias']].split(',')]
                 rules.append(TemplateRemovalRule(**params))
 
             elif key == rulecfg['bytebonus']:
-                rules.append(ByteBonusRule(key, anon[1], anon[2]))
+                rules.append(ByteBonusRule(key, anon[2], anon[3]))
 
             elif key == rulecfg['wordbonus']:
-                rules.append(WordBonusRule(key, anon[1], anon[2]))
+                rules.append(WordBonusRule(key, anon[2], anon[3]))
 
             else:
                 raise ParseError(_('Unkown argument given to {{tl|%(template)s}}: %(argument)s') % { 'template': rulecfg['name'], 'argument': key })
@@ -975,17 +981,17 @@ class UK(object):
         commonargs = config['templates']['commonargs']
 
         try:
-            infoboks = dp.templates[ibcfg['name'].lower()][0]
+            infoboks = dp.templates[ibcfg['name']][0]
         except:
             raise ParseError(_('Could not parse the {{tl|%(template)s}} template.') % { 'template': infoboxcfg['name'] })
         
         utc = pytz.utc
 
         if infoboks.has_param(commonargs['year']) and infoboks.has_param(commonargs['week']):
-            year = int(re.sub('<\!--.+?-->', '', infoboks.parameters[commonargs['year']]).strip())
-            startweek = int(re.sub('<\!--.+?-->', '', infoboks.parameters[commonargs['week']]).strip())
+            year = int(re.sub(ur'<\!--.+?-->', ur'', unicode(infoboks.parameters[commonargs['year']])).strip())
+            startweek = int(re.sub(ur'<\!--.+?-->', ur'', unicode(infoboks.parameters[commonargs['week']])).strip())
             if infoboks.has_param(commonargs['week2']):
-                endweek = re.sub('<\!--.+?-->', '', infoboks.parameters[commonargs['week2']]).strip()
+                endweek = re.sub(ur'<\!--.+?-->', ur'', unicode(infoboks.parameters[commonargs['week2']])).strip()
                 if endweek == '':
                     endweek = startweek
             else:
@@ -1010,7 +1016,7 @@ class UK(object):
         self.endweek = self.end.isocalendar()[1]
 
         userprefix = self.homesite.namespaces[2]
-        self.ledere = re.findall(r'\[\[(?:User|%s):([^\|\]]+)' % userprefix, infoboks.parameters[ibcfg['organizer']], re.I)
+        self.ledere = re.findall(r'\[\[(?:User|%s):([^\|\]]+)' % userprefix, unicode(infoboks.parameters[ibcfg['organizer']]), flags=re.I)
         if len(self.ledere) == 0:
             raise ParseError(_('Did not find any organizers in {{tl|%(template)s}}.') % { 'template': ibcfg['name'] })
 
@@ -1019,7 +1025,7 @@ class UK(object):
         self.prices = []
         for col in awards.keys():
             if infoboks.has_param(col):
-                r = re.sub('<\!--.+?-->', '', infoboks.parameters[col]).strip() # strip comments, then whitespace
+                r = re.sub(ur'<\!--.+?-->', ur'', unicode(infoboks.parameters[col])).strip() # strip comments, then whitespace
                 if r != '':
                     r = r.split()[0].lower()
                     #print col,r
@@ -1657,7 +1663,7 @@ if __name__ == '__main__':
         tp = TemplateEditor(txt)
         if sammen != '':
             tp.templates[ib['name'].lower()][0].parameters[ib['status']] = sammen
-        txt = tp.get_wikitext()
+        txt = tp.wikitext()
         secstart = -1
         secend = -1
         for s in re.finditer(r'^[\s]*==([^=]+)==[\s]*\n', txt, flags = re.M):
@@ -1690,16 +1696,17 @@ if __name__ == '__main__':
 
     if ending:
         log(" -> Ending contest")
-        uk.deliver_leader_notification(ktitle)
+        if not args.simulate:
+            uk.deliver_leader_notification(ktitle)
 
-        aws = config['awardstatus']
-        page = homesite.pages[aws['pagename']]
-        page.save(text = aws['wait'], summary = aws['wait'], bot = True)
+            aws = config['awardstatus']
+            page = homesite.pages[aws['pagename']]
+            page.save(text = aws['wait'], summary = aws['wait'], bot = True)
 
-        cur = sql.cursor()
-        cur.execute(u'INSERT INTO contests (name, ended, closed) VALUES (?,1,0)', [ktitle] )
-        sql.commit()
-        cur.close()
+            cur = sql.cursor()
+            cur.execute(u'INSERT INTO contests (name, ended, closed) VALUES (?,1,0)', [ktitle] )
+            sql.commit()
+            cur.close()
     
     if args.close:
         log(" -> Delivering prices")
@@ -1750,7 +1757,7 @@ if __name__ == '__main__':
         oppslagstavle = homesite.pages[boardname]
         txt = oppslagstavle.edit()
 
-        dp = DanmicholoParser(txt)
+        dp = TemplateEditor(txt)
         ntempl = len(dp.templates[tplname])
         if ntempl != 1:
             raise StandardError(u'Feil: Fant %d %s-maler i %s' % (ntempl, tplname, boardname))
@@ -1766,7 +1773,7 @@ if __name__ == '__main__':
             tpl.parameters[boardtpl['date']] = now2.strftime('%e. %h')
             tpl.parameters[commonargs['year']] = now2.strftime('%Y')
             tpl.parameters[commonargs['week']] = now2.strftime('%V')
-            txt2 = dp.get_wikitext()
+            txt2 = dp.wikitext()
             if txt != txt2:
                 oppslagstavle.save(txt2, summary = _('The weekly contest is: %(link)s') % { 'link': tema })
 

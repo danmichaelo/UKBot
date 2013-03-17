@@ -3,7 +3,7 @@ from __future__ import unicode_literals
 import sys, re
 from copy import copy
 from odict import odict
-from danmicholoparser import DanmicholoParser, DanmicholoParseError
+from danmicholoparser import DanmicholoParseError
 from ukcommon import log
 
 class CategoryLoopError(Exception):
@@ -91,7 +91,7 @@ class TemplateFilter(Filter):
     def has_template(self, text):
         """ Checks if a given text contains the template"""
 
-        m = re.search(r'{{(%s)[\s]*(\||}})' % '|'.join(self.templates), text, re.IGNORECASE)
+        m = re.search(r'{{(%s)[\s]*(\||}})' % '|'.join(self.templates), text, flags=re.IGNORECASE)
         if m:
             return m.group(1)
         return None

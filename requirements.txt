@@ -6,4 +6,5 @@ sqlite3
 odict
 urllib
 codecs
-
+pyyaml
+beautifulsoup4

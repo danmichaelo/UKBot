@@ -4,7 +4,7 @@ import re
 import urllib
 import gettext
 from bs4 import BeautifulSoup
-from danmicholoparser import DanmicholoParser, DanmicholoParseError, condition_for_soup
+from danmicholoparser import TemplateEditor, DanmicholoParseError, condition_for_soup
 from ukcommon import log, init_localization
 import gettext
 
@@ -107,9 +107,9 @@ class TemplateRemovalRule(Rule):
     def templatecount(self, text):
         """ Checks if a given text has the template"""
 
-        dp = DanmicholoParser(text)
+        dp = TemplateEditor(text)
         tc = 0
-        for tname, templ in dp.templates.iteritems():
+        for tname, templ in dp.templates.items():
             if self.testtpl(tname) or tname in self.aliases:
                 tc += len(templ)
         return tc

@@ -2,9 +2,7 @@ pytz
 isoweek
 numpy
 matplotlib
-sqlite3
 odict
-urllib
-codecs
 pyyaml
+lxml
 beautifulsoup4

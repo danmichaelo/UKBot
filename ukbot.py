@@ -9,32 +9,36 @@ from datetime import datetime, timedelta
 from datetime import time as dt_time
 import gettext
 import pytz
-from isoweek import Week # Sort-of necessary until datetime supports %V, see http://bugs.python.org/issue12006 
-                         # and See http://stackoverflow.com/questions/5882405/get-date-from-iso-week-number-in-python
+from isoweek import Week  # Sort-of necessary until datetime supports %V, see http://bugs.python.org/issue12006
+                          # and See http://stackoverflow.com/questions/5882405/get-date-from-iso-week-number-in-python
 import re
 import sqlite3
 import yaml
 from odict import odict
 import urllib
-import argparse 
+import argparse
 import codecs
 
 import mwclient
-from danmicholoparser import DanmicholoParser, DanmicholoParseError, TemplateEditor
+from danmicholoparser import DanmicholoParseError, TemplateEditor, MainText
 import ukcommon
 from ukcommon import log, init_localization
 
 import locale
+
+import logging
+logger = logging.getLogger()
+logger.setLevel(logging.WARN)
+
 #locale.setlocale(locale.LC_TIME, 'no_NO'.encode('utf-8'))
 
-    
 # Read args
 
-parser = argparse.ArgumentParser( description = 'The UKBot' )
+parser = argparse.ArgumentParser(description='The UKBot')
 parser.add_argument('--page', required=False, help='Name of the contest page to work with')
 parser.add_argument('--simulate', action='store_true', default=False, help='Do not write results to wiki')
 parser.add_argument('--output', nargs='?', default='', help='Write results to file')
-parser.add_argument('--log', nargs='?', default = '', help='Log file')
+parser.add_argument('--log', nargs='?', default='', help='Log file')
 parser.add_argument('--verbose', action='store_true', default=False, help='More verbose logging')
 parser.add_argument('--close', action='store_true', help='Close contest')
 parser.add_argument('--config', nargs='?', default='config.yml', help='Config file')
@@ -55,7 +59,7 @@ log('UKBot starting at %s (server time), %s (wiki time)' % (runstart.strftime('%
 
 from ukrules import *
 from ukfilters import *
-    
+
     # Settings
 # Suggested crontab:
 ## Oppdater resultater annenhver time mellom kl 8 og 22 samt kl 23 og 01...
@@ -78,6 +82,7 @@ from ukfilters import *
 #pbar.update(pbar.currval+1)
 #pbar.finish()
 
+
 def unix_time(dt):
     """ OS-independent method to get unix time from a datetime object (strftime('%s') does not work on solaris) """
     epoch = pytz.utc.localize(datetime.utcfromtimestamp(0))
@@ -87,9 +92,10 @@ def unix_time(dt):
 
 class ParseError(Exception):
     """Raised when wikitext input is not on the expected form, so we don't find what we're looking for"""
-    
+
     def __init__(self, msg):
         self.msg = msg
+
 
 class Site(mwclient.Site):
 
@@ -100,11 +106,12 @@ class Site(mwclient.Site):
         self.key = host.split('.')[0]
         log('@ Initializing site: %s' % host)
         mwclient.Site.__init__(self, host, user_agent='UKBot ([[no:Bruker:UKBot]])')
-        # Login to increase api limit from 50 to 500 
+        # Login to increase api limit from 50 to 500
         self.login(username, password)
 
+
 class Article(object):
-    
+
     def __init__(self, site, user, name):
         """
         An article is uniquely identified by its name and its site
@@ -114,12 +121,12 @@ class Article(object):
         #self.site_key = site.host.split('.')[0]
         self.name = name
         self.disqualified = False
-        
+
         self.revisions = odict()
         self.point_deductions = []
         #self.redirect = False
         self.errors = []
-        
+
         key = self.site.key + ':' + self.name
         for pd in self.user.point_deductions:
             if pd[0] == key:
@@ -137,7 +144,7 @@ class Article(object):
     @property
     def new(self):
         return self.revisions[self.revisions.firstkey()].new
-    
+
     @property
     def new_non_redirect(self):
         firstrev = self.revisions[self.revisions.firstkey()]
@@ -146,15 +153,15 @@ class Article(object):
     def add_revision(self, revid, **kwargs):
         self.revisions[revid] = Revision(self, revid, **kwargs)
         return self.revisions[revid]
-    
+
     def add_point_deduction(self, points, reason):
         log('Adding point deduction %d points for reason: %s' % (points, reason))
         self.point_deductions.append([points, reason])
-    
+
     @property
     def bytes(self):
         return np.sum([rev.bytes for rev in self.revisions.itervalues()])
-    
+
     @property
     def words(self):
         return np.sum([rev.words for rev in self.revisions.itervalues()])
@@ -165,14 +172,14 @@ class Article(object):
         return self.get_points()
         #return np.sum([rev.get_points() for rev in self.revisions.values()])
 
-    def get_points(self, ptype = '', ignore_max = False, ignore_suspension_period = False, 
-            ignore_disqualification = False, ignore_point_deductions = False):
+    def get_points(self, ptype='', ignore_max=False, ignore_suspension_period=False,
+                   ignore_disqualification=False, ignore_point_deductions=False):
         p = 0.
         article_key = self.site.key + ':' + self.name
         if ignore_disqualification or not article_key in self.user.disqualified_articles:
             for revid, rev in self.revisions.iteritems():
                 dt = pytz.utc.localize(datetime.fromtimestamp(rev.timestamp))
-                if ignore_suspension_period == True or self.user.suspended_since == None or dt < self.user.suspended_since:
+                if ignore_suspension_period is True or self.user.suspended_since is None or dt < self.user.suspended_since:
                     p += rev.get_points(ptype, ignore_max)
                 else:
                     if self.user.contest.verbose:
@@ -186,7 +193,7 @@ class Article(object):
 
 
 class Revision(object):
-    
+
     def __init__(self, article, revid, **kwargs):
         """
         A revision is uniquely identified by its revision id and its site
@@ -207,7 +214,7 @@ class Revision(object):
         self.parenttext = ''
 
         self.points = []
-        
+
         for k, v in kwargs.iteritems():
             if k == 'timestamp':
                 self.timestamp = int(v)
@@ -219,7 +226,7 @@ class Revision(object):
                 self.parentsize = int(v)
             else:
                 raise StandardError('add_revision got unknown argument %s' % k)
-    
+
     def __repr__(self):
         return ("<Revision %d for %s:%s>" % (self.revid, self.site.key, self.article.name)).encode('utf-8')
 
@@ -232,18 +239,20 @@ class Revision(object):
         try:
             return self._wordcount
         except:
-            dp = DanmicholoParser(self.text)
-            dp2 = DanmicholoParser(self.parenttext)
             try:
-                self._wordcount = len(dp.maintext.split()) - len(dp2.maintext.split())
+                mt1 = MainText(self.text)
+                txt1 = mt1.maintext
+                mt2 = MainText(self.parenttext)
+                txt2 = mt2.maintext
+                self._wordcount = len(txt1.split()) - len(txt2.split())
                 s = _('A problem encountered with revision %(revid)d may have influenced the word count for this revision: <nowiki>%(problems)s</nowiki> ')
                 #s = _('Et problem med revisjon %d kan ha påvirket ordtellingen for denne: <nowiki>%s</nowiki> ')
-                if len(dp.parse_errors) > 0:
-                    self.errors.append(s % { 'revid': self.revid, 'problems': dp.parse_errors[0] })
-                if len(dp2.parse_errors) > 0:
-                    self.errors.append(s % { 'revid': self.parentid, 'problems': dp2.parse_errors[0] })
+                if len(mt1.parse_errors) > 0:
+                    self.errors.append(s % {'revid': self.revid, 'problems': mt1.parse_errors[0]})
+                if len(mt2.parse_errors) > 0:
+                    self.errors.append(s % {'revid': self.parentid, 'problems': mt2.parse_errors[0]})
             except DanmicholoParseError as e:
-                log("!!!>> FAIL: %s @ %d" % (self.article.name,self.revid))
+                log("!!!>> FAIL: %s @ %d" % (self.article.name, self.revid))
                 self._wordcount = 0
                 #raise
             return self._wordcount
@@ -259,20 +268,20 @@ class Revision(object):
     @property
     def parentredirect(self):
         return bool(re.match(r'#(OMDIRIGERING|REDIRECT)', self.parenttext))
-    
+
     def get_link(self):
         """ returns a link to revision """
-        q = { 'title': self.article.name.encode('utf-8'), 'oldid': self.revid }
+        q = {'title': self.article.name.encode('utf-8'), 'oldid': self.revid}
         if not self.new:
             q['diff'] = 'prev'
         return '//' + self.article.site.host + self.article.site.site['script'] + '?' + urllib.urlencode(q)
-    
+
     def get_parent_link(self):
         """ returns a link to parent revision """
-        q = { 'title': self.article.name.encode('utf-8'), 'oldid': self.parentid }
+        q = {'title': self.article.name.encode('utf-8'), 'oldid': self.parentid}
         return '//' + self.article.site.host + self.article.site.site['script'] + '?' + urllib.urlencode(q)
-    
-    def get_points(self, ptype = '', ignore_max = False):
+
+    def get_points(self, ptype='', ignore_max=False):
         p = 0.0
         for pnt in self.points:
             if ptype == '' or pnt[1] == ptype:
@@ -295,21 +304,21 @@ class User(object):
 
     def __repr__(self):
         return ("<User %s>" % self.name).encode('utf-8')
-    
+
     @property
     def revisions(self):
         # oh my, funny (and fast) one-liner for making a flat list of revisions
-        return { rev.revid : rev for article in self.articles.values() for rev in article.revisions.values() }
+        return {rev.revid: rev for article in self.articles.values() for rev in article.revisions.values()}
 
     def sort_contribs(self):
 
         # sort revisions by revision id
         for article in self.articles.itervalues():
-            article.revisions.sort( key = lambda x: x[0] ) # sort by key (revision id)
+            article.revisions.sort(key=lambda x: x[0])   # sort by key (revision id)
 
         # sort articles by first revision id
-        self.articles.sort( key = lambda x: x[1].revisions.firstkey() )
-    
+        self.articles.sort(key=lambda x: x[1].revisions.firstkey())
+
     def add_article_if_necessary(self, site_key, article_title):
         article_key = site_key + ':' + article_title
 
@@ -320,7 +329,7 @@ class User(object):
 
         return self.articles[article_key]
 
-    def add_contribs_from_wiki(self, site, start, end, fulltext = False, **kwargs):
+    def add_contribs_from_wiki(self, site, start, end, fulltext=False, **kwargs):
         """
         Populates self.articles with entries from the API.
 
@@ -334,7 +343,7 @@ class User(object):
             apilim = site.api_limit         # API limit, should be 500
 
         site_key = site.host.split('.')[0]
-        
+
         ts_start = start.astimezone(pytz.utc).strftime('%FT%TZ')
         ts_end = end.astimezone(pytz.utc).strftime('%FT%TZ')
 
@@ -348,7 +357,7 @@ class User(object):
         #new_articles = []
         new_revisions = []
         n_articles = len(self.articles)
-        for c in site.usercontributions(self.name, ts_start, ts_end, 'newer', prop = 'ids|title|timestamp|comment', **args):
+        for c in site.usercontributions(self.name, ts_start, ts_end, 'newer', prop='ids|title|timestamp|comment', **args):
             #pageid = c['pageid']
             article_comment = c['comment']
             rollback = _('Reverted')
@@ -356,7 +365,7 @@ class User(object):
                 rev_id = c['revid']
                 article_title = c['title']
                 article_key = site_key + ':' + article_title
-                
+
                 if rev_id in self.revisions:
                     # We check self.revisions instead of article.revisions, because the revision may
                     # already belong to "another article" (another title) if the article has been moved
@@ -365,16 +374,16 @@ class User(object):
                         rev = self.revisions[rev_id]
                         log(' -> Moving revision %d from "%s" to "%s"' % (rev_id, rev.article.name, article_title))
                         article = self.add_article_if_necessary(site_key, article_title)
-                        rev.article.revisions.pop(rev_id) # remove from old article
-                        article.revisions[rev_id] = rev   # add to new article
-                        rev.article = article             # and update reference
+                        rev.article.revisions.pop(rev_id)  # remove from old article
+                        article.revisions[rev_id] = rev    # add to new article
+                        rev.article = article              # and update reference
 
                 else:
-                
+
                     article = self.add_article_if_necessary(site_key, article_title)
-                    rev = article.add_revision(rev_id, timestamp = time.mktime(c['timestamp']) )
+                    rev = article.add_revision(rev_id, timestamp=time.mktime(c['timestamp']))
                     new_revisions.append(rev)
-            
+
         # If revisions were moved from one article to another, and the redirect was not created by the same user,
         # some articles may now have zero revisions. We should drop them
         for article_key, article in self.articles.iteritems():
@@ -409,10 +418,10 @@ class User(object):
         for s0 in range(0, len(new_revisions), apilim):
             #print "API limit is ",apilim," getting ",s0
             ids = '|'.join(revids[s0:s0+apilim])
-            for page in site.api('query', prop = 'revisions', rvprop = props, revids = ids)['query']['pages'].itervalues():
+            for page in site.api('query', prop='revisions', rvprop=props, revids=ids)['query']['pages'].itervalues():
                 article_key = site_key + ':' + page['title']
                 for apirev in page['revisions']:
-                    nr +=1
+                    nr += 1
                     rev = self.articles[article_key].revisions[apirev['revid']]
                     rev.parentid = apirev['parentid']
                     rev.size = apirev['size']
@@ -425,9 +434,9 @@ class User(object):
 
         if nr != len(new_revisions):
             raise StandardError("Did not get all revisions")
-        
+
         # 4) Fetch info about the parent revisions: diff size, possibly content
-        
+
         props = 'ids|size'
         if fulltext:
             props += '|content'
@@ -435,11 +444,11 @@ class User(object):
         parentids = [str(i) for i in parentids]
         for s0 in range(0, len(parentids), apilim):
             ids = '|'.join(parentids[s0:s0+apilim])
-            for page in site.api('query', prop = 'revisions', rvprop = props, revids = ids)['query']['pages'].itervalues():
+            for page in site.api('query', prop='revisions', rvprop=props, revids=ids)['query']['pages'].itervalues():
                 article_key = site_key + ':' + page['title']
                 article = self.articles[article_key]
                 for apirev in page['revisions']:
-                    nr +=1
+                    nr += 1
                     parentid = apirev['revid']
                     found = False
                     for revid, rev in article.revisions.iteritems():
@@ -455,7 +464,6 @@ class User(object):
         if nr > 0:
             log(" -> [%s] Checked %d parent revisions" % (site_key, nr))
 
-    
     def save_contribs_to_db(self, sql):
         """ Save self.articles to DB so it can be read by add_contribs_from_db """
 
@@ -468,28 +476,28 @@ class User(object):
 
             for revid, rev in article.revisions.iteritems():
                 ts = datetime.fromtimestamp(rev.timestamp).strftime('%F %T')
-                
+
                 # Save revision if not already saved
-                if len( cur.execute(u'SELECT revid FROM contribs WHERE revid=? AND site=?', [revid, site_key]).fetchall() ) == 0:
-                    cur.execute(u'INSERT INTO contribs (revid, site, parentid, user, page, timestamp, size, parentsize) VALUES (?,?,?,?,?,?,?,?)', 
-                        (revid, site_key, rev.parentid, self.name, article.name, ts, rev.size, rev.parentsize))
+                if len(cur.execute(u'SELECT revid FROM contribs WHERE revid=? AND site=?', [revid, site_key]).fetchall()) == 0:
+                    cur.execute(u'INSERT INTO contribs (revid, site, parentid, user, page, timestamp, size, parentsize) VALUES (?,?,?,?,?,?,?,?)',
+                                (revid, site_key, rev.parentid, self.name, article.name, ts, rev.size, rev.parentsize))
                     nrevs += 1
 
                 # Save revision text if we have it and if not already saved
-                if len(rev.text) > 0 and len( cur.execute(u'SELECT revid FROM fulltexts WHERE revid=? AND site=?', [revid, site_key]).fetchall() ) == 0:
-                    cur.execute(u'INSERT INTO fulltexts (revid, site, revtxt) VALUES (?,?,?)', (revid, site_key, rev.text) )
+                if len(rev.text) > 0 and len(cur.execute(u'SELECT revid FROM fulltexts WHERE revid=? AND site=?', [revid, site_key]).fetchall()) == 0:
+                    cur.execute(u'INSERT INTO fulltexts (revid, site, revtxt) VALUES (?,?,?)', (revid, site_key, rev.text))
                     ntexts += 1
 
                 # Save parent revision text if we have it and if not already saved
-                if len(rev.parenttext) > 0 and len( cur.execute(u'SELECT revid FROM fulltexts WHERE revid=? AND site=?', [rev.parentid, site_key]).fetchall() ) == 0:
-                    cur.execute(u'INSERT INTO fulltexts (revid, site, revtxt) VALUES (?,?,?)', (rev.parentid, site_key, rev.parenttext) )
+                if len(rev.parenttext) > 0 and len(cur.execute(u'SELECT revid FROM fulltexts WHERE revid=? AND site=?', [rev.parentid, site_key]).fetchall()) == 0:
+                    cur.execute(u'INSERT INTO fulltexts (revid, site, revtxt) VALUES (?,?,?)', (rev.parentid, site_key, rev.parenttext))
                     ntexts += 1
 
         sql.commit()
         cur.close()
         if nrevs > 0 or ntexts > 0:
             log(" -> Wrote %d revisions and %d fulltexts to DB" % (nrevs, ntexts))
-    
+
     def add_contribs_from_db(self, sql, start, end, sites):
         """
         Populates self.articles with entries from SQLite DB
@@ -504,32 +512,32 @@ class User(object):
         ts_end = end.astimezone(pytz.utc).strftime('%F %T')
         nrevs = 0
         narts = 0
-        for row in cur.execute(u"""SELECT revid, site, parentid, page, timestamp, size, parentsize FROM contribs 
-                WHERE user=? AND timestamp >= ? AND timestamp <= ?""", (self.name, ts_start, ts_end)):
+        for row in cur.execute(u"""SELECT revid, site, parentid, page, timestamp, size, parentsize FROM contribs
+                                   WHERE user=? AND timestamp >= ? AND timestamp <= ?""", (self.name, ts_start, ts_end)):
 
             rev_id, site_key, parent_id, article_title, ts, size, parentsize = row
             article_key = site_key + ':' + article_title
-            
+
             ts = unix_time(pytz.utc.localize(datetime.strptime(ts, '%Y-%m-%d %H:%M:%S')))
 
             # Add article if not present
             if not article_key in self.articles:
-                narts +=1
-                self.articles[article_key] = Article(sites[site_key], self, article_title) 
+                narts += 1
+                self.articles[article_key] = Article(sites[site_key], self, article_title)
                 if article_key in self.disqualified_articles:
                     self.articles[article_key].disqualified = True
             article = self.articles[article_key]
-            
+
             # Add revision if not present
             if not rev_id in self.revisions:
                 nrevs += 1
-                article.add_revision(rev_id, timestamp = ts, parentid = parent_id, size = size, parentsize = parentsize)
+                article.add_revision(rev_id, timestamp=ts, parentid=parent_id, size=size, parentsize=parentsize)
             rev = self.revisions[rev_id]
 
             # Add revision text
             for row2 in cur2.execute(u"""SELECT revtxt FROM fulltexts WHERE revid=? AND site=?""", [rev_id, site_key]):
                 rev.text = row2[0]
-            
+
             # Add parent revision text
             if not rev.new:
                 for row2 in cur2.execute(u"""SELECT revtxt FROM fulltexts WHERE revid=? AND site=?""", [parent_id, site_key]):
@@ -552,7 +560,7 @@ class User(object):
                     log('>> Before %s (%d) : %s' % (type(filter).__name__, len(self.articles), ', '.join(self.articles.keys())))
 
                 self.articles = filter.filter(self.articles)
-                
+
                 if self.contest.verbose:
                     log('>> After %s (%d) : %s' % (type(filter).__name__, len(self.articles), ', '.join(self.articles.keys())))
         else:
@@ -581,7 +589,7 @@ class User(object):
     @property
     def bytes(self):
         return np.sum([a.bytes for a in self.articles.itervalues()])
-    
+
     @property
     def newpages(self):
         return np.sum([1 for a in self.articles.itervalues() if a.new_non_redirect])
@@ -604,11 +612,12 @@ class User(object):
         x = []
         y = []
         utc = pytz.utc
-        
+
         # loop over articles
         for article_key, article in self.articles.iteritems():
-            log('.', newline = False)
-            
+            log('.', newline=False)
+            #log(article_key)
+
             # loop over revisions
             for revid, rev in article.revisions.iteritems():
 
@@ -616,12 +625,13 @@ class User(object):
 
                 # loop over rules
                 for rule in rules:
+                    #log('   %d : %s' % (revid, type(rule).__name__))
                     rule.test(rev)
 
                 if not article.disqualified:
 
                     dt = pytz.utc.localize(datetime.fromtimestamp(rev.timestamp))
-                    if self.suspended_since == None or dt < self.suspended_since:
+                    if self.suspended_since is None or dt < self.suspended_since:
 
                         if rev.get_points() > 0:
                             #print self.name, rev.timestamp, rev.get_points()
@@ -638,12 +648,11 @@ class User(object):
         #pl = np.array(pl, dtype=float)
         #pl.sort(axis = 0)
         y2 = np.array([np.sum(y[:q+1]) for q in range(len(y))])
-        self.plotdata = np.column_stack((x,y2))
+        self.plotdata = np.column_stack((x, y2))
         #np.savetxt('user-%s'%self.name, np.column_stack((x,y,y2)))
-        
 
-    def format_result(self, pos = -1, closing = False, prices= []):
-        
+    def format_result(self, pos=-1, closing=False, prices=[]):
+
         entries = []
         config = self.contest.config
 
@@ -653,10 +662,10 @@ class User(object):
             log('Formatting results for user %s' % self.name)
         # loop over articles
         for article_key, article in self.articles.iteritems():
-            
-            brutto = article.get_points(ignore_suspension_period = True, ignore_point_deductions = True, ignore_disqualification = True)
+
+            brutto = article.get_points(ignore_suspension_period=True, ignore_point_deductions=True, ignore_disqualification=True)
             netto = article.get_points()
-            
+
             if brutto == 0.0:
 
                 if self.contest.verbose:
@@ -673,13 +682,12 @@ class User(object):
                         dt = utc.localize(datetime.fromtimestamp(rev.timestamp))
                         dt_str = dt.astimezone(wiki_tz).strftime('%A, %H:%M').decode('utf-8')
                         out = '[%s %s]: %s' % (rev.get_link(), dt_str, descr)
-                        if self.suspended_since != None and dt > self.suspended_since:
+                        if self.suspended_since is not None and dt > self.suspended_since:
                             out = '<s>' + out + '</s>'
                         if len(rev.errors) > 0:
                             out = '[[File:Ambox warning yellow.svg|12px|%s]] ' % (', '.join(rev.errors)) + out
                         revs.append(out)
-                
-                
+
                 titletxt = ''
                 try:
                     titletxt = "''" + _('Category hit') + "'': " + ' &gt; '.join(article.cat_path) + '<br />'
@@ -691,9 +699,8 @@ class User(object):
                     for points, reason in article.point_deductions:
                         pds.append('%.f p: %s' % (-points, reason))
                     titletxt += '<div style="border-top:1px solid #CCC">\'\'' + _('Notes') + ':\'\'<br />%s</div>' % '<br />'.join(pds)
-                
-                titletxt += '<div style="border-top:1px solid #CCC">' + _('Total: {{formatnum:%(bytecount)d}} bytes, %(wordcount)d words') % { 'bytecount': article.bytes, 'wordcount': article.words} + '.</div>'
-                
+
+                titletxt += '<div style="border-top:1px solid #CCC">' + _('Total: {{formatnum:%(bytecount)d}} bytes, %(wordcount)d words') % {'bytecount': article.bytes, 'wordcount': article.words} + '.</div>'
 
                 p = '%.1f p' % brutto
                 if brutto != netto:
@@ -712,10 +719,10 @@ class User(object):
 
                 out = '# ' + out
                 out += '<div class="uk-ap-title" style="font-size: smaller; color:#888; line-height:100%;">' + titletxt + '</div>'
-                
+
                 entries.append(out)
                 if self.contest.verbose:
-                    log('    %s: %.f / %.f points' % (article_key, netto, brutto) , newline = False)
+                    log('    %s: %.f / %.f points' % (article_key, netto, brutto), newline=False)
 
         ros = ''
         if closing:
@@ -729,7 +736,7 @@ class User(object):
                     ros += '[[Fil:%s|20px]] ' % config['awards'][r[0]]['file']
                     break
         suspended = ''
-        if self.suspended_since != None:
+        if self.suspended_since is not None:
             suspended = ', ' + _('suspended since') + ' %s' % self.suspended_since.strftime('%A, %H.%M').decode('utf-8')
         userprefix = self.contest.homesite.namespaces[2]
         out = '=== %s [[%s:%s|%s]] (%.f p%s) ===\n' % (ros, userprefix, self.name, self.name, self.points, suspended)
@@ -747,7 +754,7 @@ class User(object):
 
 class UK(object):
 
-    def __init__(self, page, catignore, sites, homesite, sql, config, verbose = False):
+    def __init__(self, page, catignore, sites, homesite, sql, config, verbose=False):
         """
             page: mwclient.Page object
             catignore: string
@@ -760,22 +767,22 @@ class UK(object):
         self.config = config
         self.homesite = homesite
         resultsSection = config['contestPages']['resultsSection']
-        txt = page.edit(readonly = True)
+        txt = page.edit(readonly=True)
         m = re.search('==\s*'+resultsSection+'\s*==', txt)
         if not m:
-            raise ParseError(_('Found no "%(section)s" sections in the page "%(page)s"') % { 'section': resultsSection, 'page': self.page.name })
+            raise ParseError(_('Found no "%(section)s" sections in the page "%(page)s"') % {'section': resultsSection, 'page': self.page.name})
 
         txt = txt[:m.end()]
 
         self.verbose = verbose
         self.sql = sql
-        sections = [s.strip() for s in re.findall('^[\s]*==([^=]+)==', txt, flags = re.M)]
+        sections = [s.strip() for s in re.findall('^[\s]*==([^=]+)==', txt, flags=re.M)]
         self.results_section = sections.index(resultsSection) + 1
 
         self.sites = sites
         self.users = [User(n, self) for n in self.extract_userlist(txt)]
         self.rules, self.filters = self.extract_rules(txt, catignore)
-        
+
         if self.startweek == self.endweek:
             log('@ Week %d' % self.startweek)
         else:
@@ -798,31 +805,30 @@ class UK(object):
         log("@ Found %d participants" % (len(lst)))
         return lst
 
-
     def extract_rules(self, txt, catignore_txt):
         rules = []
         filters = []
         config = self.config
 
-        dp = DanmicholoParser(txt)
+        dp = TemplateEditor(txt)
         if catignore_txt == '':
             catignore = []
             log('Note: Empty catignore page')
         else:
-            dp2 = DanmicholoParser(catignore_txt)
-            
-            if not config['templates']['rule']['name'].lower() in dp.templates.keys():
-                raise ParseError(_('There are no point rules defined for this contest. Point rules are defined by {{tl|%(template)s}}.') % { 'template': config['templates']['rule']['name'] })
-            
+
+            if not config['templates']['rule']['name'] in dp.templates:
+                raise ParseError(_('There are no point rules defined for this contest. Point rules are defined by {{tl|%(template)s}}.') % {'template': config['templates']['rule']['name']})
+
             #if not 'ukens konkurranse kriterium' in dp.templates.keys():
             #    raise ParseError('Denne konkurransen har ingen bidragskriterier. Kriterier defineres med {{tl|ukens konkurranse kriterium}}.')
-            
+
             infobox = config['templates']['infobox']
-            if not infobox['name'].lower() in dp.templates.keys():
-                raise ParseError(_('This contest is missing a {{tl|%(template)s}} template.') % { 'template': infobox['name'] })
+            if not infobox['name'] in dp.templates:
+                raise ParseError(_('This contest is missing a {{tl|%(template)s}} template.') % {'template': infobox['name']})
 
             try:
-                catignore = dp2.tags['pre'][0]['content'].splitlines()
+                m = re.search(r'<pre>(.*?)</pre>', catignore_txt, flags=re.DOTALL)
+                catignore = m.group(1).strip().splitlines()
             except (IndexError, KeyError):
                 raise ParseError(_('Could not parse the catignore page'))
 
@@ -831,12 +837,14 @@ class UK(object):
         nfilters = 0
         #print dp.templates.keys()
         filtercfg = config['templates']['filter']
-        if filtercfg['name'].lower() in dp.templates.keys():
-            for templ in dp.templates[filtercfg['name'].lower()]:
+        if filtercfg['name'] in dp.templates:
+            for templ in dp.templates[filtercfg['name']]:
+
+                params = templ.parameters
                 anon = templ.get_anonymous_parameters()
-                named = templ.get_named_parameters()
-                key = anon[0].lower()
-                params = { 'verbose': self.verbose }
+
+                key = anon[1].lower()
+                params = {'verbose': self.verbose}
                 if key == filtercfg['new']:
                     filt = NewPageFilter(**params)
 
@@ -845,48 +853,53 @@ class UK(object):
 
                 # elif key == 'stubb':
                 #     filt = StubFilter(**params)
- 
+
                 elif key == filtercfg['template']:
-                    if len(anon) < 2:
-                        raise ParseError(_('No template (second argument) given to {{tlx|%(template)s|%(firstarg)s}}') % {'template': filtercfg['name'], 'firstarg': filtercfg['template'] })
+                    if len(anon) < 3:
+                        raise ParseError(_('No template (second argument) given to {{tlx|%(template)s|%(firstarg)s}}') % {'template': filtercfg['name'], 'firstarg': filtercfg['template']})
                     if templ.has_param(filtercfg['alias']):
-                        params['aliases'] = [a.strip() for a in named[filtercfg['alias']].split(',')]
-                    params['templates'] = anon[1:]
+                        params['aliases'] = [a.strip() for a in params[filtercfg['alias']].split(',')]
+                    params['templates'] = anon[2:]
                     filt = TemplateFilter(**params)
-                
+
                 elif key == filtercfg['bytes']:
-                    if len(anon) < 2:
-                        raise ParseError(_('No byte limit (second argument) given to {{tlx|%(template)s|%(firstarg)s}}') % {'template': filtercfg['name'], 'firstarg': filtercfg['bytes'] })
-                    params['bytelimit'] = anon[1]
+                    if len(anon) < 3:
+                        raise ParseError(_('No byte limit (second argument) given to {{tlx|%(template)s|%(firstarg)s}}') % {'template': filtercfg['name'], 'firstarg': filtercfg['bytes']})
+                    params['bytelimit'] = anon[2]
                     filt = ByteFilter(**params)
 
                 elif key == filtercfg['category']:
-                    if len(anon) < 2:
-                        raise ParseError(_('No categories given to {{tlx|%(template)s|%(firstarg)s}}') % {'template': filtercfg['name'], 'firstarg': filtercfg['bytes'] })
+                    if len(anon) < 3:
+                        raise ParseError(_('No categories given to {{tlx|%(template)s|%(firstarg)s}}') % {'template': filtercfg['name'], 'firstarg': filtercfg['bytes']})
                     params['sites'] = self.sites
-                    params['catnames'] = anon[1:]
+                    params['catnames'] = anon[2:]
                     params['ignore'] = catignore
                     if templ.has_param(filtercfg['maxdepth']):
-                        params['maxdepth'] = int(named[filtercfg['maxdepth']])
+                        params['maxdepth'] = int(params[filtercfg['maxdepth']])
                     filt = CatFilter(**params)
 
                 elif key == filtercfg['backlink']:
                     params['sites'] = self.sites
-                    params['articles'] = anon[1:]
+                    params['articles'] = anon[2:]
                     filt = BackLinkFilter(**params)
-                
+
                 elif key == filtercfg['forwardlink']:
                     params['sites'] = self.sites
-                    params['articles'] = anon[1:]
+                    params['articles'] = anon[2:]
                     filt = ForwardLinkFilter(**params)
-                
+
                 elif key == filtercfg['namespace']:
-                    params['namespace'] = int(anon[1])
+                    params['namespace'] = int(anon[2])
                     filt = NamespaceFilter(**params)
 
-                else: 
-                    raise ParseError(_('Unknown argument given to {{tl|%(template)s}}: %(argument)s') % { 'template': filtercfg['name'], 'argument': key })
-                
+                elif key == filtercfg['pages']:
+                    params['sites'] = self.sites
+                    params['pages'] = anon[2:]
+                    filt = PageFilter(**params)
+
+                else:
+                    raise ParseError(_('Unknown argument given to {{tl|%(template)s}}: %(argument)s') % {'template': filtercfg['name'], 'argument': key})
+
                 foundfilter = False
                 for f in filters:
                     if type(f) == type(filt):
@@ -900,92 +913,88 @@ class UK(object):
 
         rulecfg = config['templates']['rule']
         nrules = 0
-        for templ in dp.templates[rulecfg['name'].lower()]:
+        for templ in dp.templates[rulecfg['name']]:
             nrules += 1
             p = templ.parameters
-            anon = [[k,p[k]] for k in p.keys() if type(k) == int]
-            anon = sorted(anon, key = lambda x: x[0])
-            anon = [a[1] for a in anon]
-            named = [[k,p[k]] for k in p.keys() if type(k) != int]
+            anon = templ.get_anonymous_parameters()
 
-            named = odict(named)
-            key = anon[0].lower()
+            key = anon[1].lower()
             maxpoints = rulecfg['maxpoints']
 
             if key == rulecfg['new']:
-                rules.append(NewPageRule(key, anon[1]))
-            
+                rules.append(NewPageRule(key, anon[2]))
+
             elif key == rulecfg['redirect']:
-                rules.append(RedirectRule(key, anon[1]))
+                rules.append(RedirectRule(key, anon[2]))
 
             elif key == rulecfg['qualified']:
-                rules.append(QualiRule(key, anon[1]))
-            
+                rules.append(QualiRule(key, anon[2]))
+
             # elif key == 'stubb':
             #     rules.append(StubRule(anon[1]))
 
             elif key == rulecfg['byte']:
-                params = { 'key': key, 'points': anon[1] }
+                params = {'key': key, 'points': anon[2]}
                 if templ.has_param(maxpoints):
-                    params['maxpoints'] = named[maxpoints]
+                    params['maxpoints'] = p[maxpoints]
                 rules.append(ByteRule(**params))
 
             elif key == rulecfg['word']:
-                params = { 'key': key, 'points': anon[1] }
+                params = {'key': key, 'points': anon[2]}
                 if templ.has_param(maxpoints):
-                    params['maxpoints'] = named[maxpoints]
+                    params['maxpoints'] = p[maxpoints]
                 rules.append(WordRule(**params))
 
             elif key == rulecfg['image']:
-                params = { 'key': key, 'points': anon[1] }
+                params = {'key': key, 'points': anon[2]}
                 if templ.has_param(maxpoints):
-                    params['maxpoints'] = named[maxpoints]
+                    params['maxpoints'] = p[maxpoints]
                 rules.append(ImageRule(**params))
 
             elif key == rulecfg['external_link']:
-                params = { 'key': key, 'points': anon[1] }
+                params = {'key': key, 'points': anon[2]}
                 if templ.has_param(maxpoints):
-                    params['maxpoints'] = named[maxpoints]
+                    params['maxpoints'] = p[maxpoints]
                 rules.append(ExternalLinkRule(**params))
-            
+
             elif key == rulecfg['ref']:
-                params = { 'key': key, 'sourcepoints': anon[1], 'refpoints': anon[2] }
+                params = {'key': key, 'sourcepoints': anon[2], 'refpoints': anon[3]}
                 rules.append(RefRule(**params))
-            
+
             elif key == rulecfg['templateremoval']:
-                params = { 'key': key, 'points': anon[1], 'template': anon[2] }
+                params = {'key': key, 'points': anon[2], 'template': anon[3]}
                 if templ.has_param(rulecfg['alias']):
-                    params['aliases'] = [a.strip() for a in named[rulecfg['alias']].split(',')]
+                    params['aliases'] = [a.strip() for a in p[rulecfg['alias']].split(',')]
                 rules.append(TemplateRemovalRule(**params))
 
             elif key == rulecfg['bytebonus']:
-                rules.append(ByteBonusRule(key, anon[1], anon[2]))
+                rules.append(ByteBonusRule(key, anon[2], anon[3]))
 
             elif key == rulecfg['wordbonus']:
-                rules.append(WordBonusRule(key, anon[1], anon[2]))
+                rules.append(WordBonusRule(key, anon[2], anon[3]))
 
             else:
-                raise ParseError(_('Unkown argument given to {{tl|%(template)s}}: %(argument)s') % { 'template': rulecfg['name'], 'argument': key })
+                raise ParseError(_('Unkown argument given to {{tl|%(template)s}}: %(argument)s') % {'template': rulecfg['name'], 'argument': key})
 
         log("@ Found %d filters and %d rules" % (nfilters, nrules))
- 
+
         ######################## Read infobox ########################
 
         ibcfg = config['templates']['infobox']
         commonargs = config['templates']['commonargs']
 
         try:
-            infoboks = dp.templates[ibcfg['name'].lower()][0]
+            infoboks = dp.templates[ibcfg['name']][0]
         except:
-            raise ParseError(_('Could not parse the {{tl|%(template)s}} template.') % { 'template': infoboxcfg['name'] })
-        
+            raise ParseError(_('Could not parse the {{tl|%(template)s}} template.') % {'template': infoboxcfg['name']})
+
         utc = pytz.utc
 
         if infoboks.has_param(commonargs['year']) and infoboks.has_param(commonargs['week']):
-            year = int(re.sub('<\!--.+?-->', '', infoboks.parameters[commonargs['year']]).strip())
-            startweek = int(re.sub('<\!--.+?-->', '', infoboks.parameters[commonargs['week']]).strip())
+            year = int(re.sub(ur'<\!--.+?-->', ur'', unicode(infoboks.parameters[commonargs['year']])).strip())
+            startweek = int(re.sub(ur'<\!--.+?-->', ur'', unicode(infoboks.parameters[commonargs['week']])).strip())
             if infoboks.has_param(commonargs['week2']):
-                endweek = re.sub('<\!--.+?-->', '', infoboks.parameters[commonargs['week2']]).strip()
+                endweek = re.sub(ur'<\!--.+?-->', ur'', unicode(infoboks.parameters[commonargs['week2']])).strip()
                 if endweek == '':
                     endweek = startweek
             else:
@@ -1000,9 +1009,9 @@ class UK(object):
             startdt = infoboks.parameters[ibcfg['start']]
             enddt = infoboks.parameters[ibcfg['end']]
             self.start = wiki_tz.localize(datetime.strptime(startdt + ' 00 00 00 00', '%Y-%m-%d %H %M %S'))
-            self.end = wiki_tz.localize(datetime.strptime(enddt +' 23 59 59 00', '%Y-%m-%d %H %M %S'))
+            self.end = wiki_tz.localize(datetime.strptime(enddt + ' 23 59 59 00', '%Y-%m-%d %H %M %S'))
         else:
-            args = { 'week': commonargs['week'], 'year': commonargs['year'], 'start': ibcfg['start'], 'end': ibcfg['end'], 'template': ibcfg['name'] }
+            args = {'week': commonargs['week'], 'year': commonargs['year'], 'start': ibcfg['start'], 'end': ibcfg['end'], 'template': ibcfg['name']}
             raise ParseError(_('Did not find %(week)s+%(year)s or %(start)s+%(end)s in {{tl|%(templates)s}}.') % args)
 
         self.year = self.start.isocalendar()[0]
@@ -1010,16 +1019,15 @@ class UK(object):
         self.endweek = self.end.isocalendar()[1]
 
         userprefix = self.homesite.namespaces[2]
-        self.ledere = re.findall(r'\[\[(?:User|%s):([^\|\]]+)' % userprefix, infoboks.parameters[ibcfg['organizer']], re.I)
+        self.ledere = re.findall(r'\[\[(?:User|%s):([^\|\]]+)' % userprefix, unicode(infoboks.parameters[ibcfg['organizer']]), flags=re.I)
         if len(self.ledere) == 0:
-            raise ParseError(_('Did not find any organizers in {{tl|%(template)s}}.') % { 'template': ibcfg['name'] })
+            raise ParseError(_('Did not find any organizers in {{tl|%(template)s}}.') % {'template': ibcfg['name']})
 
-        
         awards = config['awards']
         self.prices = []
         for col in awards.keys():
             if infoboks.has_param(col):
-                r = re.sub('<\!--.+?-->', '', infoboks.parameters[col]).strip() # strip comments, then whitespace
+                r = re.sub(ur'<\!--.+?-->', ur'', unicode(infoboks.parameters[col])).strip()  # strip comments, then whitespace
                 if r != '':
                     r = r.split()[0].lower()
                     #print col,r
@@ -1033,10 +1041,10 @@ class UK(object):
                             #raise ParseError('Klarte ikke tolke verdien til parameteren %s gitt til {{tl|infoboks ukens konkurranse}}.' % col)
 
         if not 'winner' in [r[1] for r in self.prices]:
-            winnerawards = ', '.join(['{{para|%s|vinner}}' % k for k,v in awards.items() if 'winner' in v]) 
-            raise ParseError(_('Found no winner award in {{tl|%(template)s}}. Winner award is set by one of the following: %(awards)s.') % { 'template': ibcfg['name'], 'awards': winnerawards})
+            winnerawards = ', '.join(['{{para|%s|vinner}}' % k for k, v in awards.items() if 'winner' in v])
+            raise ParseError(_('Found no winner award in {{tl|%(template)s}}. Winner award is set by one of the following: %(awards)s.') % {'template': ibcfg['name'], 'awards': winnerawards})
 
-        self.prices.sort(key = lambda x: x[2], reverse = True)
+        self.prices.sort(key=lambda x: x[2], reverse=True)
 
         ######################## Read disqualifications ########################
 
@@ -1058,9 +1066,9 @@ class UK(object):
                         ufound = True
                 if not ufound:
                     pass
-                    # TODO: logging.warning 
+                    # TODO: logging.warning
                     #raise ParseError('Fant ikke brukeren %s gitt til {{tl|UK bruker suspendert}}-malen.' % uname)
-        
+
         dicfg = config['templates']['disqualified']
         if dicfg['name'].lower() in dp.templates:
             for templ in dp.templates[dicfg['name'].lower()]:
@@ -1076,15 +1084,15 @@ class UK(object):
                                 u.disqualified_articles.append(aname)
                                 ufound = True
                         if not ufound:
-                            raise ParseError(_('Could not find the user %(user)s given to the {{tl|%(template)s}} template.') % { 'user': uname, 'template': dicfg['name'] })
-        
+                            raise ParseError(_('Could not find the user %(user)s given to the {{tl|%(template)s}} template.') % {'user': uname, 'template': dicfg['name']})
+
         pocfg = config['templates']['penalty']
         if pocfg['name'].lower() in dp.templates:
             for templ in dp.templates[pocfg['name'].lower()]:
                 uname = templ.parameters[1]
                 aname = templ.parameters[2]
                 points = float(templ.parameters[3].replace(',', '.'))
-                reason  = templ.parameters[4]
+                reason = templ.parameters[4]
                 ufound = False
                 log('poengtrekk: %s %s %d %s' % (uname, aname, points, reason))
                 for u in self.users:
@@ -1092,7 +1100,7 @@ class UK(object):
                         u.point_deductions.append([aname, points, reason])
                         ufound = True
                 if not ufound:
-                    raise ParseError(_("Couldn't find the user %(user)s given to the {{tl|%(template)s}} template.") % { 'user': uname, 'template': dicfg['name'] })
+                    raise ParseError(_("Couldn't find the user %(user)s given to the {{tl|%(template)s}} template.") % {'user': uname, 'template': dicfg['name']})
 
         # try:
         #     infoboks = dp.templates['infoboks ukens konkurranse'][0]
@@ -1107,10 +1115,10 @@ class UK(object):
         w = 14/2.54
         goldenratio = 1.61803399
         h = w/goldenratio
-        fig = plt.figure( figsize=(w,h) )
+        fig = plt.figure(figsize=(w, h))
 
-        ax = fig.add_subplot(1,1,1, frame_on = False)
-        ax.grid(True, which = 'major', color = 'gray', alpha = 0.5)
+        ax = fig.add_subplot(1, 1, 1, frame_on=False)
+        ax.grid(True, which='major', color='gray', alpha=0.5)
         fig.subplots_adjust(left=0.10, bottom=0.09, right=0.65, top=0.94)
 
         t0 = float(unix_time(self.start))
@@ -1129,48 +1137,48 @@ class UK(object):
         for u in self.users:
             if u.plotdata.shape[0] > 0:
                 cnt += 1
-                x = list(u.plotdata[:,0])
-                y = list(u.plotdata[:,1])
+                x = list(u.plotdata[:, 0])
+                y = list(u.plotdata[:, 1])
                 yall.extend(y)
-                x.insert(0,xt[0])
-                y.insert(0,0)
+                x.insert(0, xt[0])
+                y.insert(0, 0)
                 if now < xt[-1]:
                     x.append(now)
                     y.append(y[-1])
                 else:
                     x.append(xt[-1])
                     y.append(y[-1])
-                l = ax.plot(x, y, linewidth=2., alpha = 0.5, label = u.name) #, markerfacecolor='#FF8C00', markeredgecolor='#888888', label = u.name)
+                l = ax.plot(x, y, linewidth=2., alpha=0.5, label=u.name)  # markerfacecolor='#FF8C00', markeredgecolor='#888888', label = u.name)
                 c = l[0].get_color()
-                ax.plot(x[1:-1], y[1:-1], marker='.', markersize = 4, markerfacecolor=c, markeredgecolor=c, linewidth=0., alpha = 0.5) #, markerfacecolor='#FF8C00', markeredgecolor='#888888', label = u.name)
+                ax.plot(x[1:-1], y[1:-1], marker='.', markersize=4, markerfacecolor=c, markeredgecolor=c, linewidth=0., alpha=0.5)  # markerfacecolor='#FF8C00', markeredgecolor='#888888', label = u.name)
                 if cnt >= 10:
                     break
 
         if now < xt[-1]:
             ax.axvline(now, color='red')
 
-        ax.set_xticks(xt, minor = False)
-        ax.set_xticklabels([], minor = False)
-        
-        ax.set_xticks(xt_mid, minor = True)
-        if ndays == 7:
-            ax.set_xticklabels(['Man','Tir','Ons','Tors','Fre','Lør','Søn'], minor = True)
-        else:
-            ax.set_xticklabels(['Man','','Ons','','Fre','','Søn','','Tir','','Tor','','Lør', ''], minor = True)
+        ax.set_xticks(xt, minor=False)
+        ax.set_xticklabels([], minor=False)
 
-        for i in range(1,ndays,2):
+        ax.set_xticks(xt_mid, minor=True)
+        if ndays == 7:
+            ax.set_xticklabels(['Man', 'Tir', 'Ons', 'Tors', 'Fre', 'Lør', 'Søn'], minor=True)
+        else:
+            ax.set_xticklabels(['Man', '', 'Ons', '', 'Fre', '', 'Søn', '', 'Tir', '', 'Tor', '', 'Lør', ''], minor=True)
+
+        for i in range(1, ndays, 2):
             ax.axvspan(xt[i], xt[i+1], facecolor='#000099', linewidth=0., alpha=0.03)
 
-        for i in range(0,ndays,2):
+        for i in range(0, ndays, 2):
             ax.axvspan(xt[i], xt[i+1], facecolor='#000099', linewidth=0., alpha=0.07)
 
-        for line in ax.xaxis.get_ticklines(minor = False):
+        for line in ax.xaxis.get_ticklines(minor=False):
             line.set_markersize(0)
 
-        for line in ax.xaxis.get_ticklines(minor = True):
+        for line in ax.xaxis.get_ticklines(minor=True):
             line.set_markersize(0)
-        
-        for line in ax.yaxis.get_ticklines(minor = False):
+
+        for line in ax.yaxis.get_ticklines(minor=False):
             line.set_markersize(0)
 
         if len(yall) > 0:
@@ -1179,26 +1187,26 @@ class UK(object):
 
             plt.legend()
             ax = plt.gca()
-            ax.legend( 
+            ax.legend(
                 # ncol = 4, loc = 3, bbox_to_anchor = (0., 1.02, 1., .102), mode = "expand", borderaxespad = 0.
-                loc = 2, bbox_to_anchor = (1.0, 1.0), borderaxespad = 0., frameon = 0.
+                loc=2, bbox_to_anchor=(1.0, 1.0), borderaxespad=0., frameon=0.
             )
-            plt.savefig(self.config['figname'] % { 'year': self.year, 'week': self.startweek}, dpi = 200)
+            plt.savefig(self.config['figname'] % {'year': self.year, 'week': self.startweek}, dpi=200)
 
     def format_msg(self, template, award):
         tpl = self.config['award_message']
-        args = { 
-            'template': tpl[template], 
+        args = {
+            'template': tpl[template],
             'yearname': self.config['templates']['commonargs']['year'],
-            'weekname': self.config['templates']['commonargs']['week'], 
-            'week2name': self.config['templates']['commonargs']['week2'], 
+            'weekname': self.config['templates']['commonargs']['week'],
+            'week2name': self.config['templates']['commonargs']['week2'],
             'extraargs': (tpl['extraargs'] if 'extraargs' in tpl else ''),
-            'year': self.year, 
-            'week': self.startweek, 
-            'award': award, 
+            'year': self.year,
+            'week': self.startweek,
+            'award': award,
             'yes': self.config['templates']['commonargs'][True],
             'no': self.config['templates']['commonargs'][False]
-            }
+        }
         if self.startweek == self.endweek:
             return '{{%(template)s|%(yearname)s=%(year)d|%(weekname)s=%(week)02d|%(award)s=%(yes)s%(extraargs)s' % args
         else:
@@ -1207,9 +1215,9 @@ class UK(object):
 
     def msg_heading(self):
         if self.startweek == self.endweek:
-            return '== ' + _('Weekly contest for week %(week)d') % { 'week': self.startweek } + ' =='
+            return '== ' + _('Weekly contest for week %(week)d') % {'week': self.startweek} + ' =='
         else:
-            return '== ' + _('Weekly contest for week %(startweek)d–%(endweek)d') % { 'startweek': self.startweek, 'endweek': self.endweek } + ' =='
+            return '== ' + _('Weekly contest for week %(startweek)d–%(endweek)d') % {'startweek': self.startweek, 'endweek': self.endweek} + ' =='
 
     def deliver_prices(self):
 
@@ -1242,27 +1250,27 @@ class UK(object):
 
             now = server_tz.localize(datetime.now())
             yearweek = now.astimezone(wiki_tz).strftime('%Y-%V')
-            userprefix = self.homesite.namespaces[2];
-            usertalkprefix = self.homesite.namespaces[3];
+            userprefix = self.homesite.namespaces[2]
+            usertalkprefix = self.homesite.namespaces[3]
 
-            mld += _("Note that the contest this week is [[%(url)s|{{%(template)s|%(weekarg)s=%(week)s}}]]. Join in!") % { 
+            mld += _("Note that the contest this week is [[%(url)s|{{%(template)s|%(weekarg)s=%(week)s}}]]. Join in!") % {
                 'url': self.config['pages']['base'] + ' ' + yearweek,
                 'template': self.config['templates']['contestlist']['name'],
                 'weekarg': self.config['templates']['commonargs']['week'],
                 'week': yearweek
-                } + ' '
-            mld += _('Regards') + ' ' + ', '.join(['[[%s:%s|%s]]'%(userprefix, s,s) for s in self.ledere]) + ' ' + _('and') + ' ~~~~'
+            } + ' '
+            mld += _('Regards') + ' ' + ', '.join(['[[%s:%s|%s]]' % (userprefix, s, s) for s in self.ledere]) + ' ' + _('and') + ' ~~~~'
 
             if prizefound:
                 page = self.homesite.pages['%s:%s' % (usertalkprefix, u.name)]
                 log(' -> Delivering message to %s' % page.name)
-                page.save(text = mld, bot = False, section = 'new', summary = heading)
+                page.save(text=mld, bot=False, section='new', summary=heading)
 
     def deliver_leader_notification(self, pagename):
         heading = self.msg_heading()
-        args = { 'prefix': self.homesite.site['server'] + self.homesite.site['script'], 'page': config['awardstatus']['pagename'], 'title': urllib.quote(config['awardstatus']['send']) }
+        args = {'prefix': self.homesite.site['server'] + self.homesite.site['script'], 'page': config['awardstatus']['pagename'], 'title': urllib.quote(config['awardstatus']['send'])}
         link = '%(prefix)s?title=%(page)s&action=edit&section=new&preload=%(page)s/Preload&preloadtitle=%(title)s' % args
-        usertalkprefix = self.homesite.namespaces[3];
+        usertalkprefix = self.homesite.namespaces[3]
         oaward = ''
         for key, award in self.config['awards'].items():
             if 'organizer' in award:
@@ -1275,7 +1283,7 @@ class UK(object):
                     'template': self.config['award_message']['organizer_template'],
                     'yeararg': self.config['templates']['commonargs']['year'],
                     'weekarg': self.config['templates']['commonargs']['week'],
-                    'year': self.year, 
+                    'year': self.year,
                     'week': self.startweek,
                     'extraargs': (self.config['award_message']['extraargs'] if 'extraargs' in self.config['award_message'] else ''),
                     'organizeraward': oaward,
@@ -1287,34 +1295,34 @@ class UK(object):
                     'yeararg': self.config['templates']['commonargs']['year'],
                     'weekarg': self.config['templates']['commonargs']['week'],
                     'week2arg': self.config['templates']['commonargs']['week2'],
-                    'year': self.year, 
+                    'year': self.year,
                     'week': self.startweek,
                     'week2': self.endweek,
                     'extraargs': (self.config['award_message']['extraargs'] if 'extraargs' in self.config['award_message'] else ''),
                     'organizeraward': oaward,
                     'yes': self.config['templates']['commonargs'][True]
                 }
-            mld += _('Now you must check if the results look ok. If there are error messages at the bottom of the [[%(page)s|contest page]], you should check that the related contributions have been awarded the correct number of points. Also check if there are comments or complaints on the discussion page. If everything looks fine, [%(link)s click here] (and save) to indicate that I can send out the awards at first occasion.') % { 'page': pagename, 'link': link }
+            mld += _('Now you must check if the results look ok. If there are error messages at the bottom of the [[%(page)s|contest page]], you should check that the related contributions have been awarded the correct number of points. Also check if there are comments or complaints on the discussion page. If everything looks fine, [%(link)s click here] (and save) to indicate that I can send out the awards at first occasion.') % {'page': pagename, 'link': link}
             mld += ' ' + _('Thanks, ~~~~')
 
             page = self.homesite.pages['%s:%s' % (usertalkprefix, u)]
             log(' -> Leverer arrangørmelding til %s' % page.name)
-            page.save(text = mld, bot = False, section = 'new', summary = heading)
-    
+            page.save(text=mld, bot=False, section='new', summary=heading)
+
     def deliver_receipt_to_leaders(self):
         heading = self.msg_heading()
-        usertalkprefix = self.homesite.namespaces[3];
+        usertalkprefix = self.homesite.namespaces[3]
 
-        args = { 'prefix': self.homesite.site['server'] + self.homesite.site['script'], 'page': 'Special:Contributions' }
+        args = {'prefix': self.homesite.site['server'] + self.homesite.site['script'], 'page': 'Special:Contributions'}
         link = '%(prefix)s?title=%(page)s&contribs=user&target=UKBot&namespace=3' % args
-        mld = '\n:' + _('Awards have been [%(link)s sent out].') % {'link':link} + ' ~~~~'
+        mld = '\n:' + _('Awards have been [%(link)s sent out].') % {'link': link} + ' ~~~~'
         for u in self.ledere:
             page = self.homesite.pages['%s:%s' % (usertalkprefix, u)]
             log(' -> Leverer kvittering til %s' % page.name)
-            
+
             # Find section number
             txt = page.edit()
-            sections = [s.strip() for s in re.findall('^[\s]*==([^=]+)==', txt, flags = re.M)]
+            sections = [s.strip() for s in re.findall('^[\s]*==([^=]+)==', txt, flags=re.M)]
             try:
                 csection = sections.index(heading) + 1
             except ValueError:
@@ -1322,10 +1330,9 @@ class UK(object):
                 return
 
             # Append text to section
-            txt = page.edit(section = csection)
-            page.save(appendtext = mld, bot = False, summary = heading)
-    
-    
+            txt = page.edit(section=csection)
+            page.save(appendtext=mld, bot=False, summary=heading)
+
     def delete_contribs_from_db(self):
         cur = self.sql.cursor()
         cur2 = self.sql.cursor()
@@ -1333,11 +1340,11 @@ class UK(object):
         ts_end = self.end.astimezone(pytz.utc).strftime('%F %T')
         ndel = 0
         for row in cur.execute(u"SELECT site,revid,parentid FROM contribs WHERE timestamp >= ? AND timestamp <= ?", (ts_start, ts_end)):
-            row2 = cur2.execute(u"DELETE FROM fulltexts WHERE site=? AND revid=?", [row[0],row[1]])
+            row2 = cur2.execute(u"DELETE FROM fulltexts WHERE site=? AND revid=?", [row[0], row[1]])
             ndel += row2.rowcount
-            row2 = cur2.execute(u"DELETE FROM fulltexts WHERE site=? AND revid=?", [row[0],row[2]])
+            row2 = cur2.execute(u"DELETE FROM fulltexts WHERE site=? AND revid=?", [row[0], row[2]])
             ndel += row2.rowcount
-        
+
         nremain = cur.execute('SELECT COUNT(*) FROM fulltexts').fetchone()[0]
         log('> Cleaned %d rows from fulltexts-table. %d rows remain' % (ndel, nremain))
 
@@ -1354,13 +1361,13 @@ class UK(object):
         """
         Inform users about problems with their contribution(s)
         """
-        usertalkprefix = self.homesite.namespaces[3];
+        usertalkprefix = self.homesite.namespaces[3]
         cur = self.sql.cursor()
         for u in self.users:
             msgs = []
-            if u.suspended_since != None:
+            if u.suspended_since is not None:
                 d = [self.name, u.name, 'suspension', '']
-                if len( cur.execute(u'SELECT id FROM notifications WHERE contest=? AND user=? AND class=? AND args=?', d).fetchall() ) == 0:
+                if len(cur.execute(u'SELECT id FROM notifications WHERE contest=? AND user=? AND class=? AND args=?', d).fetchall()) == 0:
                     msgs.append('Du er inntil videre suspendert fra konkurransen med virkning fra %s. Dette innebærer at dine bidrag gjort etter dette tidspunkt ikke teller i konkurransen, men alle bidrag blir registrert og skulle suspenderingen oppheves i løpet av konkurranseperioden vil også bidrag gjort i suspenderingsperioden telle med. Vi oppfordrer deg derfor til å arbeide med problemene som førte til suspenderingen slik at den kan oppheves.' % u.suspended_since.strftime('%e. %B %Y, %H:%M').decode('utf-8'))
                     if not simulate:
                         cur.execute(u'INSERT INTO notifications (contest, user, class, args) VALUES (?,?,?,?)', d)
@@ -1368,7 +1375,7 @@ class UK(object):
             for article_key, article in u.articles.iteritems():
                 if article.disqualified:
                     d = [self.name, u.name, 'disqualified', article_key]
-                    if len( cur.execute(u'SELECT id FROM notifications WHERE contest=? AND user=? AND class=? AND args=?', d).fetchall() ) == 0:
+                    if len(cur.execute(u'SELECT id FROM notifications WHERE contest=? AND user=? AND class=? AND args=?', d).fetchall()) == 0:
                         discs.append('[[:%s|%s]]' % (article_key, article.name))
                         if not simulate:
                             cur.execute(u'INSERT INTO notifications (contest, user, class, args) VALUES (?,?,?,?)', d)
@@ -1388,9 +1395,8 @@ class UK(object):
                 #så langt. Det er dessverre registrert problemer med enkelte av dine bidrag som medfører at vi er nødt til å informere deg om følgende:\n' % { 'pagename': self.name }
 
                 msg = ''.join(['* %s\n' % m for m in msgs])
-                msg += 'Denne meldingen er generert fra anmerkninger gjort av konkurransearrangør på [[%(pagename)s|konkurransesiden]]. Du finner mer informasjon på konkurransesiden og/eller tilhørende diskusjonsside. Så lenge konkurransen ikke er avsluttet, kan problemer løses i løpet av konkurransen. Om du ønsker det, kan du fjerne denne meldingen når du har lest den. ~~~~' % { 'pagename': self.name }
+                msg += 'Denne meldingen er generert fra anmerkninger gjort av konkurransearrangør på [[%(pagename)s|konkurransesiden]]. Du finner mer informasjon på konkurransesiden og/eller tilhørende diskusjonsside. Så lenge konkurransen ikke er avsluttet, kan problemer løses i løpet av konkurransen. Om du ønsker det, kan du fjerne denne meldingen når du har lest den. ~~~~' % {'pagename': self.name}
 
-                
                 #print '------------------------------',u.name
                 #print msg
                 #print '------------------------------'
@@ -1400,12 +1406,11 @@ class UK(object):
                 if simulate:
                     log(msg)
                 else:
-                    page.save(text = msg, bot = False, section = 'new', summary = heading)
+                    page.save(text=msg, bot=False, section='new', summary=heading)
             self.sql.commit()
 
-
 ############################################################################################################################
-# Main 
+# Main
 ############################################################################################################################
 
 
@@ -1418,17 +1423,16 @@ class UK(object):
     # trans.install(unicode = True)
 
 if __name__ == '__main__':
-    
 
     host = config['homesite']
     homesite = Site(host, config['account']['user'], config['account']['pass'])
     prefix = host.split('.')[0]
-    sites = { prefix: homesite }
+    sites = {prefix: homesite}
     if 'othersites' in config:
         for host in config['othersites']:
             prefix = host.split('.')[0]
             sites[prefix] = Site(host, config['account']['user'], config['account']['pass'])
-    
+
     cpage = config['pages']['catignore']
     sql = sqlite3.connect(config['db'])
 
@@ -1442,7 +1446,7 @@ if __name__ == '__main__':
             log(" -> Found no contests to close!")
             sys.exit(0)
         cur.close()
-        ktitle= rows[0][0]
+        ktitle = rows[0][0]
         log(" -> Contest %s is to be closed" % rows[0])
         lastrev = homesite.pages[config['awardstatus']['pagename']].revisions(prop='user|comment').next()
         closeuser = lastrev['user']
@@ -1450,28 +1454,27 @@ if __name__ == '__main__':
         if revc.find('/* ' + config['awardstatus']['send'] + ' */') == -1:
             log('>> Award delivery has not been confirmed yet')
             sys.exit(0)
-    elif args.page != None:
+    elif args.page is not None:
         ktitle = args.page.decode('utf-8')
     else:
         log('  !! No page given! Exiting')
         sys.exit(1)
 
-
     # Is ktitle redirect? Resolve
 
     log('@ ktitle is %s' % ktitle)
-    pp = homesite.api('query', prop = 'pageprops', titles = ktitle, redirects = '1')
+    pp = homesite.api('query', prop='pageprops', titles=ktitle, redirects='1')
     if 'redirects' in pp['query']:
         ktitle = pp['query']['redirects'][0]['to']
         log('  -> Redirected to:  %s' % ktitle)
-    
+
     # Check that we're not given some very wrong page
     userprefix = homesite.namespaces[2]
     if not (re.match('^'+config['pages']['base'], ktitle) or re.match('^' + userprefix + ':UKBot/', ktitle)):
         raise StandardError('I refuse to work with that page!')
-    
+
     # Check if page exists
-    
+
     kpage = homesite.pages[ktitle]
     if not kpage.exists:
         log('  !! kpage does not exist! Exiting')
@@ -1487,24 +1490,24 @@ if __name__ == '__main__':
         if args.simulate:
             print out.encode('utf-8')
         else:
-            kpage.save('dummy', summary = _('UKBot encountered a problem'), appendtext = out)
+            kpage.save('dummy', summary=_('UKBot encountered a problem'), appendtext=out)
         raise
-    
+
     if args.close and closeuser not in uk.ledere:
         log('!! Konkurransen ble forsøkt avsluttet av %s, men konkurranseledere er oppgitt som: %s' % (closeuser, ', '.join(uk.ledere)))
         #log('!! Konkurransen ble forsøkt avsluttet av andre enn konkurranseleder')
         sys.exit(0)
 
     # Check if contest is to be ended
-    
+
     log('@ Contest open from %s to %s' % (uk.start.strftime('%F %T'), uk.end.strftime('%F %T')))
     now = server_tz.localize(datetime.now())
     ending = False
-    if args.close == False and now > uk.end:
+    if args.close is False and now > uk.end:
         ending = True
         log("  -> Ending contest")
         cur = sql.cursor()
-        if len(cur.execute(u'SELECT ended FROM contests WHERE name=? AND ended=1', [ktitle] ).fetchall()) == 1:
+        if len(cur.execute(u'SELECT ended FROM contests WHERE name=? AND ended=1', [ktitle]).fetchall()) == 1:
             log("  -> Already ended. Abort")
             #print "Konkurransen kunne ikke avsluttes da den allerede er avsluttet"
             sys.exit(0)
@@ -1518,20 +1521,20 @@ if __name__ == '__main__':
     nwords = 0
     nnewpages = 0
 
-    extraargs = { 'namespace': 0 }
+    extraargs = {'namespace': 0}
     for f in uk.filters:
         if type(f) == NamespaceFilter:
             extraargs['namespace'] = f.namespace
 
     for u in uk.users:
         log("=== %s ===" % u.name)
-        
+
         # First read contributions from db
         u.add_contribs_from_db(sql, uk.start, uk.end, sites)
 
         # Then fill in new contributions from wiki
         for site in sites.itervalues():
-            u.add_contribs_from_wiki(site, uk.start, uk.end, fulltext = True, **extraargs)
+            u.add_contribs_from_wiki(site, uk.start, uk.end, fulltext=True, **extraargs)
 
         # And update db
         u.save_contribs_to_db(sql)
@@ -1542,7 +1545,7 @@ if __name__ == '__main__':
             u.filter(uk.filters)
 
             # And calculate points
-            log(' -> Analyzing ', newline = False)
+            log(' -> Analyzing ', newline=False)
             u.analyze(uk.rules)
             log('OK (%.f points)' % u.points)
 
@@ -1557,12 +1560,12 @@ if __name__ == '__main__':
             if args.simulate:
                 print out
             else:
-                kpage.save('dummy', summary = _('UKBot encountered a problem'), appendtext = out)
+                kpage.save('dummy', summary=_('UKBot encountered a problem'), appendtext=out)
             raise
 
     # Sort users by points
 
-    uk.users.sort( key = lambda x: x.points, reverse = True )
+    uk.users.sort(key=lambda x: x.points, reverse=True)
 
     # Make outpage
 
@@ -1572,7 +1575,7 @@ if __name__ == '__main__':
     sammen = ''
     if 'status' in config['templates']:
         sammen = '{{%s' % config['templates']['status']
-    
+
         ft = [type(f) for f in uk.filters]
         rt = [type(r) for r in uk.rules]
 
@@ -1595,7 +1598,7 @@ if __name__ == '__main__':
             elif type(f) == TemplateRemovalRule:
                 trn += 1
                 sammen += '|%(key)s%(idx)d=%(tpl)s|%(key)s%(idx)dn=%(cnt)d' % {
-                        'key' : f.key, 'idx': trn, 'tpl': f.template, 'cnt': f.total }
+                    'key': f.key, 'idx': trn, 'tpl': f.template, 'cnt': f.total}
 
         sammen += '}}'
 
@@ -1608,16 +1611,15 @@ if __name__ == '__main__':
     elif args.close:
         out += "''" + _('This contest is closed – thanks to everyone who participated!') + "''\n\n"
     else:
-        oargs = { 
-            'lastupdate': now.astimezone(wiki_tz).strftime('%e. %B %Y, %H:%M').decode('utf-8'), 
-            'startdate': uk.start.strftime('%e. %B %Y, %H:%M').decode('utf-8'), 
-            'enddate': uk.end.strftime('%e. %B %Y, %H:%M').decode('utf-8') 
+        oargs = {
+            'lastupdate': now.astimezone(wiki_tz).strftime('%e. %B %Y, %H:%M').decode('utf-8'),
+            'startdate': uk.start.strftime('%e. %B %Y, %H:%M').decode('utf-8'),
+            'enddate': uk.end.strftime('%e. %B %Y, %H:%M').decode('utf-8')
         }
         out += "''" + _('Last updated %(lastupdate)s. The contest is open from %(startdate)s to %(enddate)s.') % oargs + "''\n\n"
 
-    for i,u in enumerate(uk.users):
-        out += u.format_result( pos = i, closing = args.close, prices = uk.prices)
-
+    for i, u in enumerate(uk.users):
+        out += u.format_result(pos=i, closing=args.close, prices=uk.prices)
 
     article_errors = {}
     for u in uk.users:
@@ -1638,17 +1640,17 @@ if __name__ == '__main__':
             err = err[:8]
             err.append('(...)')
         errors.append('\n* ' + _('UKBot encountered the following problems with the article [[:%s]]') % art + ''.join(['\n** %s' % e for e in err]))
-    
+
     for site in uk.sites.itervalues():
         for error in site.errors:
             errors.append('\n* %s' % error)
-    
+
     if len(errors) == 0:
         out += '{{%s | ok | %s }}' % (config['templates']['botinfo'], now.astimezone(wiki_tz).strftime('%F %T'))
     else:
-        out += '{{%s | 1=note | 2=%s | 3=%s }}' % (config['templates']['botinfo'], now.astimezone(wiki_tz).strftime('%F %T'), ''.join(errors) )
-    
-    out += '\n' + config['contestPages']['footer'] % { 'year': uk.year } + '\n'
+        out += '{{%s | 1=note | 2=%s | 3=%s }}' % (config['templates']['botinfo'], now.astimezone(wiki_tz).strftime('%F %T'), ''.join(errors))
+
+    out += '\n' + config['contestPages']['footer'] % {'year': uk.year} + '\n'
 
     ib = config['templates']['infobox']
 
@@ -1657,17 +1659,17 @@ if __name__ == '__main__':
         tp = TemplateEditor(txt)
         if sammen != '':
             tp.templates[ib['name'].lower()][0].parameters[ib['status']] = sammen
-        txt = tp.get_wikitext()
+        txt = tp.wikitext()
         secstart = -1
         secend = -1
-        for s in re.finditer(r'^[\s]*==([^=]+)==[\s]*\n', txt, flags = re.M):
+        for s in re.finditer(r'^[\s]*==([^=]+)==[\s]*\n', txt, flags=re.M):
             if s.group(1).strip() == config['contestPages']['resultsSection']:
                 secstart = s.end()
             elif secstart != -1:
                 secend = s.start()
                 break
         if secstart == -1:
-            raise StandardError("Error: secstart=%d,secend=%d" % (secstart,secend))
+            raise StandardError("Error: secstart=%d,secend=%d" % (secstart, secend))
         else:
             if secend == -1:
                 txt = txt[:secstart] + out
@@ -1676,11 +1678,11 @@ if __name__ == '__main__':
 
             log(" -> Updating wiki, section = %d " % (uk.results_section))
             if ending:
-                kpage.save(txt, summary = _('Updating with final results, the contest is now closed.'))
+                kpage.save(txt, summary=_('Updating with final results, the contest is now closed.'))
             elif args.close:
-                kpage.save(txt, summary = _('Checking results and handing out awards'))
+                kpage.save(txt, summary=_('Checking results and handing out awards'))
             else:
-                kpage.save(txt, summary = _('Updating'))
+                kpage.save(txt, summary=_('Updating'))
 
     if args.output != '':
         print "Writing output to file"
@@ -1690,41 +1692,41 @@ if __name__ == '__main__':
 
     if ending:
         log(" -> Ending contest")
-        uk.deliver_leader_notification(ktitle)
+        if not args.simulate:
+            uk.deliver_leader_notification(ktitle)
 
-        aws = config['awardstatus']
-        page = homesite.pages[aws['pagename']]
-        page.save(text = aws['wait'], summary = aws['wait'], bot = True)
+            aws = config['awardstatus']
+            page = homesite.pages[aws['pagename']]
+            page.save(text=aws['wait'], summary=aws['wait'], bot=True)
 
-        cur = sql.cursor()
-        cur.execute(u'INSERT INTO contests (name, ended, closed) VALUES (?,1,0)', [ktitle] )
-        sql.commit()
-        cur.close()
-    
+            cur = sql.cursor()
+            cur.execute(u'INSERT INTO contests (name, ended, closed) VALUES (?,1,0)', [ktitle])
+            sql.commit()
+            cur.close()
+
     if args.close:
         log(" -> Delivering prices")
         uk.deliver_prices()
 
         cur = sql.cursor()
         for u in uk.users:
-            arg = [ktitle, u.name, int(uk.startweek), u.points, int(u.bytes), int(u.newpages),'']
+            arg = [ktitle, u.name, int(uk.startweek), u.points, int(u.bytes), int(u.newpages), '']
             if uk.startweek != uk.endweek:
                 arg[-1] = int(uk.endweek)
             #print arg
-            cur.execute(u"INSERT INTO users (contest, user, week, points, bytes, newpages, week2) VALUES (?,?,?,?,?,?,?)", arg )
+            cur.execute(u"INSERT INTO users (contest, user, week, points, bytes, newpages, week2) VALUES (?,?,?,?,?,?,?)", arg)
 
-        cur.execute(u'UPDATE contests SET closed=1 WHERE name=?', [ktitle] )
+        cur.execute(u'UPDATE contests SET closed=1 WHERE name=?', [ktitle])
         sql.commit()
         cur.close()
 
         aws = config['awardstatus']
         page = homesite.pages[aws['pagename']]
-        page.save(text = aws['sent'], summary = aws['sent'], bot = True)
+        page.save(text=aws['sent'], summary=aws['sent'], bot=True)
 
         uk.deliver_receipt_to_leaders()
 
-
-        log(" -> Cleaning DB")
+        log(' -> Cleaning DB')
         uk.delete_contribs_from_db()
 
     # Notify users about issues
@@ -1738,10 +1740,10 @@ if __name__ == '__main__':
             page = homesite.pages[config['pages']['redirect']]
             txt = _('#REDIRECT [[%s]]') % ktitle
             if page.edit() != txt:
-                page.save(txt, summary = _('Redirecting to %s') % ktitle)
+                page.save(txt, summary=_('Redirecting to %s') % ktitle)
 
     # Update Wikipedia:Portal/Oppslagstavle
-    
+
     if 'noticeboard' in config:
         boardname = config['noticeboard']['name']
         boardtpl = config['noticeboard']['template']
@@ -1750,7 +1752,7 @@ if __name__ == '__main__':
         oppslagstavle = homesite.pages[boardname]
         txt = oppslagstavle.edit()
 
-        dp = DanmicholoParser(txt)
+        dp = TemplateEditor(txt)
         ntempl = len(dp.templates[tplname])
         if ntempl != 1:
             raise StandardError(u'Feil: Fant %d %s-maler i %s' % (ntempl, tplname, boardname))
@@ -1761,14 +1763,14 @@ if __name__ == '__main__':
             log('-> Updating %s' % boardname)
             tpllist = config['templates']['contestlist']
             commonargs = config['templates']['commonargs']
-            tema = homesite.api('parse', text = '{{subst:%s|%s=%s}}' % (tpllist['name'], commonargs['week'], now2.strftime('%Y-%V')), pst=1, onlypst=1)['parse']['text']['*']
+            tema = homesite.api('parse', text='{{subst:%s|%s=%s}}' % (tpllist['name'], commonargs['week'], now2.strftime('%Y-%V')), pst=1, onlypst=1)['parse']['text']['*']
             tpl.parameters[1] = tema
             tpl.parameters[boardtpl['date']] = now2.strftime('%e. %h')
             tpl.parameters[commonargs['year']] = now2.strftime('%Y')
             tpl.parameters[commonargs['week']] = now2.strftime('%V')
-            txt2 = dp.get_wikitext()
+            txt2 = dp.wikitext()
             if txt != txt2:
-                oppslagstavle.save(txt2, summary = _('The weekly contest is: %(link)s') % { 'link': tema })
+                oppslagstavle.save(txt2, summary=_('The weekly contest is: %(link)s') % {'link': tema})
 
     # Make a nice plot
 
@@ -1777,4 +1779,3 @@ if __name__ == '__main__':
     runend = server_tz.localize(datetime.now())
     runtime = (runend - runstart).total_seconds()
     log('UKBot finishing at %s. Runtime was %.f seconds.' % (runend.strftime('%F %T'), runtime))
-

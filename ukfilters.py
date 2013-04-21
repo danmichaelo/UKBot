@@ -443,6 +443,32 @@ class ForwardLinkFilter(Filter):
         log("  [+] Applying forward link filter (%s): %d -> %d" % (','.join(self.articles), len(articles), len(out)))
         return out
 
+
+class PageFilter(Filter):
+    """Filters articles with forwardlinks to <name>"""
+
+    def __init__(self, verbose, sites, pages):
+        """
+        Arguments:
+            sites     : dict { 'no': <mwclient.client.Site>, ... }
+            pages     : list of page names
+        """
+        Filter.__init__(self, verbose)
+        self.sites = sites
+        self.pages = pages
+
+    def extend(self, flfilter):
+        self.pages.extend(flfilter.pages)
+
+    def filter(self, articles):
+        out = odict()
+        for article_key, article in articles.iteritems():
+            if article_key in self.pages:
+                out[article_key] = article
+        log("  [+] Applying page link filter (%s): %d -> %d" % (','.join(self.pages), len(articles), len(out)))
+        return out
+
+
 class NamespaceFilter(Filter):
     """Filters articles with forwardlinks to <name>"""
 

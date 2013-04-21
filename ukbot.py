@@ -892,6 +892,11 @@ class UK(object):
                     params['namespace'] = int(anon[2])
                     filt = NamespaceFilter(**params)
 
+                elif key == filtercfg['pages']:
+                    params['sites'] = self.sites
+                    params['pages'] = anon[2:]
+                    filt = PageFilter(**params)
+
                 else:
                     raise ParseError(_('Unknown argument given to {{tl|%(template)s}}: %(argument)s') % {'template': filtercfg['name'], 'argument': key})
 

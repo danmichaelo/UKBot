@@ -710,10 +710,10 @@ class User(object):
 
                 out = '[[:%s|%s]]' % (article_key, article.name)
                 if article_key in self.disqualified_articles:
-                    out = '[[Fil:Qsicon Achtung.png|14px]] <s>' + out + '</s>'
+                    out = '[[File:Qsicon Achtung.png|14px]] <s>' + out + '</s>'
                     titletxt += '<div style="border-top:1px solid red; background:#ffcccc;">' + _('<strong>Note:</strong> The contributions to this article are currently disqualified.') + '</div>'
                 elif brutto != netto:
-                    out = '[[Fil:Qsicon Achtung.png|14px]] ' + out
+                    out = '[[File:Qsicon Achtung.png|14px]] ' + out
                     #titletxt += '<div style="border-top:1px solid red; background:#ffcccc;"><strong>Merk:</strong> En eller flere revisjoner er ikke talt med fordi de ble gjort mens brukeren var suspendert. Hvis suspenderingen oppheves vil bidragene telle med.</div>'
                 out += ' (<abbr class="uk-ap">%s</abbr>)' % p
 
@@ -729,11 +729,11 @@ class User(object):
             if pos == 0:
                 for r in prices:
                     if r[1] == 'winner':
-                        ros += '[[Fil:%s|20px]] ' % config['awards'][r[0]]['file']
+                        ros += '[[File:%s|20px]] ' % config['awards'][r[0]]['file']
                         break
             for r in prices:
                 if r[1] == 'pointlimit' and self.points >= r[2]:
-                    ros += '[[Fil:%s|20px]] ' % config['awards'][r[0]]['file']
+                    ros += '[[File:%s|20px]] ' % config['awards'][r[0]]['file']
                     break
         suspended = ''
         if self.suspended_since is not None:
@@ -840,7 +840,7 @@ class UK(object):
         if filtercfg['name'] in dp.templates:
             for templ in dp.templates[filtercfg['name']]:
 
-                params = templ.parameters
+                par = templ.parameters
                 anon = templ.get_anonymous_parameters()
 
                 key = anon[1].lower()
@@ -858,7 +858,7 @@ class UK(object):
                     if len(anon) < 3:
                         raise ParseError(_('No template (second argument) given to {{tlx|%(template)s|%(firstarg)s}}') % {'template': filtercfg['name'], 'firstarg': filtercfg['template']})
                     if templ.has_param(filtercfg['alias']):
-                        params['aliases'] = [a.strip() for a in params[filtercfg['alias']].split(',')]
+                        params['aliases'] = [a.strip() for a in par[filtercfg['alias']].split(',')]
                     params['templates'] = anon[2:]
                     filt = TemplateFilter(**params)
 
@@ -875,7 +875,7 @@ class UK(object):
                     params['catnames'] = anon[2:]
                     params['ignore'] = catignore
                     if templ.has_param(filtercfg['maxdepth']):
-                        params['maxdepth'] = int(params[filtercfg['maxdepth']])
+                        params['maxdepth'] = int(par[filtercfg['maxdepth']])
                     filt = CatFilter(**params)
 
                 elif key == filtercfg['backlink']:

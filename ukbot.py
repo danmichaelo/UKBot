@@ -239,22 +239,21 @@ class Revision(object):
         try:
             return self._wordcount
         except:
-            try:
-                mt1 = MainText(self.text)
-                txt1 = mt1.maintext
-                mt2 = MainText(self.parenttext)
-                txt2 = mt2.maintext
-                self._wordcount = len(txt1.split()) - len(txt2.split())
-                s = _('A problem encountered with revision %(revid)d may have influenced the word count for this revision: <nowiki>%(problems)s</nowiki> ')
-                #s = _('Et problem med revisjon %d kan ha påvirket ordtellingen for denne: <nowiki>%s</nowiki> ')
-                if len(mt1.parse_errors) > 0:
-                    self.errors.append(s % {'revid': self.revid, 'problems': mt1.parse_errors[0]})
-                if len(mt2.parse_errors) > 0:
-                    self.errors.append(s % {'revid': self.parentid, 'problems': mt2.parse_errors[0]})
-            except DanmicholoParseError as e:
-                log("!!!>> FAIL: %s @ %d" % (self.article.name, self.revid))
-                self._wordcount = 0
-                #raise
+            mt1 = MainText(self.text)
+            mt2 = MainText(self.parenttext)
+            self._wordcount = len(mt1.maintext.split()) - len(mt2.maintext.split())
+            s = _('A problem encountered with revision %(revid)d may have influenced the word count for this revision: <nowiki>%(problems)s</nowiki> ')
+            #s = _('Et problem med revisjon %d kan ha påvirket ordtellingen for denne: <nowiki>%s</nowiki> ')
+            if len(mt1.parse_errors) > 0:
+                self.errors.append(s % {'revid': self.revid, 'problems': mt1.parse_errors[0]})
+            if len(mt2.parse_errors) > 0:
+                self.errors.append(s % {'revid': self.parentid, 'problems': mt2.parse_errors[0]})
+            del mt1
+            del mt2
+            # except DanmicholoParseError as e:
+            #     log("!!!>> FAIL: %s @ %d" % (self.article.name, self.revid))
+            #     self._wordcount = 0
+            #     #raise
             return self._wordcount
 
     @property

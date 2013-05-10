@@ -7,6 +7,8 @@ from bs4 import BeautifulSoup
 from danmicholoparser import TemplateEditor, DanmicholoParseError, condition_for_soup
 from ukcommon import log, init_localization
 import gettext
+from lxml.html import fromstring
+import lxml
 
 t, _ = init_localization()
 
@@ -109,9 +111,20 @@ class TemplateRemovalRule(Rule):
 
         dp = TemplateEditor(text)
         tc = 0
-        for tname, templ in dp.templates.items():
-            if self.testtpl(tname) or tname in self.aliases:
-                tc += len(templ)
+        for node in dp.templates.doc.findall('.//template'):
+            for elem in node:
+                if elem.tag == 'title':
+                    if self.testtpl(elem.text):
+                        tc += 1
+ #       for tpl in dp.templates._templates():
+            #if self.testtpl(tpl.name) or tpl.name in self.aliases:
+#            tc += 1
+        #for tpl in dp.templates:
+            #tc += len(tpl)
+        #    pass
+        #     if self.testtpl(tname) or tname in self.aliases:
+        #         tc += len(templ)
+        # del dp
         return tc
 
     def test(self, rev):
@@ -123,7 +136,7 @@ class TemplateRemovalRule(Rule):
             ct = self.templatecount(rev.text)
             if ct < pt:
                 rev.points.append([(pt-ct)*self.points, 'templateremoval', _('removal of {{tl|%(template)s}}') % { 'template': self.template }])
-                self.total += (pt-ct)
+                self.total += (pt - ct)
         except DanmicholoParseError as e:
             rev.article.errors.append(_('Encountered a problem while parsing [%(url)s rev. %(revid)d] : %(problem)s') % { 'url': rev.get_link(), 'revid': rev.revid, 'problem': e.msg })
 
@@ -227,16 +240,25 @@ class RefRule(Rule):
             
     def test(self, rev):
 
-        parentsoup = BeautifulSoup(condition_for_soup(rev.parenttext), 'lxml')
-        soup = BeautifulSoup(condition_for_soup(rev.text), 'lxml')
+        try:
+            parentsoup = fromstring(condition_for_soup(rev.parenttext))
+            allref1 = parentsoup.findall('.//ref')
+            s1 = len([tag for tag in allref1 if tag.text is not None])
+            r1 = len([tag for tag in allref1 if tag.text is None])
+            del parentsoup
+        except lxml.etree.XMLSyntaxError:
+            s1 = 0
+            r1 = 0
 
-        allref1 = parentsoup.findAll('ref')
-        s1 = len([r for r in allref1 if len(r.contents) > 0])
-        r1 = len([r for r in allref1 if len(r.contents) == 0])
-
-        allref2 = soup.findAll('ref')
-        s2 = len([r for r in allref2 if len(r.contents) > 0])
-        r2 = len([r for r in allref2 if len(r.contents) == 0])
+        try:
+            soup = fromstring(condition_for_soup(rev.text))
+            allref2 = soup.findall('.//ref')
+            s2 = len([tag for tag in allref2 if tag.text is not None])
+            r2 = len([tag for tag in allref2 if tag.text is None])
+            del soup
+        except lxml.etree.XMLSyntaxError:
+            s2 = 0
+            r2 = 0
 
         #print rev.article.name,len(allref1), len(allref2)
 
@@ -257,7 +279,6 @@ class RefRule(Rule):
             txt = ', '.join(s)
         
             rev.points.append([p, 'ref', txt])
-
 
 class ByteBonusRule(Rule):
     

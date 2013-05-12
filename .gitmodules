@@ -1,0 +1,3 @@
+[submodule "mwclient"]
+	path = mwclient
+	url = git://github.com/danmichaelo/mwclient.git

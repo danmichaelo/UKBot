@@ -106,7 +106,7 @@ class Site(mwclient.Site):
         self.name = host
         self.key = host.split('.')[0]
         log('@ Initializing site: %s' % host)
-        mwclient.Site.__init__(self, host, user_agent='UKBot ([[no:Bruker:UKBot]])')
+        mwclient.Site.__init__(self, host, clients_useragent='UKBot [[:no:Bruker:UKBot]]')
         # Login to increase api limit from 50 to 500
         self.login(username, password)
 
@@ -589,11 +589,11 @@ class User(object):
     @property
     def newpages(self):
         return np.sum([1 for a in self.articles.itervalues() if a.new_non_redirect])
-    
+
     @property
     def words(self):
         return np.sum([a.words for a in self.articles.itervalues()])
-    
+
     @property
     def points(self):
         """ The points for all the user's articles, excluding disqualified ones """
@@ -1432,6 +1432,8 @@ if __name__ == '__main__':
     cpage = config['pages']['catignore']
     sql = sqlite3.connect(config['db'])
 
+    now = server_tz.localize(datetime.now())
+
     # Determine kpage
 
     if args.close:
@@ -1453,8 +1455,10 @@ if __name__ == '__main__':
     elif args.page is not None:
         ktitle = args.page.decode('utf-8')
     else:
-        log('  !! No page given! Exiting')
-        sys.exit(1)
+        log('  No page specified. Using default page')
+        ktitle = config['pages']['default']
+        # subtract one hour, so we close last week's contest right after midnight
+        ktitle = (now - timedelta(hours=1)).astimezone(wiki_tz).strftime(ktitle)
 
     # Is ktitle redirect? Resolve
 
@@ -1497,7 +1501,6 @@ if __name__ == '__main__':
     # Check if contest is to be ended
 
     log('@ Contest open from %s to %s' % (uk.start.strftime('%F %T'), uk.end.strftime('%F %T')))
-    now = server_tz.localize(datetime.now())
     ending = False
     if args.close is False and now > uk.end:
         ending = True

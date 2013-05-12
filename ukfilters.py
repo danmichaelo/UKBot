@@ -1,13 +1,14 @@
 #encoding=utf-8
 from __future__ import unicode_literals
-import sys, re
+import sys
+import re
 from copy import copy
 from odict import odict
-from danmicholoparser import DanmicholoParseError
 from ukcommon import log
 
+
 class CategoryLoopError(Exception):
-    """Raised when a category loop is found. 
+    """Raised when a category loop is found.
 
     Attributes:
         catpath -- category path followed while getting lost in the loop
@@ -15,6 +16,7 @@ class CategoryLoopError(Exception):
     def __init__(self, catpath):
         self.catpath = catpath
         self.msg = 'Entered a category loop'
+
 
 class Filter(object):
 
@@ -52,9 +54,9 @@ class Filter(object):
     #        lastrev = article.revisions[lastrevid]
 
     #        try:
-                
+
     #            # skip pages that are definitely not stubs to avoid timeconsuming parsing
-    #            if article.new == False and article.redirect == False and len(firstrev.parenttext) < 20000:  
+    #            if article.new is False and article.redirect is False and len(firstrev.parenttext) < 20000:
 
     #                # Check if first revision is a stub
     #                if self.is_stub(firstrev.parenttext):
@@ -66,16 +68,17 @@ class Filter(object):
 
     #                    if self.verbose:
     #                        log('')
-                
+
             #except DanmicholoParseError as e:
             #    log(" >> DanmicholoParser failed to parse " + article_key)
             #    parentid = firstrev.parentid
             #    args = { 'article': article_key, 'prevrev': firstrev.parentid, 'rev': lastrev.revid, 'error': e.msg }
             #    article.site.errors.append(_('Could not analyze the article %(article)s because one of the revisions %(prevrev)d or %(rev)d could not be parsed: %(error)s') % args)
-        
+
     #    log("  [+] Applying stub filter: %d -> %d" % (len(articles), len(out)))
 
     #    return out
+
 
 class TemplateFilter(Filter):
     """ Filters articles that had any of a given set of templates (or their aliases) at a point"""
@@ -118,17 +121,18 @@ class TemplateFilter(Filter):
             except DanmicholoParseError as e:
                 log(" >> DanmicholoParser failed to parse " + article_key)
                 parentid = firstrev.parentid
-                args = { 'article': article_key, 'prevrev': firstrev.parentid, 'rev': lastrev.revid, 'error': e.msg }
+                args = {'article': article_key, 'prevrev': firstrev.parentid, 'rev': lastrev.revid, 'error': e.msg}
                 article.site.errors.append(_('Could not analyze the article %(article)s because one of the revisions %(prevrev)d or %(rev)d could not be parsed: %(error)s') % args)
 
         log("  [+] Applying template filter: %d -> %d" % (len(articles), len(out)))
 
         return out
 
+
 class CatFilter(Filter):
     """ Filters articles that belong to a given overcategory """
 
-    def __init__(self, verbose, sites, catnames, maxdepth = 4, ignore = []):
+    def __init__(self, verbose, sites, catnames, maxdepth=4, ignore=[]):
         """
         Arguments:
             sites     : dict { 'no': <mwclient.client.Site>, ... }
@@ -136,7 +140,7 @@ class CatFilter(Filter):
             maxdepth  : number of subcategory levels to traverse
         """
         Filter.__init__(self, verbose)
-        
+
         self.ignore = ignore
         self.sites = sites
         self.include = [c[c.rfind(':')+1:] for c in catnames]
@@ -146,16 +150,16 @@ class CatFilter(Filter):
 
     def extend(self, catfilter):
         self.include.extend(catfilter.include)
- 
+
     def fetchcats(self, articles, debug=False):
         """ Fetches categories an overcategories for a set of articles """
-        
+
         # Make a list of the categories of a given article, with one list for each level
         # > cats[article_key][level] = [cat1, cat2, ...]
 
-        cats = { p: [[] for n in range(self.maxdepth)] for p in articles }
+        cats = {p: [[] for n in range(self.maxdepth)] for p in articles}
 
-        # Also, for each article, keep a list of category parents, so we can build 
+        # Also, for each article, keep a list of category parents, so we can build
         # a path along the category tree from any matched category to the article
         # > parents[article_key][category] = parent_category
         #
@@ -163,22 +167,22 @@ class CatFilter(Filter):
         #                   /- cat 2
         #             /- cat1 -|
         # no:giraffe -|        \-
-        #             \- 
+        #             \-
         #
         # parents['no:giraffe']['cat2'] = 'cat1'
         # parents['no:giraffe']['cat1'] = 'giraffe'
         #
-        # We could also build full category trees for each article from the available 
+        # We could also build full category trees for each article from the available
         # information, but they can grow quite big and slow to search
 
-        parents = { p: {} for p in articles }
+        parents = {p: {} for p in articles}
 
         #ctree = Tree()
         #for p in pages:
         #    ctree.add_child( name = p.encode('utf-8') )
 
         for site_key, site in self.sites.iteritems():
-            
+
             if 'bot' in site.rights:
                 requestlimit = 500
                 returnlimit = 5000
@@ -188,18 +192,18 @@ class CatFilter(Filter):
 
             # Titles of articles that belong to this site
             titles = [article.name for article in articles.itervalues() if article.site.key == site_key]
-            
-            log(' ['+site_key+':'+str(len(titles))+']', newline = False)
+
+            log(' ['+site_key+':'+str(len(titles))+']', newline=False)
             #.flush()
             if len(titles) > 0:
-        
+
                 for level in range(self.maxdepth):
 
                     titles0 = copy(titles)
-                    titles = [] # make a new list of titles to search
+                    titles = []  # make a new list of titles to search
                     nc = 0
                     nnc = 0
-            
+
                     for s0 in range(0, len(titles0), requestlimit):
                         if debug:
                             print
@@ -211,21 +215,21 @@ class CatFilter(Filter):
                         while cont:
                             #print clcont
                             if clcont != '':
-                                q = site.api('query', prop = 'categories', titles = ids, cllimit = returnlimit, clcontinue = clcont)
+                                q = site.api('query', prop='categories', titles=ids, cllimit=returnlimit, clcontinue=clcont)
                             else:
-                                q = site.api('query', prop = 'categories', titles = ids, cllimit = returnlimit)
-                            
+                                q = site.api('query', prop='categories', titles=ids, cllimit=returnlimit)
+
                             if 'warnings' in q:
                                 raise StandardError(q['warnings']['query']['*'])
 
                             for pageid, page in q['query']['pages'].iteritems():
                                 fulltitle = page['title']
-                                shorttitle = fulltitle.split(':',1)[-1]
+                                shorttitle = fulltitle.split(':', 1)[-1]
                                 article_key = site_key + ':' + fulltitle
                                 if 'categories' in page:
                                     for cat in page['categories']:
                                         cat_title = cat['title']
-                                        cat_short= cat_title.split(':',1)[1]
+                                        cat_short = cat_title.split(':', 1)[1]
                                         follow = True
                                         for d in self.ignore:
                                             if re.search(d, cat_short):
@@ -238,7 +242,7 @@ class CatFilter(Filter):
                                             if level == 0:
                                                 cats[article_key][level].append(cat_short)
                                                 parents[article_key][cat_short] = fulltitle
-                                                #print cat_short 
+                                                #print cat_short
                                                 # use iter_search_nodes instead?
                                                 #ctree.search_nodes( name = fulltitle.encode('utf-8') )[0].add_child( name = cat_short.encode('utf-8') )
                                             else:
@@ -256,16 +260,15 @@ class CatFilter(Filter):
                                 clcont = q['query-continue']['categories']['clcontinue']
                             else:
                                 cont = False
-                    titles = list(set(titles)) # to remove duplicates (not order preserving)
+                    titles = list(set(titles))  # to remove duplicates (not order preserving)
                     #if level == 0:
                     #    cattree = [p for p in titles]
                     #if self.verbose:
-                    log(' %d' % (len(titles)), newline = False)
+                    log(' %d' % (len(titles)), newline=False)
                     #.stdout.flush()
                     #print "Found %d unique categories (%d total) at level %d (skipped %d categories)" % (len(titles), nc, level, nnc)
 
-
-        return cats, parents 
+        return cats, parents
 
     def check_article_cats(self, article_cats):
         """ Checks if article_cats contains any of the cats given in self.include """
@@ -275,11 +278,11 @@ class CatFilter(Filter):
                 if inc in cats:
                     return inc
         return None
-    
-    def filter(self, articles, debug = False):
-        
+
+    def filter(self, articles, debug=False):
+
         #if self.verbose:
-        log("  [+] Applying category filter", newline = False)
+        log("  [+] Applying category filter", newline=False)
 
         cats, parents = self.fetchcats(articles, debug=debug)
 
@@ -291,9 +294,9 @@ class CatFilter(Filter):
             #    print
             article = articles[article_key]
             if debug:
-                log(">>> %s" % article.name, newline = False)
-                for l,ca in enumerate(article_cats):
-                    log('[%d] %s' % (l, ', '.join(ca)), newline = False)
+                log(">>> %s" % article.name, newline=False)
+                for l, ca in enumerate(article_cats):
+                    log('[%d] %s' % (l, ', '.join(ca)), newline=False)
 
             #print article_key
             #print article_cats
@@ -321,6 +324,7 @@ class CatFilter(Filter):
         log(": %d -> %d" % (len(articles), len(out)))
         return out
 
+
 class ByteFilter(Filter):
     """Filters articles according to a byte treshold"""
 
@@ -336,6 +340,7 @@ class ByteFilter(Filter):
         log("  [+] Applying byte filter (%d bytes): %d -> %d" % (self.bytelimit, len(articles), len(out)))
         return out
 
+
 class NewPageFilter(Filter):
     """Filters new articles"""
 
@@ -350,6 +355,7 @@ class NewPageFilter(Filter):
                 out[a] = aa
         return out
 
+
 class ExistingPageFilter(Filter):
     """ Filters non-new articles """
 
@@ -363,7 +369,8 @@ class ExistingPageFilter(Filter):
             if not article.new:
                 out[aname] = article
         return out
-    
+
+
 class BackLinkFilter(Filter):
     """Filters articles with backlinks to <name>"""
 
@@ -379,7 +386,7 @@ class BackLinkFilter(Filter):
         self.links = []
         log("  [+] Initializing backlink filter: " + ','.join(self.articles))
         #print sites
-        
+
         for site_key, site in self.sites.iteritems():
             for aname in self.articles:
                 aname2 = aname
@@ -391,7 +398,7 @@ class BackLinkFilter(Filter):
                         aname2 = kv[1]
                 p = site.pages[aname2]
                 if p.exists:
-                    for link in p.links(redirects = True):
+                    for link in p.links(redirects=True):
                         self.links.append(site_key+':'+link.name)
 
         #print self.links
@@ -408,6 +415,7 @@ class BackLinkFilter(Filter):
         log("  [+] Applying backlink filter (%s): %d -> %d" % (','.join(self.articles), len(articles), len(out)))
         return out
 
+
 class ForwardLinkFilter(Filter):
     """Filters articles with forwardlinks to <name>"""
 
@@ -421,16 +429,16 @@ class ForwardLinkFilter(Filter):
         self.sites = sites
         self.articles = articles
         self.links = []
-        
+
         for site_key, site in self.sites.iteritems():
             for aname in self.articles:
                 p = site.pages[aname]
                 if p.exists:
-                    for link in p.backlinks(redirect = True):
+                    for link in p.backlinks(redirect=True):
                         self.links.append(site_key+':'+link.name)
 
         #print self.links
-    
+
     def extend(self, flfilter):
         self.links.extend(flfilter.links)
         self.articles.extend(flfilter.articles)
@@ -475,7 +483,7 @@ class NamespaceFilter(Filter):
     def __init__(self, verbose, namespace):
         """
         Arguments:
-            namespace : int 
+            namespace : int
         """
         Filter.__init__(self, verbose)
         self.namespace = namespace
@@ -486,4 +494,4 @@ class NamespaceFilter(Filter):
         #    if article.namespace == self.namespace:
         #        out[article_key] = article
         #log("  [+] Applying namespace filter (%s): %d -> %d" % (','.join(self.articles), len(articles), len(out)))
-        return articles # already filtered
+        return articles  # already filtered

@@ -1,16 +1,14 @@
 #encoding=utf-8
 from __future__ import unicode_literals
 import re
-import urllib
-import gettext
-from bs4 import BeautifulSoup
-from danmicholoparser import TemplateEditor, DanmicholoParseError, condition_for_soup
-from ukcommon import log, init_localization
-import gettext
 from lxml.html import fromstring
 import lxml
+from mwtemplates import TemplateEditor
+from mwtextextractor import condition_for_lxml
+from ukcommon import init_localization
 
 t, _ = init_localization()
+
 
 class Rule(object):
 
@@ -20,15 +18,15 @@ class Rule(object):
     def iszero(self, f):
         f = float(f)
         return (f > -0.1 and f < 0.1)
-    
-    def add_points(self, rev, points, ptype, txt, pmax, include_zero = False):
+
+    def add_points(self, rev, points, ptype, txt, pmax, include_zero=False):
 
         ab = rev.article.get_points(ptype)
-        ab_raw = rev.article.get_points(ptype, ignore_max = True)
-        
-        if pmax > 0.0 and self.iszero(ab - pmax) :
+        ab_raw = rev.article.get_points(ptype, ignore_max=True)
+
+        if pmax > 0.0 and self.iszero(ab - pmax):
             # we have reached max
-            if points < 0.0 and  ab_raw + points < pmax:
+            if points < 0.0 and ab_raw + points < pmax:
                 rev.points.append([pmax - ab_raw - points, ptype, txt, points])
             else:
                 rev.points.append([0.0, ptype, txt, points])
@@ -45,7 +43,7 @@ class Rule(object):
 
 
 class NewPageRule(Rule):
-    
+
     def __init__(self, key, points):
         Rule.__init__(self, key)
         self.points = float(points)
@@ -54,8 +52,9 @@ class NewPageRule(Rule):
         if rev.new and not rev.redirect:
             rev.points.append([self.points, 'newpage', _('new page')])
 
+
 class RedirectRule(Rule):
-    
+
     def __init__(self, key, points):
         Rule.__init__(self, key)
         self.points = float(points)
@@ -85,10 +84,11 @@ class RedirectRule(Rule):
 #                 rev.points.append([self.points, 'stub', 'avstubbing'])
 #         except DanmicholoParseError as e:
 #             rev.article.errors.append(_('Encountered a problem while parsing [%(url)s rev. %(revid)d] : %(error)s' % { 'url': rev.get_link(), 'revid': rev.revid, 'error': e.msg })
-    
+
+
 class TemplateRemovalRule(Rule):
 
-    def __init__(self, key, points, template, aliases = []):
+    def __init__(self, key, points, template, aliases=[]):
         Rule.__init__(self, key)
         self.points = float(points)
         self.template = template.lower()
@@ -131,21 +131,20 @@ class TemplateRemovalRule(Rule):
         if rev.redirect or rev.parentredirect:
             # skip redirects
             return
-        try:
-            pt = self.templatecount(rev.parenttext)
-            ct = self.templatecount(rev.text)
-            if ct < pt:
-                rev.points.append([(pt-ct)*self.points, 'templateremoval', _('removal of {{tl|%(template)s}}') % { 'template': self.template }])
-                self.total += (pt - ct)
-        except DanmicholoParseError as e:
-            rev.article.errors.append(_('Encountered a problem while parsing [%(url)s rev. %(revid)d] : %(problem)s') % { 'url': rev.get_link(), 'revid': rev.revid, 'problem': e.msg })
+        pt = self.templatecount(rev.parenttext)
+        ct = self.templatecount(rev.text)
+        if ct < pt:
+            rev.points.append([(pt - ct) * self.points, 'templateremoval',
+                              _('removal of {{tl|%(template)s}}') % {'template': self.template}])
+            self.total += (pt - ct)
+
 
 class QualiRule(Rule):
 
     def __init__(self, key, points):
         Rule.__init__(self, key)
         self.points = float(points)
-    
+
     def test(self, rev):
         if self.iszero(rev.article.get_points('quali')):
             rev.points.append([self.points, 'quali', _('qualified')])
@@ -153,49 +152,48 @@ class QualiRule(Rule):
 
 class ByteRule(Rule):
 
-    def __init__(self, key, points, maxpoints = -1):
+    def __init__(self, key, points, maxpoints=-1):
         Rule.__init__(self, key)
         self.points = float(points)
         self.maxpoints = float(maxpoints)
-
 
     def test(self, rev):
         revpoints = rev.bytes * self.points
         if revpoints > 0.:
-            self.add_points(rev, revpoints, 'byte', _('%(bytes).f bytes') % { 'bytes': rev.bytes }, self.maxpoints, include_zero = True)
+            self.add_points(rev, revpoints, 'byte',
+                            _('%(bytes).f bytes') % {'bytes': rev.bytes},
+                            self.maxpoints, include_zero=True)
 
 
 class WordRule(Rule):
 
-    def __init__(self, key, points, maxpoints = -1):
+    def __init__(self, key, points, maxpoints=-1):
         Rule.__init__(self, key)
         self.points = float(points)
         self.maxpoints = float(maxpoints)
 
     def test(self, rev):
 
-        try:
-            words = rev.words
-            revpoints = words * self.points
-            if revpoints > 0.:
-                self.add_points(rev, revpoints, 'word', _('%(words).f words') % { 'words': words }, self.maxpoints)
-
-        except DanmicholoParseError as e:
-            rev.errors.append(_('Word count failed for revision %(revid)d due to the following error: %(error)s') % { 'revid': rev.revid, 'error': e.msg })
+        words = rev.words
+        revpoints = words * self.points
+        if revpoints > 0.:
+            self.add_points(rev, revpoints, 'word',
+                            _('%(words).f words') % {'words': words},
+                            self.maxpoints)
 
 
 class ImageRule(Rule):
-    
-    def __init__(self, key, points, maxpoints = -1):
+
+    def __init__(self, key, points, maxpoints=-1):
         Rule.__init__(self, key)
         self.points = float(points)
         self.maxpoints = float(maxpoints)
 
     def get_imagecount(self, txt):
-        return len(re.findall(r'(?:\.svg|\.png|\.jpg|\.jpeg|\.gif|\.tiff|\.pdf|\.djvu)', txt, flags = re.IGNORECASE))
+        return len(re.findall(r'(?:\.svg|\.png|\.jpg|\.jpeg|\.gif|\.tiff|\.pdf|\.djvu)', txt, flags=re.IGNORECASE))
 
     def test(self, rev):
-       
+
         nimages = self.get_imagecount(rev.text)
         nimages_p = self.get_imagecount(rev.parenttext)
         imgs = nimages - nimages_p
@@ -204,30 +202,31 @@ class ImageRule(Rule):
             revpoints = imgs * self.points
             self.add_points(rev, revpoints, 'image', '%d %s' % (imgs, _('images') if imgs > 1 else _('image')), self.maxpoints)
 
+
 class ExternalLinkRule(Rule):
-    
-    def __init__(self, key, points, maxpoints = -1):
+
+    def __init__(self, key, points, maxpoints=-1):
         Rule.__init__(self, key)
         self.points = float(points)
         self.maxpoints = float(maxpoints)
 
     def get_linkcount(self, txt):
-        txt = re.sub(r'<ref[^>]*>.*?</ref>', '', txt, re.MULTILINE) # fjern referanser først, så vi ikke teller lenker i referanser
+        txt = re.sub(r'<ref[^>]*>.*?</ref>', '', txt, flags=re.MULTILINE)  # fjern referanser først, så vi ikke teller lenker i referanser
         return len(re.findall(r'(?<!\[)\[[^\[\] ]+ [^\[\]]+\](?!])', txt))
 
     def test(self, rev):
-       
+
         nlinks = self.get_linkcount(rev.text)
         nlinks_p = self.get_linkcount(rev.parenttext)
         links = nlinks - nlinks_p
 
         if links > 0:
             revpoints = links * self.points
-            self.add_points(rev, revpoints, 'link', '%d %s' % (links, _('links') if links> 1 else _('link')), self.maxpoints)
- 
+            self.add_points(rev, revpoints, 'link', '%d %s' % (links, _('links') if links > 1 else _('link')), self.maxpoints)
+
 
 class RefRule(Rule):
-    
+
     def __init__(self, key, sourcepoints, refpoints):
         """
         sourcepoints: points for adding new sources
@@ -237,11 +236,11 @@ class RefRule(Rule):
         self.sourcepoints = float(sourcepoints)
         self.refpoints = float(refpoints)
         self.totalsources = 0
-            
+
     def test(self, rev):
 
         try:
-            parentsoup = fromstring(condition_for_soup(rev.parenttext))
+            parentsoup = fromstring(condition_for_lxml(rev.parenttext))
             allref1 = parentsoup.findall('.//ref')
             s1 = len([tag for tag in allref1 if tag.text is not None])
             r1 = len([tag for tag in allref1 if tag.text is None])
@@ -251,7 +250,7 @@ class RefRule(Rule):
             r1 = 0
 
         try:
-            soup = fromstring(condition_for_soup(rev.text))
+            soup = fromstring(condition_for_lxml(rev.text))
             allref2 = soup.findall('.//ref')
             s2 = len([tag for tag in allref2 if tag.text is not None])
             r2 = len([tag for tag in allref2 if tag.text is None])
@@ -264,24 +263,25 @@ class RefRule(Rule):
 
         sources_added = s2 - s1
         refs_added = r2 - r1
-        
+
         self.totalsources += sources_added
-        
+
         if sources_added > 0 or refs_added > 0:
             p = 0.
             s = []
             if sources_added > 0:
                 p += sources_added * self.sourcepoints
-                s.append(t.ungettext('one reference', '%(num)d references', sources_added) % { 'num': sources_added })
+                s.append(t.ungettext('one reference', '%(num)d references', sources_added) % {'num': sources_added})
             if refs_added > 0:
                 p += refs_added * self.refpoints
-                s.append(t.ungettext('one reference pointer', '%(num)d reference pointers', refs_added) % { 'num': refs_added })
+                s.append(t.ungettext('one reference pointer', '%(num)d reference pointers', refs_added) % {'num': refs_added})
             txt = ', '.join(s)
-        
+
             rev.points.append([p, 'ref', txt])
 
+
 class ByteBonusRule(Rule):
-    
+
     def __init__(self, key, points, limit):
         Rule.__init__(self, key)
         self.points = float(points)
@@ -294,16 +294,17 @@ class ByteBonusRule(Rule):
         for r in rev.article.revisions.itervalues():
             if r.bytes > 0:
                 abytes += r.bytes
-            if passedlimit == False and abytes >= self.limit:
+            if passedlimit is False and abytes >= self.limit:
                 passedlimit = True
                 if r == rev:
                     thisrev = True
-        
-        if abytes >= self.limit and thisrev == True:
-            rev.points.append([self.points, 'bytebonus', _('bonus %(bytes).f bytes') % { 'bytes': self.limit} ])
+
+        if abytes >= self.limit and thisrev is True:
+            rev.points.append([self.points, 'bytebonus', _('bonus %(bytes).f bytes') % {'bytes': self.limit}])
+
 
 class WordBonusRule(Rule):
-    
+
     def __init__(self, key, points, limit):
         Rule.__init__(self, key)
         self.points = float(points)
@@ -316,18 +317,14 @@ class WordBonusRule(Rule):
         thisrev = False
         passedlimit = False
         for r in rev.article.revisions.itervalues():
-            try:
-                if r.words > 0:
-                    awords += r.words
-            except DanmicholoParseError as e:
-                pass # messages usually always passed from WordRule anyway
-            
-            if passedlimit == False and awords >= self.limit:
+            if r.words > 0:
+                awords += r.words
+
+            if passedlimit is False and awords >= self.limit:
                 passedlimit = True
                 if r == rev:
                     thisrev = True
 
-        if awords >= self.limit and thisrev == True:
-            rev.points.append([self.points, 'wordbonus', _('bonus %(words)d words') % { 'words': self.limit } ])
-
-        
+        if awords >= self.limit and thisrev is True:
+            rev.points.append([self.points, 'wordbonus',
+                              _('bonus %(words)d words') % {'words': self.limit}])

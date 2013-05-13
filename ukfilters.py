@@ -5,7 +5,9 @@ import re
 from copy import copy
 from odict import odict
 from ukcommon import log
+from ukcommon import init_localization
 
+t, _ = init_localization()
 
 class CategoryLoopError(Exception):
     """Raised when a category loop is found.

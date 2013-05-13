@@ -295,6 +295,7 @@ class CatFilter(Filter):
             #if debug:
             #    print
             article = articles[article_key]
+            lang = article_key.split(':')[0]
             if debug:
                 log(">>> %s" % article.name, newline=False)
                 for l, ca in enumerate(article_cats):
@@ -318,7 +319,9 @@ class CatFilter(Filter):
                         if i > 50:
                             raise CategoryLoopError(article.cat_path)
                 except CategoryLoopError as e:
-                    article.errors.append(_('Encountered an infinite category loop: ') + ' → '.join(['[[:Category:'+c+'|'+c+']]' for c in e.catpath]))
+                    article.errors.append(_('Encountered an infinite category loop: ')
+                        + ' → '.join(['[[:%(lang)s:Category:%(catname)s|%(catname)s]]'
+                        % {'lang': lang, 'catname': c} for c in e.catpath]))
 
                 out[article_key] = article
 

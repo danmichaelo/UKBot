@@ -318,7 +318,7 @@ class CatFilter(Filter):
                         if i > 50:
                             raise CategoryLoopError(article.cat_path)
                 except CategoryLoopError as e:
-                    article.errors.append(_('Encountered an infinite category loop: ') + ' → '.join(['[[:Kategori:'+c+'|'+c+']]' for c in e.catpath]))
+                    article.errors.append(_('Encountered an infinite category loop: ') + ' → '.join(['[[:Category:'+c+'|'+c+']]' for c in e.catpath]))
 
                 out[article_key] = article
 

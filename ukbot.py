@@ -355,30 +355,31 @@ class User(object):
         n_articles = len(self.articles)
         for c in site.usercontributions(self.name, ts_start, ts_end, 'newer', prop='ids|title|timestamp|comment', **args):
             #pageid = c['pageid']
-            article_comment = c['comment']
-            rollback = _('Reverted')
-            if not article_comment[:len(rollback)] == rollback:
-                rev_id = c['revid']
-                article_title = c['title']
-                article_key = site_key + ':' + article_title
+            if 'comment' in c:
+                article_comment = c['comment']
+                rollback = _('Reverted')
+                if not article_comment[:len(rollback)] == rollback:
+                    rev_id = c['revid']
+                    article_title = c['title']
+                    article_key = site_key + ':' + article_title
 
-                if rev_id in self.revisions:
-                    # We check self.revisions instead of article.revisions, because the revision may
-                    # already belong to "another article" (another title) if the article has been moved
+                    if rev_id in self.revisions:
+                        # We check self.revisions instead of article.revisions, because the revision may
+                        # already belong to "another article" (another title) if the article has been moved
 
-                    if self.revisions[rev_id].article.name != article_title:
-                        rev = self.revisions[rev_id]
-                        log(' -> Moving revision %d from "%s" to "%s"' % (rev_id, rev.article.name, article_title))
+                        if self.revisions[rev_id].article.name != article_title:
+                            rev = self.revisions[rev_id]
+                            log(' -> Moving revision %d from "%s" to "%s"' % (rev_id, rev.article.name, article_title))
+                            article = self.add_article_if_necessary(site_key, article_title)
+                            rev.article.revisions.pop(rev_id)  # remove from old article
+                            article.revisions[rev_id] = rev    # add to new article
+                            rev.article = article              # and update reference
+
+                    else:
+
                         article = self.add_article_if_necessary(site_key, article_title)
-                        rev.article.revisions.pop(rev_id)  # remove from old article
-                        article.revisions[rev_id] = rev    # add to new article
-                        rev.article = article              # and update reference
-
-                else:
-
-                    article = self.add_article_if_necessary(site_key, article_title)
-                    rev = article.add_revision(rev_id, timestamp=time.mktime(c['timestamp']))
-                    new_revisions.append(rev)
+                        rev = article.add_revision(rev_id, timestamp=time.mktime(c['timestamp']))
+                        new_revisions.append(rev)
 
         # If revisions were moved from one article to another, and the redirect was not created by the same user,
         # some articles may now have zero revisions. We should drop them

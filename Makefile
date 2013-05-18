@@ -16,8 +16,8 @@ COPYRIGHT_HOLDER = Dan Michael
 #MSGID_BUGS_ADDRESS = Guido Flohr <guido@imperia.net>
 MSGID_BUGS_ADDRESS = danm
 
-srcdir = .
-libdir = .
+srcdir = ./bot
+libdir = ./bot
  
 #CATALOGS = $(addsuffix .po, LINGUAS)
 CATALOGS = $(LINGUAS)

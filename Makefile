@@ -7,21 +7,11 @@ LINGUAS = nb_NO \
 
 # Textdomain for our package.
 TEXTDOMAIN = messages
- 
-# Initial copyright holder added to pot and po files.
-#COPYRIGHT_HOLDER = Guido Flohr
-COPYRIGHT_HOLDER = Dan Michael
- 
-# Where to send msgid bugs?  
-#MSGID_BUGS_ADDRESS = Guido Flohr <guido@imperia.net>
-MSGID_BUGS_ADDRESS = danm
 
 srcdir = ./bot
-libdir = ./bot
  
-#CATALOGS = $(addsuffix .po, LINGUAS)
 CATALOGS = $(LINGUAS)
-MO_FILES = $(addsuffix .mo, $(LINGUAS))
+MO_FILES = $(addprefix $(srcdir)/, $(addsuffix .mo, $(LINGUAS)))
  
 MSGMERGE = msgmerge
 MSGFMT   = msgfmt
@@ -32,7 +22,8 @@ TD = $(strip $(TEXTDOMAIN))
  
 default: help
  
-all: $(TD).pot update-po update-mo install makedb
+all: $(TD).pot update-po update-mo install 
+# makedb
  
 help:
 	@echo "Available targets:"
@@ -48,29 +39,26 @@ POTFILES = $(srcdir)/POTFILES.in \
 pot: $(TD).pot 
 
 clean:
-	rm -f *~ *.bak *.mo
- 
-# FIXME: The parameter --from-code is only needed if your sources contain
-# any 8 bit data (even in comments).  UTF-8 is only a guess here, but it
-# will at least accept any 8 bit data.
-#
-# The parameter "--language=perl" is not strictly needed because the
-# source language of all our files will be auto-detected by xgettext
-# by their filename extension.  You should even avoid this parameter
-# if you want to extract strings from multiple source languages.
+	for dir in ./ ./bot; do \
+		rm -fv $$dir/*~ $$dir/*.bak $$dir/*.mo $$dir/*.pox $$dir/*.pot; \
+	done
+
+
+# Use xgettext to extract strings from the source code
+# files listed in POTFILESS.in
+
 $(TD).pot: $(POTFILES)
 	$(XGETTEXT) --output=$(srcdir)/$(TD).pox \
 		--files-from=$(srcdir)/POTFILES.in
-	rm -f $@ && mv $(TD).pox $@
+	rm -f $(srcdir)/$@ && mv $(srcdir)/$(TD).pox $(srcdir)/$@
  
 install: $(MO_FILES)
-	cd $(srcdir); \
-	targetdir='$(libdir)/locale'; \
+	targetdir='./bot/locale'; \
 	languages='$(LINGUAS)'; \
 	for lang in $$languages; do \
 		mkdir -p "$$targetdir/$$lang/LC_MESSAGES" || exit 1; \
 		dest="$$targetdir/$$lang/LC_MESSAGES/$(TD).mo"; \
-		cat="$$lang.mo"; \
+		cat="$(srcdir)/$$lang.mo"; \
 		echo "installing $$cat as $$dest"; \
 		cp -f $$cat $$dest && chmod 644 $$dest || exit 1; \
 	done
@@ -104,8 +92,8 @@ update-po:
 #	$(MSGFMT) --check --statistics --verbose -o $@ $<
 
 
-makedb:
-	./db/initialize.sh
+#makedb:
+#	./db/initialize.sh
 
 
 #MSGSRC=$(wildcard locale/*/LC_MESSAGES/messages.po)

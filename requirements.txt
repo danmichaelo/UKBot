@@ -1,0 +1,8 @@
+pytz
+isoweek
+numpy
+matplotlib
+odict
+pyyaml
+lxml
+beautifulsoup4

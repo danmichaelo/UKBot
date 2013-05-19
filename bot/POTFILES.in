@@ -1,3 +1,3 @@
-./ukbot.py
-./ukfilters.py
-./ukrules.py
+bot/ukbot.py
+bot/ukfilters.py
+bot/ukrules.py

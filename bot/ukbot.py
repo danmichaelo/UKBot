@@ -961,7 +961,7 @@ class UK(object):
             elif key == rulecfg['templateremoval']:
                 params = {'key': key, 'points': anon[2], 'template': anon[3]}
                 if templ.has_param(rulecfg['alias']):
-                    params['aliases'] = [a.strip() for a in p[rulecfg['alias']].split(',')]
+                    params['aliases'] = [a.strip() for a in p[rulecfg['alias']].value.split(',')]
                 rules.append(TemplateRemovalRule(**params))
 
             elif key == rulecfg['bytebonus']:

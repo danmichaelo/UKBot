@@ -1069,10 +1069,11 @@ class UK(object):
         dicfg = config['templates']['disqualified']
         if dicfg['name'] in dp.templates:
             for templ in dp.templates[dicfg['name']]:
+		uname = templ.parameters[1]
                 anon = templ.get_anonymous_parameters()
-                uname = anon[0]
-                if not 's' in templ.get_named_parameters():
-                    for aname in anon[1:]:
+                uname = anon[1]
+		if not templ.has_param('s'):
+                    for aname in anon[2:]:
                         #print 'Diskvalifiserte bidrag:',uname,aname
                         ufound = False
                         for u in self.users:

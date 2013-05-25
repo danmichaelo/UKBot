@@ -87,7 +87,7 @@ class TemplateFilter(Filter):
 
     def __init__(self, verbose, templates, aliases=[]):
         Filter.__init__(self, verbose)
-        templates.extend([a.lower() for a in aliases])
+        templates.extend([a for a in aliases])
         self.templates = templates
 
     def extend(self, templatefilter):

@@ -1046,8 +1046,8 @@ class UK(object):
         ######################## Read disqualifications ########################
 
         sucfg = config['templates']['suspended']
-        if sucfg['name'].lower() in dp.templates:
-            for templ in dp.templates[sucfg['name'].lower()]:
+        if sucfg['name'] in dp.templates:
+            for templ in dp.templates[sucfg['name']]:
                 uname = templ.parameters[1]
                 try:
                     sdate = wiki_tz.localize(datetime.strptime(templ.parameters[2], '%Y-%m-%d %H:%M'))
@@ -1067,8 +1067,8 @@ class UK(object):
                     #raise ParseError('Fant ikke brukeren %s gitt til {{tl|UK bruker suspendert}}-malen.' % uname)
 
         dicfg = config['templates']['disqualified']
-        if dicfg['name'].lower() in dp.templates:
-            for templ in dp.templates[dicfg['name'].lower()]:
+        if dicfg['name'] in dp.templates:
+            for templ in dp.templates[dicfg['name']]:
                 anon = templ.get_anonymous_parameters()
                 uname = anon[0]
                 if not 's' in templ.get_named_parameters():
@@ -1084,8 +1084,8 @@ class UK(object):
                             raise ParseError(_('Could not find the user %(user)s given to the {{tl|%(template)s}} template.') % {'user': uname, 'template': dicfg['name']})
 
         pocfg = config['templates']['penalty']
-        if pocfg['name'].lower() in dp.templates:
-            for templ in dp.templates[pocfg['name'].lower()]:
+        if pocfg['name'] in dp.templates:
+            for templ in dp.templates[pocfg['name']]:
                 uname = templ.parameters[1]
                 aname = templ.parameters[2]
                 points = float(templ.parameters[3].replace(',', '.'))
@@ -1658,7 +1658,7 @@ if __name__ == '__main__':
         txt = kpage.edit()
         tp = TemplateEditor(txt)
         if sammen != '':
-            tp.templates[ib['name'].lower()][0].parameters[ib['status']] = sammen
+            tp.templates[ib['name']][0].parameters[ib['status']] = sammen
         txt = tp.wikitext()
         secstart = -1
         secend = -1

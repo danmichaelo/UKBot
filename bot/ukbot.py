@@ -1087,10 +1087,10 @@ class UK(object):
         pocfg = config['templates']['penalty']
         if pocfg['name'] in dp.templates:
             for templ in dp.templates[pocfg['name']]:
-                uname = templ.parameters[1]
-                aname = templ.parameters[2]
-                points = float(templ.parameters[3].replace(',', '.'))
-                reason = templ.parameters[4]
+                uname = templ.parameters[1].value
+                aname = templ.parameters[2].value
+                points = float(templ.parameters[3].value.replace(',', '.'))
+                reason = templ.parameters[4].value
                 ufound = False
                 log('poengtrekk: %s %s %d %s' % (uname, aname, points, reason))
                 for u in self.users:

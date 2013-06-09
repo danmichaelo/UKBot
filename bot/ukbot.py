@@ -1069,10 +1069,10 @@ class UK(object):
         dicfg = config['templates']['disqualified']
         if dicfg['name'] in dp.templates:
             for templ in dp.templates[dicfg['name']]:
-		uname = templ.parameters[1]
+                uname = templ.parameters[1]
                 anon = templ.get_anonymous_parameters()
                 uname = anon[1]
-		if not templ.has_param('s'):
+                if not templ.has_param('s'):
                     for aname in anon[2:]:
                         #print 'Diskvalifiserte bidrag:',uname,aname
                         ufound = False
@@ -1089,10 +1089,14 @@ class UK(object):
             for templ in dp.templates[pocfg['name']]:
                 uname = templ.parameters[1].value
                 aname = templ.parameters[2].value
+
+                if not re.match('^[a-z]{2,3}:', aname):
+                        aname = config['default_prefix'] + ':' + aname
+
                 points = float(templ.parameters[3].value.replace(',', '.'))
                 reason = templ.parameters[4].value
                 ufound = False
-                log('poengtrekk: %s %s %d %s' % (uname, aname, points, reason))
+                log('poengtrekk: USER: %s ARTICLE: %s POINTS: %d REASON: %s' % (uname, aname, points, reason))
                 for u in self.users:
                     if u.name == uname:
                         u.point_deductions.append([aname, points, reason])

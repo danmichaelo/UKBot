@@ -406,7 +406,7 @@ class BackLinkFilter(Filter):
                     for link in p.links(redirects=True):
                         self.links.append(site_key+':'+link.name)
                     for link in p.iwlinks():
-                        self.links.append(link[0]+':'+link[1])
+                        self.links.append(link[0]+':'+link[1].replace('_', ' '))
 
         #print self.links
 

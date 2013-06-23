@@ -192,7 +192,7 @@ class ImageRule(Rule):
         self.maxpoints = float(maxpoints)
 
     def get_imagecount(self, txt):
-        return len(re.findall(r'(?:\.svg|\.png|\.jpg|\.jpeg|\.gif|\.tiff|\.pdf|\.djvu)', txt, flags=re.IGNORECASE))
+        return len(re.findall(r'(?:\.svg|\.png|\.jpg|\.jpeg|\.gif|\.tiff)', txt, flags=re.IGNORECASE))
 
     def test(self, rev):
 

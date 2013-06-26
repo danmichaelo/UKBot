@@ -96,17 +96,17 @@ class TemplateRemovalRule(Rule):
         self.total = 0
 
     def testtpl(self, name):
-	name = name.lower()
-	for tpl in self.aliases + [self.template]:
-		if tpl[0] == '*' and tpl[-1] == '*' and name.find(tpl[1:-1]) != -1:
-			return True
-		elif tpl[0] == '*' and name.endswith(tpl[1:]):
-			return True
-		elif tpl[-1] == '*' and name.startswith(tpl[:-1]):
-			return True
-		elif name == tpl:
-			return True
-	return False
+        name = name.lower()
+        for tpl in self.aliases + [self.template]:
+            if tpl[0] == '*' and tpl[-1] == '*' and name.find(tpl[1:-1]) != -1:
+                return True
+            elif tpl[0] == '*' and name.endswith(tpl[1:]):
+                return True
+            elif tpl[-1] == '*' and name.startswith(tpl[:-1]):
+                return True
+            elif name == tpl:
+                return True
+        return False
 
     def templatecount(self, text):
         """ Checks if a given text has the template"""

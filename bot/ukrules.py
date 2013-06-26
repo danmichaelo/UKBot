@@ -239,27 +239,45 @@ class RefRule(Rule):
         self.refpoints = float(refpoints)
         self.totalsources = 0
 
-    def test(self, rev):
+    def get_sourcecount(self, txt):
 
+        s1 = 0  # kilder
+        r1 = 0  # kildehenvisninger
+
+        # Count all <ref> tags
         try:
-            parentsoup = fromstring(condition_for_lxml(rev.parenttext))
-            allref1 = parentsoup.findall('.//ref')
-            s1 = len([tag for tag in allref1 if tag.text is not None])
-            r1 = len([tag for tag in allref1 if tag.text is None])
-            del parentsoup
+            xml = fromstring(condition_for_lxml(txt))
+            allref1 = xml.findall('.//ref')
+            for tag in allref1:
+                if tag.text is None:
+                    r1 += 1
+                elif re.match(r'[\s]*\[\[', tag.text):
+                    r1 += 1
+                else:
+                    s1 += 1
+            del xml
         except lxml.etree.XMLSyntaxError:
             s1 = 0
             r1 = 0
 
-        try:
-            soup = fromstring(condition_for_lxml(rev.text))
-            allref2 = soup.findall('.//ref')
-            s2 = len([tag for tag in allref2 if tag.text is not None])
-            r2 = len([tag for tag in allref2 if tag.text is None])
-            del soup
-        except lxml.etree.XMLSyntaxError:
-            s2 = 0
-            r2 = 0
+        # Count list item under section heading "Kilder" or "Kjelder"
+        refsection = False
+        for line in txt.split('\n'):
+            if refsection:
+                if re.match(r'==', line):
+                    refsection = False
+                    continue
+                if re.match(r'\*', line):
+                    s1 += 1
+            elif re.match('==[\s]*(Kilder|Kjelder)[\s]*==', line):
+                refsection = True
+
+        return s1, r1
+
+    def test(self, rev):
+
+        s1, r1 = self.get_sourcecount(rev.parenttext)
+        s2, r2 = self.get_sourcecount(rev.text)
 
         #print rev.article.name,len(allref1), len(allref2)
 

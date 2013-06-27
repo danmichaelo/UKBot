@@ -251,8 +251,6 @@ class RefRule(Rule):
             for tag in allref1:
                 if tag.text is None:
                     r1 += 1
-                elif re.match(r'[\s]*\[\[', tag.text):
-                    r1 += 1
                 else:
                     s1 += 1
             del xml

@@ -267,7 +267,7 @@ class RefRule(Rule):
                     continue
                 if re.match(r'\*', line):
                     s1 += 1
-            elif re.match('==[\s]*(Kilder|Kjelder)[\s]*==', line):
+            elif re.match('==[\s]*(Kilder|Kjelder|Gáldut)[\s]*==', line):
                 refsection = True
 
         return s1, r1

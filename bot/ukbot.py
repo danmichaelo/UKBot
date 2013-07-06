@@ -1021,7 +1021,7 @@ class UK(object):
         userprefix = self.homesite.namespaces[2]
         self.ledere = re.findall(r'\[\[(?:User|%s):([^\|\]]+)' % userprefix, unicode(infoboks.parameters[ibcfg['organizer']]), flags=re.I)
         if len(self.ledere) == 0:
-            raise ParseError(_('Did not find any organizers in {{tl|%(template)s}}.') % {'template': ibcfg['name']})
+	    log('Did not find any organizers in {{tl|%(template)s}}.' % {'template': ibcfg['name']})
 
         awards = config['awards']
         self.prices = []
@@ -1042,7 +1042,8 @@ class UK(object):
 
         if not 'winner' in [r[1] for r in self.prices]:
             winnerawards = ', '.join(['{{para|%s|vinner}}' % k for k, v in awards.items() if 'winner' in v])
-            raise ParseError(_('Found no winner award in {{tl|%(template)s}}. Winner award is set by one of the following: %(awards)s.') % {'template': ibcfg['name'], 'awards': winnerawards})
+            #raise ParseError(_('Found no winner award in {{tl|%(template)s}}. Winner award is set by one of the following: %(awards)s.') % {'template': ibcfg['name'], 'awards': winnerawards})
+            log('Found no winner award in {{tl|%(template)s}}. Winner award is set by one of the following: %(awards)s.' % {'template': ibcfg['name'], 'awards': winnerawards})
 
         self.prices.sort(key=lambda x: x[2], reverse=True)
 
@@ -1094,7 +1095,7 @@ class UK(object):
                 aname = templ.parameters[2].value
 
                 if not re.match('^[a-z]{2,3}:', aname):
-                        aname = config['default_prefix'] + ':' + aname
+                    aname = config['default_prefix'] + ':' + aname
 
                 points = float(templ.parameters[3].value.replace(',', '.'))
                 reason = templ.parameters[4].value
@@ -1479,8 +1480,8 @@ if __name__ == '__main__':
 
     # Check that we're not given some very wrong page
     userprefix = homesite.namespaces[2]
-    if not (re.match('^'+config['pages']['base'], ktitle) or re.match('^' + userprefix + ':UKBot/', ktitle)):
-        raise StandardError('I refuse to work with that page!')
+    #if not (re.match('^'+config['pages']['base'], ktitle) or re.match('^' + userprefix + ':UKBot/', ktitle)):
+    #    raise StandardError('I refuse to work with that page!')
 
     # Check if page exists
 

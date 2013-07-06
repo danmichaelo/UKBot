@@ -926,6 +926,9 @@ class UK(object):
 
             elif key == rulecfg['qualified']:
                 rules.append(QualiRule(key, anon[2]))
+            
+	    elif key == rulecfg['refsectionfi']:
+                rules.append(RefSectionFiRule(key, anon[2]))
 
             # elif key == 'stubb':
             #     rules.append(StubRule(anon[1]))

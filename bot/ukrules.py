@@ -297,6 +297,32 @@ class RefRule(Rule):
 
             rev.points.append([p, 'ref', txt])
 
+class RefSectionFiRule(Rule):
+
+    def __init__(self, key, points):
+        Rule.__init__(self, key)
+        self.points = float(points)
+        self.totalsources = 0
+
+    def has_ref_section(self, txt):
+
+        refsec = False
+
+        # Count list item under section heading "Kilder" or "Kjelder"
+        refsection = False
+        for line in txt.split('\n'):
+            if re.match('==(=)?[\s]*(Lähteet|Viitteet)[\s]*(=?)==', line):
+                refsection = True
+
+        return refsection
+
+    def test(self, rev):
+
+        r1 = self.has_ref_section(rev.parenttext)
+        r2 = self.has_ref_section(rev.text)
+
+	if not r1 and r2:
+            rev.points.append([self.points, 'ref', 'added ref section'])
 
 class ByteBonusRule(Rule):
 

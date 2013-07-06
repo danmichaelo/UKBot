@@ -1006,10 +1006,10 @@ class UK(object):
             self.start = wiki_tz.localize(datetime.combine(startweek.monday(), dt_time(0, 0, 0)))
             self.end = wiki_tz.localize(datetime.combine(endweek.sunday(), dt_time(23, 59, 59)))
         elif infoboks.has_param(ibcfg['start']) and infoboks.has_param(ibcfg['end']):
-            startdt = infoboks.parameters[ibcfg['start']]
-            enddt = infoboks.parameters[ibcfg['end']]
-            self.start = wiki_tz.localize(datetime.strptime(startdt + ' 00 00 00 00', '%Y-%m-%d %H %M %S'))
-            self.end = wiki_tz.localize(datetime.strptime(enddt + ' 23 59 59 00', '%Y-%m-%d %H %M %S'))
+            startdt = infoboks.parameters[ibcfg['start']].value
+            enddt = infoboks.parameters[ibcfg['end']].value
+            self.start = wiki_tz.localize(datetime.strptime(startdt + ' 00 00 00', '%Y-%m-%d %H %M %S'))
+            self.end = wiki_tz.localize(datetime.strptime(enddt + ' 23 59 59', '%Y-%m-%d %H %M %S'))
         else:
             args = {'week': commonargs['week'], 'year': commonargs['year'], 'start': ibcfg['start'], 'end': ibcfg['end'], 'template': ibcfg['name']}
             raise ParseError(_('Did not find %(week)s+%(year)s or %(start)s+%(end)s in {{tl|%(templates)s}}.') % args)

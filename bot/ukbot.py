@@ -1604,6 +1604,8 @@ if __name__ == '__main__':
                 sammen += '|%s=%d' % (f.key, nwords)
             elif type(f) == RefRule:
                 sammen += '|%s=%d' % (f.key, f.totalsources)
+            elif type(f) == RefSectionFiRule:
+                sammen += '|%s=%d' % (f.key, f.totalrefsectionsadded)
             elif type(f) == TemplateRemovalRule:
                 trn += 1
                 sammen += '|%(key)s%(idx)d=%(tpl)s|%(key)s%(idx)dn=%(cnt)d' % {

@@ -302,7 +302,7 @@ class RefSectionFiRule(Rule):
     def __init__(self, key, points):
         Rule.__init__(self, key)
         self.points = float(points)
-        self.totalsources = 0
+        self.totalrefsectionsadded = 0
 
     def has_ref_section(self, txt):
 
@@ -321,8 +321,10 @@ class RefSectionFiRule(Rule):
         r1 = self.has_ref_section(rev.parenttext)
         r2 = self.has_ref_section(rev.text)
 
-	if not r1 and r2:
-            rev.points.append([self.points, 'ref', 'added ref section'])
+        if not r1 and r2:
+            rev.points.append([self.points, 'refsection', _('added reference section')])
+            self.totalrefsectionsadded += 1
+
 
 class ByteBonusRule(Rule):
 

@@ -3,12 +3,14 @@
 
 from __future__ import unicode_literals
 
-import sys, os, datetime
+import sys, os 
+from datetime import datetime, timedelta
 import mwclient
 import yaml
 import pytz
 import locale
 from ukcommon import init_localization
+import argparse
 # Read args
 
 parser = argparse.ArgumentParser( description = 'The UKBot' )
@@ -24,14 +26,14 @@ _ = init_localization(config['locale'])
 runstart = server_tz.localize(datetime.now())
 #log('UKBot-uploader starting at %s (server time), %s (wiki time)' % (runstart.strftime('%F %T'), runstart.astimezone(wiki_tz).strftime('%F %T')))
 
-now = datetime.datetime.now()
+now = datetime.now()
 
 # If we run at midnight, then upload the results of last day
 if now.hour == 0:
-    now -= datetime.timedelta(hours=1)
+    now -= timedelta(hours=1)
 
 year, week, day = now.isocalendar()
-weekstart = now - datetime.timedelta(days = day-1)
+weekstart = now - timedelta(days = day-1)
 
 kpage = '%s %s' % (config['pages']['base'], now.strftime('%Y-%V'))
 no = mwclient.Site(config['homesite'])
@@ -40,35 +42,32 @@ if 'redirects' in pp['query']:
     kpage = pp['query']['redirects'][0]['to']
 
 yearweek = kpage.split()[-1]
-filename = config['figname'] % yearweek
+yearweek = yearweek.split('-')
+filename = config['plot']['figname'] % {'year': int(yearweek[0]), 'week': int(yearweek[1])}
+remote_filename = filename.replace(' ', '_')
+filename = '../plots/' + filename
 
 if not os.path.isfile(filename):
     sys.stderr.write('File "%s" was not found\n' % filename)
     sys.exit(1)
 
-pagetext = """== {{int:filedesc}} ==
-{{Information
-|Description    = {{no|1=Resultater for [[:no:Wikipedia:Ukens konkurranse/Ukens konkurranse %(yearweek)s|Ukens konkurranse uke %(week)s, %(year)s]]}}
-{{en|1=Results from the weekly article writing contest at Norwegian Bokmål/Nynorsk Wikipedia [[:no:Wikipedia:Ukens konkurranse/Ukens konkurranse %(yearweek)s|week %(week)s, %(year)s]]}}
-|Source         = {{own}}
-|Date           = %(weekstart)s
-|Author         = [[User:UKBot|UKBot]]
-}}
+pagetext = config['plot']['description'] % { 'yearweek': yearweek, 'week': now.strftime('%V'), 'year': now.strftime('%Y'), 'weekstart': weekstart.strftime('%F') }
 
-== {{int:license-header}} ==
-{{PD-self}}
-
-[[Category:Ukens konkurranse]]""" % { 'yearweek': yearweek, 'week': now.strftime('%V'), 'year': now.strftime('%Y'), 'weekstart' : weekstart.strftime('%F') }
-
-from wp_private import ukbotlogin
 commons = mwclient.Site('commons.wikimedia.org')
-commons.login(*ukbotlogin)
+commons.login(config['account']['user'], config['account']['pass'])
+
+
+print pagetext
+sys.exit(0)
 
 p = commons.pages['File:' + filename]
 f = open(filename, 'rb')
+
 if p.exists:
-    commons.upload(f, filename, comment = 'Bot: Updating plot', ignore = True)
+    print "updating plot"
+    print commons.upload(f, remote_filename, comment='Bot: Updating plot', ignore=True)
 else:
-    commons.upload(f, filename, comment = 'Bot: Uploading new "Ukens konkurranse" plot at week-start', description = pagetext)
+    print "adding plot"
+    print commons.upload(f, remote_filename, comment='Bot: Uploading new "Ukens konkurranse" plot at week-start', description=pagetext, ignore=True)
 f.close()
 

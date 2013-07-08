@@ -1129,9 +1129,8 @@ class UK(object):
 
         t0 = float(unix_time(self.start))
 
-        ndays = 7
-        if self.startweek != self.endweek:
-            ndays = 14
+        datediff = self.end - self.start
+        ndays = datediff.days + 1
 
         xt = t0 + np.arange(ndays + 1) * 86400
         xt_mid = t0 + 43200 + np.arange(ndays) * 86400
@@ -1169,7 +1168,7 @@ class UK(object):
         ax.set_xticks(xt_mid, minor=True)
         if ndays == 7:
             ax.set_xticklabels(['Man', 'Tir', 'Ons', 'Tors', 'Fre', 'Lør', 'Søn'], minor=True)
-        else:
+        elif ndays == 14:
             ax.set_xticklabels(['Man', '', 'Ons', '', 'Fre', '', 'Søn', '', 'Tir', '', 'Tor', '', 'Lør', ''], minor=True)
 
         for i in range(1, ndays, 2):
@@ -1197,7 +1196,8 @@ class UK(object):
                 # ncol = 4, loc = 3, bbox_to_anchor = (0., 1.02, 1., .102), mode = "expand", borderaxespad = 0.
                 loc=2, bbox_to_anchor=(1.0, 1.0), borderaxespad=0., frameon=0.
             )
-            plt.savefig(self.config['figname'] % {'year': self.year, 'week': self.startweek}, dpi=200)
+            figname = '../plots/' + self.config['plot']['figname'] % {'year': self.year, 'week': self.startweek}
+            plt.savefig(figname.encode('utf-8'), dpi=200)
 
     def format_msg(self, template, award):
         tpl = self.config['award_message']

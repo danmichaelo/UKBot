@@ -152,8 +152,8 @@ msgid ""
 "Found no winner award in {{tl|%(template)s}}. Winner award is set by one of "
 "the following: %(awards)s."
 msgstr ""
-"Fant ingen vinnerpremie i {{tl|%(template)s}}. Vinnerpremien settes som en "
-"av følgende: %(awards)s."
+"Ei löydetty voittajapalkintoa mallineesta {{tl|%(template)s}}. Voittajapalkinto on yksi "
+"seuraavista: %(awards)s."
 
 #: ukbot.py:1054
 #, python-format

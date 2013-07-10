@@ -157,7 +157,7 @@ msgstr "Käyttäjää %(user)s ri löytynyt {{tl|%(template)s}}-mallineesta."
 #, python-format
 msgid ""
 "Couldn't find the user %(user)s given to the {{tl|%(template)s}} template."
-msgstr "Fant ikke brukeren %(user)s gitt til {{tl|%(template)s}}-malen."
+msgstr "Ei löydetty käyttäjää %(user)s {{tl|%(template)s}}-mallineesta."
 
 #: bot/ukbot.py:1228
 #, python-format

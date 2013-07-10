@@ -56,10 +56,6 @@ pagetext = config['plot']['description'] % { 'yearweek': yearweek, 'week': now.s
 commons = mwclient.Site('commons.wikimedia.org')
 commons.login(config['account']['user'], config['account']['pass'])
 
-
-print pagetext
-sys.exit(0)
-
 p = commons.pages['File:' + filename]
 f = open(filename, 'rb')
 

@@ -23,23 +23,27 @@ class Rule(object):
 
         ab = rev.article.get_points(ptype)
         ab_raw = rev.article.get_points(ptype, ignore_max=True)
+        pts = 0.0
 
         if pmax > 0.0 and self.iszero(ab - pmax):
             # we have reached max
             if points < 0.0 and ab_raw + points < pmax:
-                rev.points.append([pmax - ab_raw - points, ptype, txt, points])
-            else:
-                rev.points.append([0.0, ptype, txt, points])
+                pts = pmax - ab_raw - points
+            rev.points.append([pts, ptype, txt, points])
 
         elif pmax > 0.0 and ab + points > pmax:
             # reaching max
-            rev.points.append([pmax - ab, ptype, txt + ' &gt; ' + _('max'), points])
+            pts = pmax - ab
+            rev.points.append([pts, ptype, txt + ' &gt; ' + _('max'), points])
 
         #elif not self.iszero(revpoints):
         else:
             if self.iszero(points) and not include_zero:
-                return
+                return False
+            pts = points
             rev.points.append([points, ptype, txt, points])
+        if pts > 0.0:
+            return True
 
 
 class NewPageRule(Rule):
@@ -299,9 +303,10 @@ class RefRule(Rule):
 
 class RefSectionFiRule(Rule):
 
-    def __init__(self, key, points):
+    def __init__(self, key, points, maxpoints=-1):
         Rule.__init__(self, key)
         self.points = float(points)
+        self.maxpoints = float(maxpoints)
         self.totalrefsectionsadded = 0
 
     def has_ref_section(self, txt):
@@ -322,8 +327,10 @@ class RefSectionFiRule(Rule):
         r2 = self.has_ref_section(rev.text)
 
         if not r1 and r2:
-            rev.points.append([self.points, 'refsection', _('added reference section')])
-            self.totalrefsectionsadded += 1
+            if self.add_points(rev, self.points, 'refsection',
+                               _('added reference section'),
+                               self.maxpoints):
+                self.totalrefsectionsadded += 1
 
 
 class ByteBonusRule(Rule):

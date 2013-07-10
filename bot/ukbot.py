@@ -926,9 +926,12 @@ class UK(object):
 
             elif key == rulecfg['qualified']:
                 rules.append(QualiRule(key, anon[2]))
-            
-	    elif key == rulecfg['refsectionfi']:
-                rules.append(RefSectionFiRule(key, anon[2]))
+
+            elif key == rulecfg['refsectionfi']:
+                params = {'key': key, 'points': anon[2]}
+                if templ.has_param(maxpoints):
+                    params['maxpoints'] = p[maxpoints]
+                rules.append(RefSectionFiRule(**params))
 
             # elif key == 'stubb':
             #     rules.append(StubRule(anon[1]))
@@ -1139,6 +1142,7 @@ class UK(object):
 
         yall = []
         cnt = 0
+        
         for u in self.users:
             if u.plotdata.shape[0] > 0:
                 cnt += 1
@@ -1153,14 +1157,14 @@ class UK(object):
                 else:
                     x.append(xt[-1])
                     y.append(y[-1])
-                l = ax.plot(x, y, linewidth=2., alpha=0.5, label=u.name)  # markerfacecolor='#FF8C00', markeredgecolor='#888888', label = u.name)
+                l = ax.plot(x, y, linewidth=1.2, label=u.name)  # markerfacecolor='#FF8C00', markeredgecolor='#888888', label = u.name)
                 c = l[0].get_color()
-                ax.plot(x[1:-1], y[1:-1], marker='.', markersize=4, markerfacecolor=c, markeredgecolor=c, linewidth=0., alpha=0.5)  # markerfacecolor='#FF8C00', markeredgecolor='#888888', label = u.name)
+                #ax.plot(x[1:-1], y[1:-1], marker='.', markersize=4, markerfacecolor=c, markeredgecolor=c, linewidth=0., alpha=0.5)  # markerfacecolor='#FF8C00', markeredgecolor='#888888', label = u.name)
                 if cnt >= 10:
                     break
 
         if now < xt[-1]:
-            ax.axvline(now, color='red')
+            ax.axvline(now, color='red', alpha=0.5)
 
         ax.set_xticks(xt, minor=False)
         ax.set_xticklabels([], minor=False)
@@ -1468,7 +1472,7 @@ if __name__ == '__main__':
         log('  No page specified. Using default page')
         ktitle = config['pages']['default']
         # subtract one hour, so we close last week's contest right after midnight
-        ktitle = (now - timedelta(hours=1)).astimezone(wiki_tz).strftime(ktitle)
+        ktitle = (now - timedelta(hours=1)).astimezone(wiki_tz).strftime(ktitle.encode('utf-8')).decode('utf-8')
 
     # Is ktitle redirect? Resolve
 

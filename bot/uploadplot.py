@@ -47,8 +47,8 @@ filename = config['plot']['figname'] % {'year': int(yearweek[0]), 'week': int(ye
 remote_filename = filename.replace(' ', '_')
 filename = '../plots/' + filename
 
-if not os.path.isfile(filename):
-    sys.stderr.write('File "%s" was not found\n' % filename)
+if not os.path.isfile(filename.encode('utf-8')):
+    sys.stderr.write('File "%s" was not found\n' % filename.encode('utf-8'))
     sys.exit(1)
 
 pagetext = config['plot']['description'] % { 'yearweek': yearweek, 'week': now.strftime('%V'), 'year': now.strftime('%Y'), 'weekstart': weekstart.strftime('%F') }
@@ -57,7 +57,7 @@ commons = mwclient.Site('commons.wikimedia.org')
 commons.login(config['account']['user'], config['account']['pass'])
 
 p = commons.pages['File:' + filename]
-f = open(filename, 'rb')
+f = open(filename.encode('utf-8'), 'rb')
 
 if p.exists:
     print "updating plot"

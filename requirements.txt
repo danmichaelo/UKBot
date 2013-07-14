@@ -1,8 +1,14 @@
+Cython
+Jinja2
+Werkzeug
 pytz
 isoweek
-numpy
-matplotlib
 odict
 pyyaml
 lxml
 beautifulsoup4
+numpy
+matplotlib
+git+git://github.com/mwclient/mwclient.git
+git+git://github.com/danmichaelo/mwtemplates.git
+git+git://github.com/danmichaelo/mwtextextractor.git

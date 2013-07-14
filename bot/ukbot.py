@@ -12,6 +12,7 @@ import pytz
 from isoweek import Week  # Sort-of necessary until datetime supports %V, see http://bugs.python.org/issue12006
                           # and See http://stackoverflow.com/questions/5882405/get-date-from-iso-week-number-in-python
 import re
+import json
 import sqlite3
 import yaml
 from odict import odict
@@ -1121,7 +1122,7 @@ class UK(object):
     def plot(self):
         import matplotlib.pyplot as plt
 
-        w = 14/2.54
+        w = 16/2.54
         goldenratio = 1.61803399
         h = w/goldenratio
         fig = plt.figure(figsize=(w, h))
@@ -1142,8 +1143,13 @@ class UK(object):
 
         yall = []
         cnt = 0
-        
+
+        alldata = {}
+
         for u in self.users:
+            alldata[u.name] = []
+            for point in u.plotdata:
+                alldata[u.name].append({'x': point[0], 'y': point[1]})
             if u.plotdata.shape[0] > 0:
                 cnt += 1
                 x = list(u.plotdata[:, 0])
@@ -1162,6 +1168,10 @@ class UK(object):
                 #ax.plot(x[1:-1], y[1:-1], marker='.', markersize=4, markerfacecolor=c, markeredgecolor=c, linewidth=0., alpha=0.5)  # markerfacecolor='#FF8C00', markeredgecolor='#888888', label = u.name)
                 if cnt >= 10:
                     break
+
+        if 'datafile' in config['plot']:
+            datafile = open(config['plot']['datafile'], 'w')
+            json.dump(alldata, datafile)
 
         if now < xt[-1]:
             ax.axvline(now, color='red', alpha=0.5)

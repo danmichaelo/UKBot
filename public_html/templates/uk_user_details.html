@@ -1,0 +1,54 @@
+{# -*- coding: utf-8; tab-width: 4; indent-tabs-mode: nil; c-basic-offset: 4 -*- vim:fenc=utf-8:et:sw=4:ts=4:sts=4 #}
+{% extends "layout.html" %}
+{% block title %}Ukens konkurranse{% endblock %}
+{% block body %}
+
+<h2><a href="http://no.wikipedia.org/wiki/Bruker:{{ name }}">{{ name }}</a></h2>
+
+<table border="1">
+	<thead>
+		<tr>
+			<th>
+				Konkurranse
+			</th>
+			<th>
+				Plassering
+			</th>
+			<th>
+				Poeng
+			</th>
+			<th>
+				Bytes
+			</th>
+			<th>
+				Nye sider
+			</th>
+		</tr>
+	</thead>
+	<tbody>
+{% for contest in contests %}
+<tr>
+	<td>
+		<a href="/ukbot/{{ lang }}/contest/{{ contest['id'] }}">{{ contest['name'] }}</a>
+	</td>
+	<td>
+		{{ contest['pos'] }}. plass av 
+		{{ contest['cnt'] }}
+	</td>
+	<td>
+		{{ contest['points'] }}
+	</td>
+	<td>
+		{{ contest['bytes'] }}
+	</td>
+	<td>
+		{{ contest['newpages'] }}
+	</td>
+</tr>
+  {% endfor %}
+  </tbody>
+  </table>
+
+  Merk at plasseringer kan være delte dersom flere deltakere oppnådde samme poengsum.
+
+{% endblock %}

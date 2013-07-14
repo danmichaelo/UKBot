@@ -1,0 +1,76 @@
+{# -*- coding: utf-8; tab-width: 4; indent-tabs-mode: nil; c-basic-offset: 4 -*- vim:fenc=utf-8:et:sw=4:ts=4:sts=4 #}
+{% extends "layout.html" %}
+{% block title %}Hello{% endblock %}
+{% block body %}
+
+<div style="border:3px solid orange;padding:20px;margin:20px;">
+	UKBot er under oppgradering og kan være nede i kortere perioder
+</div>
+
+  <div style="padding:20px; font-size: 140%;">
+	<a href="./no/">Ukens konkurranse</a>: {{ status_no }}
+    <img src="/ukbot/plots/no.mem.png" style="width:400px;" />
+  </div>
+  <div style="padding:20px; font-size: 140%;">
+	<a href="./fi/">Viikon kilpailu</a>: {{ status_fi }}
+    <img src="/ukbot/plots/fi.mem.png" style="width:400px;" />
+</div>
+  <div style="padding:20px; font-size: 140%;">
+	Heinäkuun lähdetalkoot: {{ status_fi_special }}
+    <img src="/ukbot/plots/Fiwp%20Heinäkuun%20lähdetalkoot%202013.svg" />
+    <img src="/ukbot/plots/fi-hl.mem.png" style="width:400px;" />
+</div>
+
+
+<div id="chart_fi-hl">
+  <svg style='height:500px'> </svg>
+</div>
+
+<script type="text/javascript">
+
+$(document).ready(function() {
+
+  $.getJSON('/ukbot/plots/fi-hl.json', function(response) {
+
+      var data = [];
+      for (key in response) {
+        if (response[key].length > 0) {
+          data.push({
+              values: response[key],
+              key: key,
+              color: '#ff7f0e'
+            });
+        }
+      }
+
+      nv.addGraph(function() {  
+          var chart = nv.models.lineChart();
+
+          chart.xAxis
+              .axisLabel('Time')
+              .tickFormat(function(d) {
+                return d3.time.format('%x')(new Date(d * 1000));
+              });
+
+          chart.yAxis
+              .axisLabel('Points')
+              .tickFormat(d3.format('d'));
+
+          d3.select('#chart_fi-hl svg')
+              .datum(data)
+              .transition().duration(500)
+              .call(chart);
+
+          nv.utils.windowResize(function() { d3.select('#chart_fi-hl svg').call(chart) });
+
+          return chart;
+      });    
+
+  });
+
+});
+
+</script>
+{% endblock %}
+
+

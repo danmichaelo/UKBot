@@ -1,0 +1,13 @@
+RewriteEngine On
+
+# Don't interfere with static files
+RewriteCond %{REQUEST_FILENAME} -d [OR]
+RewriteCond %{REQUEST_FILENAME} -f
+RewriteRule . - [L]
+
+RewriteRule ^(.*)$ /ukbot/webfront.py/$1 [L]
+
+#RewriteEngine On
+#RewriteCond %{REQUEST_FILENAME} !-f # Don't interfere with static files
+#RewriteRule ^(.*)$ /ukbot/application.cgi/$1 [L]
+

@@ -1,0 +1,38 @@
+{# -*- coding: utf-8; tab-width: 4; indent-tabs-mode: nil; c-basic-offset: 4 -*- vim:fenc=utf-8:et:sw=4:ts=4:sts=4 #}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+	<meta charset="utf-8" />
+	<title>{% block title %}{% endblock %} | UKBot</title>
+	<!--
+    <script type="text/javascript" src="assets/novus-nvd3-683eb18/lib/d3.v2.min.js"></script>
+    -->
+    <link rel="stylesheet" href="/ukbot/site.css" />
+    <link rel="stylesheet" href="assets/nv.d3.css" />
+    <script src="assets/d3.v3.min.js"></script>
+    <script src="assets/nv.d3.js"></script>
+    <script src="assets/jquery-1.10.2.min.js"></script>
+	{% block header %}{% endblock %}
+</head>
+<body>
+    <div id="navbar">
+        <h1>UKBOt @ Labs</h1>
+	<ul>
+		<a href="/ukbot/">Oversikt</a>
+        </ul>
+    </div>
+    <!--
+    <p style="background:#ffffaa; padding:10px;margin:10px;">
+        <em>Verktøyet er under utvikling. Resultatlisten oppdateres foreløpig med ujevne mellomrom. Miniatyrbilder vises ikke for alle bilder enda.</em>
+	</p>-->
+{% block body %}{% endblock %}
+
+<div id="footer">
+    A tool by <a href="//no.wikipedia.org/wiki/Bruker:Danmichaelo">Danmichaelo</a>. 
+    <a href="https://github.com/danmichaelo/UKBot">Open source</a> 
+    (<a href="http://opensource.org/licenses/MIT">MIT license</a>).
+</div>
+
+</body>
+</html>
+

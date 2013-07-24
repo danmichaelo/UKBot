@@ -49,7 +49,7 @@ msgid ""
 "<strong>Note:</strong> The contributions to this article are currently "
 "disqualified."
 msgstr ""
-"<strong>Huomio:</strong> Muokkaukset tähäm artikkeliin on toistaiseksi "
+"<strong>Huomio:</strong> Muokkaukset tähän artikkeliin on toistaiseksi "
 "hylätty."
 
 #: bot/ukbot.py:737

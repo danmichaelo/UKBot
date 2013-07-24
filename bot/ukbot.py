@@ -1182,9 +1182,9 @@ class UK(object):
         ax.set_xticks(xt_mid, minor=True)
         if ndays == 7:
             ax.set_xticklabels(['Man', 'Tir', 'Ons', 'Tors', 'Fre', 'Lør', 'Søn'], minor=True)
-        if ndays == 14:
+        elif ndays == 14:
             ax.set_xticklabels(['Man', '', 'Ons', '', 'Fre', '', 'Søn', '', 'Tir', '', 'Tor', '', 'Lør', ''], minor=True)
-        if ndays == 30: #for longer contest show numeral ticks
+        elif ndays == 30: #for longer contest show numeral ticks
             ax.set_xticklabels(['1', '', '', '', '5', '', '', '', '', '10', '', '', '', '', '15', '', '', '', '', '20', '', '', '', '', '25', '', '', '', '', '30'], minor=True) 
         elif ndays == 31:
             ax.set_xticklabels(['1', '', '', '', '5', '', '', '', '', '10', '', '', '', '', '15', '', '', '', '', '20', '', '', '', '', '25', '', '', '', '', '', '31'], minor=True)

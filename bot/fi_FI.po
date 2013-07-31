@@ -37,7 +37,7 @@ msgstr "Luokkaosuma"
 
 #: bot/ukbot.py:698
 msgid "Notes"
-msgstr "Huomoita"
+msgstr "Huomioita"
 
 #: bot/ukbot.py:700
 #, python-format
@@ -310,7 +310,7 @@ msgstr "%(bytes).f tavua"
 #: bot/ukrules.py:187
 #, python-format
 msgid "%(words).f words"
-msgstr "%(words).f ord"
+msgstr "%(words).f sanaa"
 
 #: bot/ukrules.py:209
 msgid "images"
@@ -339,8 +339,8 @@ msgstr[1] "%(num)d lähdettä on lisätty"
 #, python-format
 msgid "one reference pointer"
 msgid_plural "%(num)d reference pointers"
-msgstr[0] "Yksi viittaus jo olemassaolevaan lähteeseen"
-msgstr[1] "%(num)d viittausta jo olemassaoleviin lähteisiin"
+msgstr[0] "Yksi viittaus jo olemassa olevaan lähteeseen"
+msgstr[1] "%(num)d viittausta jo olemassa oleviin lähteisiin"
 
 #: bot/ukrules.py:331
 #, fuzzy

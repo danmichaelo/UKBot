@@ -194,22 +194,23 @@ class ImageRule(Rule):
         Rule.__init__(self, key)
         self.points = float(points)
         self.maxpoints = float(maxpoints)
+        self.totalimages = 0
+
         if own == -1:
             self.own = float(points)
         else:
             self.own = float(own)
         self.maxinitialcount = int(maxinitialcount)
 
-    
     def get_images(self, txt, site):
         prefixes = r'(?:file:|tiedosto:|kuva:|image:|bilde:|fil:)'
         suffixes = r'(?:\.svg|\.png|\.jpg|\.jpeg|\.gif|\.tiff)'
         imagematcher = ''.join([
             r'(?:=', prefixes, '?',     # matches "=File:" or "="
-            '|', prefixes, ')',         # or "File:" 
+            '|', prefixes, ')',         # or "File:"
             '(',                        # start capture
-               '[^\}\]\[\n=\|]*?', 
-               suffixes,
+                '[^\}\]\[\n=\|]*?',
+                suffixes,
             ')',                        # stop capture
             ])
         txt = re.sub(r'https?://[^ \n]*?' + suffixes, '', txt, flags=re.IGNORECASE)  # remove external links to images
@@ -229,17 +230,19 @@ class ImageRule(Rule):
 
             print "- File '%s' uploaded by '%s'" % (filename, imageinfo['user'])
         return imgs
- 
+
     def test(self, rev):
         imgs0 = self.get_images(rev.parenttext, rev.article.site)
         imgs1 = self.get_images(rev.text, rev.article.site)
         imgs_added = set(imgs1.keys()).difference(set(imgs0.keys()))
 
+        self.totalimages += len(imgs_added)
+
         revpoints = 0
         for n, img in enumerate(imgs_added):
             if len(imgs0.keys()) + n <= self.maxinitialcount:
                 user = imgs1[img]
-                print '"%s" ? "%s"' %(user, rev.username)
+                print '"%s" ? "%s"' % (user, rev.username)
                 if user == rev.username:
                     revpoints += self.own
                 else:
@@ -340,6 +343,7 @@ class RefRule(Rule):
             txt = ', '.join(s)
 
             rev.points.append([p, 'ref', txt])
+
 
 class RefSectionFiRule(Rule):
 

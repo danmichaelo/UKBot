@@ -1032,7 +1032,7 @@ class UK(object):
         userprefix = self.homesite.namespaces[2]
         self.ledere = re.findall(r'\[\[(?:User|%s):([^\|\]]+)' % userprefix, unicode(infoboks.parameters[ibcfg['organizer']]), flags=re.I)
         if len(self.ledere) == 0:
-	    log('Did not find any organizers in {{tl|%(template)s}}.' % {'template': ibcfg['name']})
+            log('Did not find any organizers in {{tl|%(template)s}}.' % {'template': ibcfg['name']})
 
         awards = config['awards']
         self.prices = []
@@ -1129,9 +1129,9 @@ class UK(object):
     def plot(self):
         import matplotlib.pyplot as plt
 
-        w = 16/2.54
+        w = 16 / 2.54
         goldenratio = 1.61803399
-        h = w/goldenratio
+        h = w / goldenratio
         fig = plt.figure(figsize=(w, h))
 
         ax = fig.add_subplot(1, 1, 1, frame_on=False)
@@ -1180,7 +1180,7 @@ class UK(object):
             datafile = open(config['plot']['datafile'], 'w')
             json.dump(alldata, datafile)
 
-        if now < xt[-1]: #showing vertical line telling day when plot was updated
+        if now < xt[-1]:   # showing vertical line telling day when plot was updated
             ax.axvline(now, color='black', alpha=0.5)
 
         ax.set_xticks(xt, minor=False)
@@ -1191,16 +1191,16 @@ class UK(object):
             ax.set_xticklabels(['Man', 'Tir', 'Ons', 'Tors', 'Fre', 'Lør', 'Søn'], minor=True)
         elif ndays == 14:
             ax.set_xticklabels(['Man', '', 'Ons', '', 'Fre', '', 'Søn', '', 'Tir', '', 'Tor', '', 'Lør', ''], minor=True)
-        elif ndays == 30: #for longer contest show numeral ticks
-            ax.set_xticklabels(['1', '', '', '', '5', '', '', '', '', '10', '', '', '', '', '15', '', '', '', '', '20', '', '', '', '', '25', '', '', '', '', '30'], minor=True) 
+        elif ndays == 30:   # for longer contest show numeral ticks
+            ax.set_xticklabels(['1', '', '', '', '5', '', '', '', '', '10', '', '', '', '', '15', '', '', '', '', '20', '', '', '', '', '25', '', '', '', '', '30'], minor=True)
         elif ndays == 31:
             ax.set_xticklabels(['1', '', '', '', '5', '', '', '', '', '10', '', '', '', '', '15', '', '', '', '', '20', '', '', '', '', '25', '', '', '', '', '', '31'], minor=True)
 
         for i in range(1, ndays, 2):
-            ax.axvspan(xt[i], xt[i+1], facecolor='#000099', linewidth=0., alpha=0.03)
+            ax.axvspan(xt[i], xt[i + 1], facecolor='#000099', linewidth=0., alpha=0.03)
 
         for i in range(0, ndays, 2):
-            ax.axvspan(xt[i], xt[i+1], facecolor='#000099', linewidth=0., alpha=0.07)
+            ax.axvspan(xt[i], xt[i + 1], facecolor='#000099', linewidth=0., alpha=0.07)
 
         for line in ax.xaxis.get_ticklines(minor=False):
             line.set_markersize(0)
@@ -1213,7 +1213,7 @@ class UK(object):
 
         if len(yall) > 0:
             ax.set_xlim(t0, xt[-1])
-            ax.set_ylim(0, 1.05*np.max(yall))
+            ax.set_ylim(0, 1.05 * np.max(yall))
 
             plt.legend()
             ax = plt.gca()
@@ -1622,7 +1622,7 @@ if __name__ == '__main__':
                 sammen += '|%s=%d' % (f.key, nnewpages)
             elif type(f) == ByteRule:
                 if nbytes >= 10000:
-                    sammen += '|kilo%s=%.f' % (f.key, nbytes/1000.)
+                    sammen += '|kilo%s=%.f' % (f.key, nbytes / 1000.)
                 else:
                     sammen += '|%s=%d' % (f.key, nbytes)
             elif type(f) == WordRule:
@@ -1660,7 +1660,7 @@ if __name__ == '__main__':
     article_errors = {}
     for u in uk.users:
         for article in u.articles.itervalues():
-            k = article.site.key+':'+article.name
+            k = article.site.key + ':' + article.name
             if len(article.errors) > 0:
                 article_errors[k] = article.errors
             for rev in article.revisions.itervalues():

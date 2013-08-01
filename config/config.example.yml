@@ -4,7 +4,23 @@ wiki_timezone: Europe/Oslo
 homesite: no.wikipedia.org
 default_prefix: fi
 db: storage/ukbot.db
-figname: Nowp Ukens konkurranse %(year)d-%(week)02d.svg
+plot:
+    datafile: ../plots/no.json
+    figname: 'Nowp Ukens konkurranse %(year)d-%(week)02d.svg'
+    description: |
+        == {{int:filedesc}} ==
+        {{Information
+        |Description    = {{no|1=Resultater for [[:no:Wikipedia:Ukens konkurranse/Ukens konkurranse %(yearweek)s|Ukens konkurranse uke %(week)s, %(year)s]]}}
+                          {{en|1=Results from the weekly article writing contest at Norwegian Bokmål/Nynorsk Wikipedia [[:no:Wikipedia:Ukens konkurranse/Ukens konkurranse %(yearweek)s|week %(week)s, %(year)s]]}}
+        |Source         = {{own}}
+        |Date           = %(weekstart)s
+        |Author         = [[User:UKBot|UKBot]]
+        }}
+        
+        == {{int:license-header}} ==
+        {{PD-self}}
+        
+        [[Category:Ukens konkurranse]]
 # othersites:
 #     - nn.wikipedia.org
 #     - se.wikipedia.org
@@ -15,8 +31,8 @@ awards:
     blå: { file: Article blue.svg, winner: true }
     rød: { file: Article red.svg, winner: true }
     gul: { file: Article yellow.svg, organizer: true }
-    oransj: { file: Article orange.svg }
-    orange: { file: Article orange.svg }
+    oransj: { file: Article orange.svg, winner: true }
+    orange: { file: Article orange.svg, winner: true }
     grønn: { file: Article green.svg }
     grå: { file: Article grey.svg }
     lyslilla: { file: Article MediumPurple.svg }
@@ -54,6 +70,8 @@ templates:
     rule:
         name: Ukens konkurranse poeng
         new: ny
+        redirect: omdirigering
+        refsectionfi: refsectionfi
         qualified: kvalifisert
         byte: byte
         word: ord
@@ -74,12 +92,14 @@ templates:
         category: kategori
         backlink: tilbakelenke
         forwardlink: fremlenke
+        pages: enkeltsider 
         namespace: navnerom
         alias: alias
         maxdepth: maksdybde
 pages:
     catignore: Bruker:UKBot/cat-ignore
     base: Wikipedia:Ukens konkurranse/Ukens konkurranse
+    default: Wikipedia:Ukens konkurranse/Ukens konkurranse %Y-%V
     redirect: WP:UK
 contestPages:
     resultsSection: Resultater

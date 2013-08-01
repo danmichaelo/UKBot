@@ -959,7 +959,7 @@ class UK(object):
                 if templ.has_param(rulecfg['own']):
                     params['own'] = p[rulecfg['own']]
                 if templ.has_param(rulecfg['maxinitialcount']):
-                    params['maxinitialcount'] = True
+                    params['maxinitialcount'] = p[rulecfg['maxinitialcount']]
                 rules.append(ImageRule(**params))
 
             elif key == rulecfg['external_link']:

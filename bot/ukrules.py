@@ -229,7 +229,7 @@ class ImageRule(Rule):
 
             print "- File '%s' uploaded by '%s'" % (filename, imageinfo['user'])
         return imgs
-
+ 
     def test(self, rev):
         imgs0 = self.get_images(rev.parenttext, rev.article.site)
         imgs1 = self.get_images(rev.text, rev.article.site)

@@ -418,7 +418,7 @@ class User(object):
         nr = 0
         for s0 in range(0, len(new_revisions), apilim):
             #print "API limit is ",apilim," getting ",s0
-            ids = '|'.join(revids[s0:s0+apilim])
+            ids = '|'.join(revids[s0:s0 + apilim])
             for page in site.api('query', prop='revisions', rvprop=props, revids=ids)['query']['pages'].itervalues():
                 article_key = site_key + ':' + page['title']
                 for apirev in page['revisions']:
@@ -444,7 +444,7 @@ class User(object):
         nr = 0
         parentids = [str(i) for i in parentids]
         for s0 in range(0, len(parentids), apilim):
-            ids = '|'.join(parentids[s0:s0+apilim])
+            ids = '|'.join(parentids[s0:s0 + apilim])
             for page in site.api('query', prop='revisions', rvprop=props, revids=ids)['query']['pages'].itervalues():
                 article_key = site_key + ':' + page['title']
                 article = self.articles[article_key]
@@ -648,7 +648,7 @@ class User(object):
         y = y[o]
         #pl = np.array(pl, dtype=float)
         #pl.sort(axis = 0)
-        y2 = np.array([np.sum(y[:q+1]) for q in range(len(y))])
+        y2 = np.array([np.sum(y[:q + 1]) for q in range(len(y))])
         self.plotdata = np.column_stack((x, y2))
         #np.savetxt('user-%s'%self.name, np.column_stack((x,y,y2)))
 
@@ -705,7 +705,7 @@ class User(object):
 
                 p = '%.1f p' % brutto
                 if brutto != netto:
-                    p = '<s>'+p+'</s> '
+                    p = '<s>' + p + '</s> '
                     if netto != 0.:
                         p += '%.1f p' % netto
 
@@ -744,7 +744,7 @@ class User(object):
         if len(entries) == 0:
             out += "''" + _('No qualifying contributions registered yet') + "''"
         else:
-            out += '%d %s, {{formatnum:%.2f}} kB\n' % (len(entries), _('articles'), self.bytes/1000.)
+            out += '%d %s, {{formatnum:%.2f}} kB\n' % (len(entries), _('articles'), self.bytes / 1000.)
         if len(entries) > 10:
             out += _('{{Kolonner}}\n')
         out += '\n'.join(entries)
@@ -769,7 +769,7 @@ class UK(object):
         self.homesite = homesite
         resultsSection = config['contestPages']['resultsSection']
         txt = page.edit(readonly=True)
-        m = re.search('==\s*'+resultsSection+'\s*==', txt)
+        m = re.search('==\s*' + resultsSection + '\s*==', txt)
         if not m:
             raise ParseError(_('Found no "%(section)s" sections in the page "%(page)s"') % {'section': resultsSection, 'page': self.page.name})
 

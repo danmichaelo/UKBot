@@ -190,23 +190,63 @@ class WordRule(Rule):
 
 class ImageRule(Rule):
 
-    def __init__(self, key, points, maxpoints=-1):
+    def __init__(self, key, points, maxpoints=-1, own=-1, maxinitialcount=9999):
         Rule.__init__(self, key)
         self.points = float(points)
         self.maxpoints = float(maxpoints)
+        if own == -1:
+            self.own = float(points)
+        else:
+            self.own = float(own)
+        self.maxinitialcount = int(maxinitialcount)
 
-    def get_imagecount(self, txt):
-        return len(re.findall(r'(?:\.svg|\.png|\.jpg|\.jpeg|\.gif|\.tiff)', txt, flags=re.IGNORECASE))
+    
+    def get_images(self, txt, site):
+        prefixes = r'(?:file:|tiedosto:|kuva:|image:|bilde:|fil:)'
+        suffixes = r'(?:\.svg|\.png|\.jpg|\.jpeg|\.gif|\.tiff)'
+        imagematcher = ''.join([
+            r'(?:=', prefixes, '?',     # matches "=File:" or "="
+            '|', prefixes, ')',         # or "File:" 
+            '(',                        # start capture
+               '[^\}\]\[\n=\|]*?', 
+               suffixes,
+            ')',                        # stop capture
+            ])
+        txt = re.sub(r'https?://[^ \n]*?' + suffixes, '', txt, flags=re.IGNORECASE)  # remove external links to images
+        # return len(re.findall(imagematcher, txt, flags=re.IGNORECASE))
+
+        matches = re.findall(imagematcher, txt, flags=re.IGNORECASE)
+        imgs = {}
+        for filename in matches:
+            filename = filename.strip()
+            # img = re.findall(r'(?:file:|image:|tiedosto:|kuva:)?(.*?)\Z', img, flags=re.IGNORECASE)
+            image = site.Images[filename]
+            imageinfo = image.imageinfo
+            try:
+                imgs[filename] = imageinfo['user']
+            except KeyError:
+                print "ERR: Could not locate user for file '%s' in rev. %s " % (filename)
+
+            print "- File '%s' uploaded by '%s'" % (filename, imageinfo['user'])
+        return imgs
 
     def test(self, rev):
+        imgs0 = self.get_images(rev.parenttext, rev.article.site)
+        imgs1 = self.get_images(rev.text, rev.article.site)
+        imgs_added = set(imgs1.keys()).difference(set(imgs0.keys()))
 
-        nimages = self.get_imagecount(rev.text)
-        nimages_p = self.get_imagecount(rev.parenttext)
-        imgs = nimages - nimages_p
+        revpoints = 0
+        for n, img in enumerate(imgs_added):
+            if len(imgs0.keys()) + n <= self.maxinitialcount:
+                user = imgs1[img]
+                print '"%s" ? "%s"' %(user, rev.username)
+                if user == rev.username:
+                    revpoints += self.own
+                else:
+                    revpoints += self.points
 
-        if imgs > 0:
-            revpoints = imgs * self.points
-            self.add_points(rev, revpoints, 'image', '%d %s' % (imgs, _('images') if imgs > 1 else _('image')), self.maxpoints)
+        if revpoints > 0:
+            self.add_points(rev, revpoints, 'image', '%d %s' % (len(imgs_added), _('images') if len(imgs_added) > 1 else _('image')), self.maxpoints)
 
 
 class ExternalLinkRule(Rule):

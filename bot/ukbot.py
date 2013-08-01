@@ -214,6 +214,7 @@ class Revision(object):
         self.parentid = 0
         self.parentsize = 0
         self.parenttext = ''
+        self.username = ''
 
         self.points = []
 
@@ -226,6 +227,8 @@ class Revision(object):
                 self.size = int(v)
             elif k == 'parentsize':
                 self.parentsize = int(v)
+            elif k == 'username':
+                self.username = v
             else:
                 raise StandardError('add_revision got unknown argument %s' % k)
 
@@ -379,7 +382,7 @@ class User(object):
                     else:
 
                         article = self.add_article_if_necessary(site_key, article_title)
-                        rev = article.add_revision(rev_id, timestamp=time.mktime(c['timestamp']))
+                        rev = article.add_revision(rev_id, timestamp=time.mktime(c['timestamp']), username=self.name)
                         new_revisions.append(rev)
 
         # If revisions were moved from one article to another, and the redirect was not created by the same user,
@@ -529,7 +532,7 @@ class User(object):
             # Add revision if not present
             if not rev_id in self.revisions:
                 nrevs += 1
-                article.add_revision(rev_id, timestamp=ts, parentid=parent_id, size=size, parentsize=parentsize)
+                article.add_revision(rev_id, timestamp=ts, parentid=parent_id, size=size, parentsize=parentsize, username=self.name)
             rev = self.revisions[rev_id]
 
             # Add revision text
@@ -953,6 +956,10 @@ class UK(object):
                 params = {'key': key, 'points': anon[2]}
                 if templ.has_param(maxpoints):
                     params['maxpoints'] = p[maxpoints]
+                if templ.has_param(rulecfg['own']):
+                    params['own'] = p[rulecfg['own']]
+                if templ.has_param(rulecfg['maxinitialcount']):
+                    params['maxinitialcount'] = True
                 rules.append(ImageRule(**params))
 
             elif key == rulecfg['external_link']:

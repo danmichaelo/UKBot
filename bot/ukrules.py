@@ -225,31 +225,31 @@ class ImageRule(Rule):
         imgs1 = self.get_images(rev.text)
         imgs_added = set(imgs1).difference(set(imgs0))
 
-        self.totalimages += len(imgs_added)
 
         own_imgs_added = []
         others_imgs_added = []
         for filename in imgs_added:
             image = rev.article.site.Images[filename]
-            imageinfo = image.imageinfo
+            if image.exists:
+                imageinfo = image.imageinfo
+                try:
+                    uploader = imageinfo['user']
+                except KeyError:
+                    print "ERR: Could not locate user for file '%s' in rev. %s " % (filename, rev.revid)
 
-            try:
-                uploader = imageinfo['user']
-            except KeyError:
-                print "ERR: Could not locate user for file '%s' in rev. %s " % (filename, rev.revid)
-
-            print "- File '%s' uploaded by '%s', revision made by '%s'" % (filename, uploader, rev.username)
-            if uploader == rev.username:
-                #print "own image!"
-                own_imgs_added.append(filename)
-            else:
-                others_imgs_added.append(filename)
+                print "- File '%s' uploaded by '%s', revision made by '%s'" % (filename, uploader, rev.username)
+                if uploader == rev.username:
+                    #print "own image!"
+                    own_imgs_added.append(filename)
+                else:
+                    others_imgs_added.append(filename)
 
         # If maxinitialcount is 0, only the first image counts.
         # If an user adds both an own image and an image by someone else,
         # we should make sure to credit the own image, not the other.
         # We therefore process the own images first.
         imgs_added = own_imgs_added + others_imgs_added
+        self.totalimages += len(imgs_added)
         revpoints = 0
         for n, img in enumerate(imgs_added):
             if len(imgs0) + n <= self.maxinitialcount:

@@ -228,7 +228,7 @@ class Revision(object):
             elif k == 'parentsize':
                 self.parentsize = int(v)
             elif k == 'username':
-                self.username = v
+                self.username = v[0].upper() + v[1:]
             else:
                 raise StandardError('add_revision got unknown argument %s' % k)
 

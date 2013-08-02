@@ -238,8 +238,9 @@ class ImageRule(Rule):
             except KeyError:
                 print "ERR: Could not locate user for file '%s' in rev. %s " % (filename, rev.revid)
 
-            print "- File '%s' uploaded by '%s'" % (filename, uploader)
+            print "- File '%s' uploaded by '%s', revision made by '%s'" % (filename, uploader, rev.username)
             if uploader == rev.username:
+                #print "own image!"
                 own_imgs_added.append(filename)
             else:
                 others_imgs_added.append(filename)
@@ -248,7 +249,7 @@ class ImageRule(Rule):
         # If an user adds both an own image and an image by someone else,
         # we should make sure to credit the own image, not the other.
         # We therefore process the own images first.
-        own_imgs_added.extend(others_imgs_added)
+        imgs_added = own_imgs_added + others_imgs_added
         revpoints = 0
         for n, img in enumerate(imgs_added):
             if len(imgs0) + n <= self.maxinitialcount:

@@ -6,6 +6,7 @@ import lxml
 from mwtemplates import TemplateEditor
 from mwtextextractor import condition_for_lxml
 from ukcommon import init_localization
+from ukcommon import log
 
 t, _ = init_localization()
 
@@ -230,19 +231,22 @@ class ImageRule(Rule):
         others_imgs_added = []
         for filename in imgs_added:
             image = rev.article.site.Images[filename]
-            if image.exists:
-                imageinfo = image.imageinfo
+            imageinfo = image.imageinfo
+            if len(imageinfo) > 0:   # seems like image.exists only checks locally
                 try:
                     uploader = imageinfo['user']
                 except KeyError:
-                    print "ERR: Could not locate user for file '%s' in rev. %s " % (filename, rev.revid)
+                    log("ERR: Could not locate user for file '%s' in rev. %s " % (filename, rev.revid))
 
-                print "- File '%s' uploaded by '%s', revision made by '%s'" % (filename, uploader, rev.username)
+                log("- File '%s' uploaded by '%s', revision made by '%s'" % (filename, uploader, rev.username))
                 if uploader == rev.username:
                     #print "own image!"
                     own_imgs_added.append(filename)
                 else:
                     others_imgs_added.append(filename)
+            else:
+                log("- File '%s' does not exist" % (filename))
+
 
         # If maxinitialcount is 0, only the first image counts.
         # If an user adds both an own image and an image by someone else,

@@ -16,9 +16,9 @@
     <img src="/ukbot/plots/fi.mem.png" style="width:400px;" />
 </div>
   <div style="padding:20px; font-size: 140%;">
-	Heinäkuun lähdetalkoot: {{ status_fi_special }}
-    <img src="/ukbot/plots/Fiwp%20Heinäkuun%20lähdetalkoot%202013.svg" />
-    <img src="/ukbot/plots/fi-hl.mem.png" style="width:400px;" />
+	Elokuun kuvitustalkoot: {{ status_fi_ek }}
+    <img src="/ukbot/plots/Fiwp%20Elokuun%20kuvitustalkoot%202013.svg" />
+    <img src="/ukbot/plots/fi-ek.mem.png" style="width:400px;" />
 </div>
 
 
@@ -30,7 +30,7 @@
 
 $(document).ready(function() {
 
-  $.getJSON('/ukbot/plots/fi-hl.json', function(response) {
+  $.getJSON('/ukbot/plots/fi-ek.json', function(response) {
 
       var data = [];
       for (key in response) {

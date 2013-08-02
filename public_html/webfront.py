@@ -74,7 +74,7 @@ def get_index(args):
     return render_template('main.html',
         status_no=read_status('../logs/no.status'),
         status_fi=read_status('../logs/fi.status'),
-        status_fi_special=read_status('../logs/fi-hl.status')
+        status_fi_ek=read_status('../logs/fi-ek.status')
     )
 
 

@@ -202,7 +202,7 @@ class ImageRule(Rule):
             self.own = float(own)
         self.maxinitialcount = int(maxinitialcount)
 
-    def get_images(self, txt, site):
+    def get_images(self, txt):
         prefixes = r'(?:file:|tiedosto:|kuva:|image:|bilde:|fil:)'
         suffixes = r'(?:\.svg|\.png|\.jpg|\.jpeg|\.gif|\.tiff)'
         imagematcher = ''.join([
@@ -211,39 +211,48 @@ class ImageRule(Rule):
             '(',                        # start capture
                 '[^\}\]\[\n=\|]*?',
                 suffixes,
-            ')',                        # stop capture
+            ')',                        # end capture
             ])
         txt = re.sub(r'https?://[^ \n]*?' + suffixes, '', txt, flags=re.IGNORECASE)  # remove external links to images
         # return len(re.findall(imagematcher, txt, flags=re.IGNORECASE))
 
-        matches = re.findall(imagematcher, txt, flags=re.IGNORECASE)
-        imgs = {}
-        for filename in matches:
-            filename = filename.strip()
-            # img = re.findall(r'(?:file:|image:|tiedosto:|kuva:)?(.*?)\Z', img, flags=re.IGNORECASE)
-            image = site.Images[filename]
-            imageinfo = image.imageinfo
-            try:
-                imgs[filename] = imageinfo['user']
-            except KeyError:
-                print "ERR: Could not locate user for file '%s' in rev. %s " % (filename)
-
-            print "- File '%s' uploaded by '%s'" % (filename, imageinfo['user'])
+        imgs = re.findall(imagematcher, txt, flags=re.IGNORECASE)
+        imgs = [img.strip() for img in imgs]
         return imgs
 
     def test(self, rev):
-        imgs0 = self.get_images(rev.parenttext, rev.article.site)
-        imgs1 = self.get_images(rev.text, rev.article.site)
-        imgs_added = set(imgs1.keys()).difference(set(imgs0.keys()))
+        imgs0 = self.get_images(rev.parenttext)
+        imgs1 = self.get_images(rev.text)
+        imgs_added = set(imgs1).difference(set(imgs0))
 
         self.totalimages += len(imgs_added)
 
+        own_imgs_added = []
+        others_imgs_added = []
+        for filename in imgs_added:
+            image = rev.article.site.Images[filename]
+            imageinfo = image.imageinfo
+
+            try:
+                uploader = imageinfo['user']
+            except KeyError:
+                print "ERR: Could not locate user for file '%s' in rev. %s " % (filename, rev.revid)
+
+            print "- File '%s' uploaded by '%s'" % (filename, uploader)
+            if uploader == rev.username:
+                own_imgs_added.append(filename)
+            else:
+                others_imgs_added.append(filename)
+
+        # If maxinitialcount is 0, only the first image counts.
+        # If an user adds both an own image and an image by someone else,
+        # we should make sure to credit the own image, not the other.
+        # We therefore process the own images first.
+        own_imgs_added.extend(others_imgs_added)
         revpoints = 0
         for n, img in enumerate(imgs_added):
-            if len(imgs0.keys()) + n <= self.maxinitialcount:
-                user = imgs1[img]
-                print '"%s" ? "%s"' % (user, rev.username)
-                if user == rev.username:
+            if len(imgs0) + n <= self.maxinitialcount:
+                if img in own_imgs_added:
                     revpoints += self.own
                 else:
                     revpoints += self.points

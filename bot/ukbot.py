@@ -1777,7 +1777,7 @@ if __name__ == '__main__':
 
     # Notify users about issues
 
-    uk.deliver_warnings(simulate=args.simulate)
+    # uk.deliver_warnings(simulate=args.simulate)
 
     # Update WP:UK
 

@@ -5,6 +5,7 @@ matplotlib.use('svg')
 
 import numpy as np
 import time
+import calendar
 from datetime import datetime, timedelta
 from datetime import time as dt_time
 import gettext
@@ -1129,7 +1130,7 @@ class UK(object):
     def plot(self):
         import matplotlib.pyplot as plt
 
-        w = 16 / 2.54
+        w = 20 / 2.54
         goldenratio = 1.61803399
         h = w / goldenratio
         fig = plt.figure(figsize=(w, h))
@@ -1187,10 +1188,11 @@ class UK(object):
         ax.set_xticklabels([], minor=False)
 
         ax.set_xticks(xt_mid, minor=True)
+        abday = map(lambda x: calendar.day_abbr[x], [0, 1, 2, 3, 4, 5, 6])
         if ndays == 7:
-            ax.set_xticklabels(['Man', 'Tir', 'Ons', 'Tors', 'Fre', 'Lør', 'Søn'], minor=True)
+            ax.set_xticklabels(abday, minor=True)
         elif ndays == 14:
-            ax.set_xticklabels(['Man', '', 'Ons', '', 'Fre', '', 'Søn', '', 'Tir', '', 'Tor', '', 'Lør', ''], minor=True)
+            ax.set_xticklabels([abday[0], '', abday[2], '', abday[4], '', abday[6], '', abday[1], '', abday[3], '', abday[5], ''], minor=True)
         elif ndays == 30:   # for longer contest show numeral ticks
             ax.set_xticklabels(['1', '', '', '', '5', '', '', '', '', '10', '', '', '', '', '15', '', '', '', '', '20', '', '', '', '', '25', '', '', '', '', '30'], minor=True)
         elif ndays == 31:
@@ -1214,6 +1216,12 @@ class UK(object):
         if len(yall) > 0:
             ax.set_xlim(t0, xt[-1])
             ax.set_ylim(0, 1.05 * np.max(yall))
+
+            ax.set_xlabel(_('Days'))
+            ax.set_ylabel(_('Points'))
+
+            now = server_tz.localize(datetime.now())
+            ax.set_title(_('Updated %(date)s') % {'date': now.astimezone(wiki_tz).strftime('%e. %B %Y, %H:%M')})
 
             plt.legend()
             ax = plt.gca()

@@ -1174,7 +1174,7 @@ class UK(object):
                 l = ax.plot(x, y, linewidth=1.2, label=u.name)  # markerfacecolor='#FF8C00', markeredgecolor='#888888', label = u.name)
                 c = l[0].get_color()
                 #ax.plot(x[1:-1], y[1:-1], marker='.', markersize=4, markerfacecolor=c, markeredgecolor=c, linewidth=0., alpha=0.5)  # markerfacecolor='#FF8C00', markeredgecolor='#888888', label = u.name)
-                if cnt >= 10:
+                if cnt >= 15:
                     break
 
         if 'datafile' in config['plot']:

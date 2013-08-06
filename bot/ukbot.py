@@ -1188,7 +1188,7 @@ class UK(object):
         ax.set_xticklabels([], minor=False)
 
         ax.set_xticks(xt_mid, minor=True)
-        abday = map(lambda x: calendar.day_abbr[x], [0, 1, 2, 3, 4, 5, 6])
+        abday = map(lambda x: calendar.day_abbr[x].decode('utf-8'), [0, 1, 2, 3, 4, 5, 6])
         if ndays == 7:
             ax.set_xticklabels(abday, minor=True)
         elif ndays == 14:
@@ -1217,7 +1217,7 @@ class UK(object):
             ax.set_xlim(t0, xt[-1])
             ax.set_ylim(0, 1.05 * np.max(yall))
 
-            ax.set_xlabel(_('Days'))
+            ax.set_xlabel(_('Day'))
             ax.set_ylabel(_('Points'))
 
             now = server_tz.localize(datetime.now())

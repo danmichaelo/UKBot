@@ -356,7 +356,7 @@ class NewPageFilter(Filter):
         log("  [+] Applying new page filter")
         out = odict()
         for a, aa in articles.iteritems():
-            if aa.new and not aa.redirect:
+            if aa.new_non_redirect:
                 out[a] = aa
         return out
 

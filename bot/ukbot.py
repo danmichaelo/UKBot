@@ -264,11 +264,11 @@ class Revision(object):
 
     @property
     def redirect(self):
-        return bool(re.match(r'#(OMDIRIGERING|REDIRECT)', self.text))
+        return bool(re.match(r'#(OMDIRIGERING|REDIRECT|OHJAUS|UUDELLEENOHJAUS|STIVREN)', self.text))
 
     @property
     def parentredirect(self):
-        return bool(re.match(r'#(OMDIRIGERING|REDIRECT)', self.parenttext))
+        return bool(re.match(r'#(OMDIRIGERING|REDIRECT|OHJAUS|UUDELLEENOHJAUS|STIVREN)', self.parenttext))
 
     def get_link(self):
         """ returns a link to revision """

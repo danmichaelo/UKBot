@@ -1500,8 +1500,10 @@ if __name__ == '__main__':
     else:
         log('  No page specified. Using default page')
         ktitle = config['pages']['default']
+        w = Week.withdate((now - timedelta(hours=1)).astimezone(wiki_tz).date())
         # subtract one hour, so we close last week's contest right after midnight
-        ktitle = (now - timedelta(hours=1)).astimezone(wiki_tz).strftime(ktitle.encode('utf-8')).decode('utf-8')
+        ktitle = ktitle % { 'year': w.year, 'week': w.week }
+        #strftime(ktitle.encode('utf-8')).decode('utf-8')
 
     # Is ktitle redirect? Resolve
 
@@ -1539,7 +1541,7 @@ if __name__ == '__main__':
     if args.close and closeuser not in uk.ledere:
         log('!! Konkurransen ble forsøkt avsluttet av %s, men konkurranseledere er oppgitt som: %s' % (closeuser, ', '.join(uk.ledere)))
         #log('!! Konkurransen ble forsøkt avsluttet av andre enn konkurranseleder')
-        sys.exit(0)
+        #sys.exit(0)
 
     # Check if contest is to be ended
 
@@ -1703,6 +1705,9 @@ if __name__ == '__main__':
     if not args.simulate:
         txt = kpage.edit()
         tp = TemplateEditor(txt)
+        print "---"
+        print sammen
+        print "---"
         if sammen != '':
             tp.templates[ib['name']][0].parameters[ib['status']] = sammen
         txt = tp.wikitext()

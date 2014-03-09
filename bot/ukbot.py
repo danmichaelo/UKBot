@@ -126,14 +126,8 @@ class Article(object):
         self.disqualified = False
 
         self.revisions = odict()
-        self.point_deductions = []
         #self.redirect = False
         self.errors = []
-
-        key = self.site.key + ':' + self.name
-        for pd in self.user.point_deductions:
-            if pd[0] == key:
-                self.add_point_deduction(pd[1], pd[2])
 
     def __eq__(other):
         if self.site == other.site and self.name == other.name:
@@ -157,10 +151,6 @@ class Article(object):
         self.revisions[revid] = Revision(self, revid, **kwargs)
         return self.revisions[revid]
 
-    def add_point_deduction(self, points, reason):
-        log('Adding point deduction %d points for reason: %s' % (points, reason))
-        self.point_deductions.append([points, reason])
-
     @property
     def bytes(self):
         return np.sum([rev.bytes for rev in self.revisions.itervalues()])
@@ -183,14 +173,11 @@ class Article(object):
             for revid, rev in self.revisions.iteritems():
                 dt = pytz.utc.localize(datetime.fromtimestamp(rev.timestamp))
                 if ignore_suspension_period is True or self.user.suspended_since is None or dt < self.user.suspended_since:
-                    p += rev.get_points(ptype, ignore_max)
+                    p += rev.get_points(ptype, ignore_max, ignore_point_deductions)
                 else:
                     if self.user.contest.verbose:
                         log('!! Skipping revision %d in suspension period' % revid)
 
-        if ptype == '' and not ignore_point_deductions:
-            for points, reason in self.point_deductions:
-                p -= points
         return p
         #return np.sum([a.points for a in self.articles.values()])
 
@@ -211,6 +198,7 @@ class Revision(object):
         self.revid = revid
         self.size = -1
         self.text = ''
+        self.point_deductions = []
 
         self.parentid = 0
         self.parentsize = 0
@@ -232,6 +220,11 @@ class Revision(object):
                 self.username = v[0].upper() + v[1:]
             else:
                 raise StandardError('add_revision got unknown argument %s' % k)
+
+        for pd in self.article.user.point_deductions:
+            if pd[0] == self.revid:
+                self.add_point_deduction(pd[1], pd[2])
+
 
     def __repr__(self):
         return ("<Revision %d for %s:%s>" % (self.revid, self.site.key, self.article.name)).encode('utf-8')
@@ -290,7 +283,7 @@ class Revision(object):
         q = {'title': self.article.name.encode('utf-8'), 'oldid': self.parentid}
         return '//' + self.article.site.host + self.article.site.site['script'] + '?' + urllib.urlencode(q)
 
-    def get_points(self, ptype='', ignore_max=False):
+    def get_points(self, ptype='', ignore_max=False, ignore_point_deductions=False):
         p = 0.0
         for pnt in self.points:
             if ptype == '' or pnt[1] == ptype:
@@ -298,7 +291,16 @@ class Revision(object):
                     p += pnt[3]
                 else:
                     p += pnt[0]
+
+        if not ignore_point_deductions and (ptype == '' or ptype == 'trekk'):
+            for points, reason in self.point_deductions:
+                p -= points
+
         return p
+
+    def add_point_deduction(self, points, reason):
+        log('Revision %s: Removing %d points for reason: %s' % (self.revid, points, reason))
+        self.point_deductions.append([points, reason])
 
 
 class User(object):
@@ -695,6 +697,8 @@ class User(object):
 
                     if len(rev.points) > 0:
                         descr = ' + '.join(['%.1f p (%s)' % (p[0], p[2]) for p in rev.points])
+                        descr += ' '.join([' <span style="color:red">- %.1f p (%s)</span>' % (p[0], p[1]) for p in rev.point_deductions])
+
                         dt = utc.localize(datetime.fromtimestamp(rev.timestamp))
                         dt_str = dt.astimezone(wiki_tz).strftime('%A, %H:%M').decode('utf-8')
                         out = '[%s %s]: %s' % (rev.get_link(), dt_str, descr)
@@ -710,11 +714,11 @@ class User(object):
                 except AttributeError:
                     pass
                 titletxt += '<br />'.join(revs)
-                if len(article.point_deductions) > 0:
-                    pds = []
-                    for points, reason in article.point_deductions:
-                        pds.append('%.f p: %s' % (-points, reason))
-                    titletxt += '<div style="border-top:1px solid #CCC">\'\'' + _('Notes') + ':\'\'<br />%s</div>' % '<br />'.join(pds)
+                # if len(article.point_deductions) > 0:
+                #     pds = []
+                #     for points, reason in article.point_deductions:
+                #         pds.append('%.f p: %s' % (-points, reason))
+                #     titletxt += '<div style="border-top:1px solid #CCC">\'\'' + _('Notes') + ':\'\'<br />%s</div>' % '<br />'.join(pds)
 
                 titletxt += '<div style="border-top:1px solid #CCC">' + _('Total: {{formatnum:%(bytecount)d}} bytes, %(wordcount)d words') % {'bytecount': article.bytes, 'wordcount': article.words} + '.</div>'
 
@@ -1118,18 +1122,18 @@ class UK(object):
         if pocfg['name'] in dp.templates:
             for templ in dp.templates[pocfg['name']]:
                 uname = templ.parameters[1].value
-                aname = templ.parameters[2].value
+                revid = int(templ.parameters[2].value)
 
-                if not re.match('^[a-z]{2,3}:', aname):
-                    aname = config['default_prefix'] + ':' + aname
+                #if not re.match('^[a-z]{2,3}:', aname):
+                #    aname = config['default_prefix'] + ':' + aname
 
                 points = float(templ.parameters[3].value.replace(',', '.'))
                 reason = templ.parameters[4].value
                 ufound = False
-                log('poengtrekk: USER: %s ARTICLE: %s POINTS: %d REASON: %s' % (uname, aname, points, reason))
+                log('poengtrekk: USER: %s REVISION: %s POINTS: %d REASON: %s' % (uname, revid, points, reason))
                 for u in self.users:
                     if u.name == uname:
-                        u.point_deductions.append([aname, points, reason])
+                        u.point_deductions.append([revid, points, reason])
                         ufound = True
                 if not ufound:
                     raise ParseError(_("Couldn't find the user %(user)s given to the {{tl|%(template)s}} template.") % {'user': uname, 'template': dicfg['name']})

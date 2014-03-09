@@ -384,7 +384,7 @@ class User(object):
                 ignore = False
                 if 'ignore' in self.contest.config:
                     for ign in self.contest.config['ignore']:
-                        if article_comment.find(ign) != -1:
+                        if re.search(ign, article_comment):
                             ignore = True
 
                 if ignore:

@@ -243,12 +243,20 @@ class Revision(object):
             log("Wordcount: %d -> %d" % ( len(mt2.split()), len(mt1.split()) ))
             self._wordcount = len(mt1.split()) - len(mt2.split())
             if not self.new and len(mt2.split()) == 0:
-                w = _('The word count difference might be wrong, because no words were found in the parent revision (%(parentid)s) of size %(size)d, possibly due to unclosed tags or templates in that revision.') % { 'parentid': self.parentid, 'size': len(self.parenttext) }
+                w = _('Revision [//%(host)s/w/index.php?diff=prev&oldid=%(revid)s %(revid)s]: The word count difference might be wrong, because no words were found in the parent revision (%(parentid)s) of size %(size)d, possibly due to unclosed tags or templates in that revision.') % { 'host': self.article.site.host, 'revid': self.revid, 'parentid': self.parentid, 'size': len(self.parenttext) }
                 log('-------------------------------------------------------------------')
                 log('[WARN] ' + w)
                 #log(self.parenttext)
                 log('-------------------------------------------------------------------')
                 self.errors.append(w)
+            elif self._wordcount > 10 and self._wordcount > self.bytes:
+                w = _('Revision [//%(host)s/w/index.php?diff=prev&oldid=%(revid)s %(revid)s]: The word count difference might be wrong, because the word count increase (%(words)d) is larger than the byte increase (%(bytes)d). Wrong word counts may occur for invalid wiki text.') % { 'host': self.article.site.host, 'revid': self.revid, 'words': self._wordcount, 'bytes': self.bytes }
+                log('-------------------------------------------------------------------')
+                log('[WARN] ' + w)
+                #log(self.parenttext)
+                log('-------------------------------------------------------------------')
+                self.errors.append(w)
+
             #s = _('A problem encountered with revision %(revid)d may have influenced the word count for this revision: <nowiki>%(problems)s</nowiki> ')
             #s = _('Et problem med revisjon %d kan ha påvirket ordtellingen for denne: <nowiki>%s</nowiki> ')
             del mt1

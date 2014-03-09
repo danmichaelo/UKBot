@@ -83,6 +83,8 @@ templates:
         bytebonus: bytebonus
         wordbonus: ordbonus
         alias: alias
+        own: own 
+        maxinitialcount: maxinitialcount
     filter:
         name: Ukens konkurranse kriterium
         new: ny
@@ -99,7 +101,7 @@ templates:
 pages:
     catignore: Bruker:UKBot/cat-ignore
     base: Wikipedia:Ukens konkurranse/Ukens konkurranse
-    default: Wikipedia:Ukens konkurranse/Ukens konkurranse %Y-%V
+    default: Wikipedia:Ukens konkurranse/Ukens konkurranse %(year)d-%(week)02d
     redirect: WP:UK
 contestPages:
     resultsSection: Resultater

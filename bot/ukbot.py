@@ -372,8 +372,16 @@ class User(object):
             #pageid = c['pageid']
             if 'comment' in c:
                 article_comment = c['comment']
-                rollback = _('Reverted')
-                if not article_comment[:len(rollback)] == rollback:
+
+                ignore = False
+                if 'ignore' in self.contest.config:
+                    for ign in self.contest.config['ignore']:
+                        if article_comment.find(ign) != -1:
+                            ignore = True
+
+                if ignore:
+                    log(' Revision %d of %s ignored as rollback' % (c['revid'], c['title']))
+                else:
                     rev_id = c['revid']
                     article_title = c['title']
                     article_key = site_key + ':' + article_title

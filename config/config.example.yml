@@ -115,3 +115,5 @@ noticeboard:
     template: 
         name: la stå/uk
         date: dato
+ignore:
+    - Reverted edits by  # MediaWiki:Revertpage/en

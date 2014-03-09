@@ -247,8 +247,16 @@ class Revision(object):
         except:
             mt1 = get_body_text(self.text)
             mt2 = get_body_text(self.parenttext)
+            log("Wordcount: %d -> %d" % ( len(mt2.split()), len(mt1.split()) ))
             self._wordcount = len(mt1.split()) - len(mt2.split())
-            s = _('A problem encountered with revision %(revid)d may have influenced the word count for this revision: <nowiki>%(problems)s</nowiki> ')
+            if not self.new and len(mt2.split()) == 0:
+                w = _('The word count difference might be wrong, because no words were found in the parent revision (%(parentid)s) of size %(size)d, possibly due to unclosed tags or templates in that revision.') % { 'parentid': self.parentid, 'size': len(self.parenttext) }
+                log('-------------------------------------------------------------------')
+                log('[WARN] ' + w)
+                #log(self.parenttext)
+                log('-------------------------------------------------------------------')
+                self.errors.append(w)
+            #s = _('A problem encountered with revision %(revid)d may have influenced the word count for this revision: <nowiki>%(problems)s</nowiki> ')
             #s = _('Et problem med revisjon %d kan ha påvirket ordtellingen for denne: <nowiki>%s</nowiki> ')
             del mt1
             del mt2
@@ -568,14 +576,14 @@ class User(object):
         else:
             articles = odict([])
             if self.contest.verbose:
-                log('>> Before filtering: %d articles' % len(self.articles))
+                log('>> Before filtering (%d) : %s' % (len(self.articles), ', '.join(self.articles.keys())))
             for filter in filters:
                 for a in filter.filter(self.articles):
                     if a not in articles:
                         #print a
                         articles[a] = self.articles[a]
                 if self.contest.verbose:
-                    log('>> After %s: %d articles' % (type(filter).__name__, len(articles)))
+                    log('>> After %s (%d) : %s' % (type(filter).__name__, len(articles), ', '.join(articles.keys())))
             self.articles = articles
 
         # We should re-sort afterwards since not all filters preserve the order (notably the CatFilter)
@@ -617,7 +625,10 @@ class User(object):
 
         # loop over articles
         for article_key, article in self.articles.iteritems():
-            log('.', newline=False)
+            if self.contest.verbose:
+                log(article_key)
+            else:
+                log('.', newline=False)
             #log(article_key)
 
             # loop over revisions
@@ -640,6 +651,9 @@ class User(object):
                             ts = float(unix_time(utc.localize(datetime.fromtimestamp(rev.timestamp)).astimezone(wiki_tz)))
                             x.append(ts)
                             y.append(float(rev.get_points()))
+                            
+                            if self.contest.verbose:
+                                log('    %d : %d ' % (revid, rev.get_points()))
 
         x = np.array(x)
         y = np.array(y)
@@ -1705,9 +1719,9 @@ if __name__ == '__main__':
     if not args.simulate:
         txt = kpage.edit()
         tp = TemplateEditor(txt)
-        print "---"
-        print sammen
-        print "---"
+        #print "---"
+        #print sammen
+        #print "---"
         if sammen != '':
             tp.templates[ib['name']][0].parameters[ib['status']] = sammen
         txt = tp.wikitext()

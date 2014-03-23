@@ -51,7 +51,11 @@ else:
     log('  No page specified. Using default page')
     ktitle = config['pages']['default']
     # subtract one hour, so we close last week's contest right after midnight
-    ktitle = (now - timedelta(hours=1)).astimezone(wiki_tz).strftime(ktitle.encode('utf-8')).decode('utf-8')
+    #ktitle = (now - timedelta(hours=1)).astimezone(wiki_tz).strftime(ktitle.encode('utf-8')).decode('utf-8')
+    ktitle = config['pages']['default']
+    w = Week.withdate((now - timedelta(hours=1)).astimezone(wiki_tz).date())
+    # subtract one hour, so we close last week's contest right after midnight
+    ktitle = ktitle % { 'year': w.year, 'week': w.week }
 
 # Is ktitle redirect? Resolve
 
@@ -124,7 +128,7 @@ pagetext = config['plot']['description'] % { 'pagename': ktitle, 'week': weeks, 
 commons = mwclient.Site('commons.wikimedia.org')
 commons.login(config['account']['user'], config['account']['pass'])
 
-p = commons.pages['File:' + filename]
+p = commons.pages['File:' + remote_filename]
 f = open(filename.encode('utf-8'), 'rb')
 
 if p.exists:

@@ -242,7 +242,7 @@ class Revision(object):
             mt2 = get_body_text(self.parenttext)
             log("Wordcount: %d -> %d" % ( len(mt2.split()), len(mt1.split()) ))
             self._wordcount = len(mt1.split()) - len(mt2.split())
-            if not self.new and len(mt2.split()) == 0:
+            if not self.new and len(mt2.split()) == 0 and self._wordcount > 1:
                 w = _('Revision [//%(host)s/w/index.php?diff=prev&oldid=%(revid)s %(revid)s]: The word count difference might be wrong, because no words were found in the parent revision (%(parentid)s) of size %(size)d, possibly due to unclosed tags or templates in that revision.') % { 'host': self.article.site.host, 'revid': self.revid, 'parentid': self.parentid, 'size': len(self.parenttext) }
                 log('-------------------------------------------------------------------')
                 log('[WARN] ' + w)
@@ -713,7 +713,7 @@ class User(object):
 
                     if len(rev.points) > 0:
                         descr = ' + '.join(['%.1f p (%s)' % (p[0], p[2]) for p in rev.points])
-                        descr += ' '.join([' <span style="color:red">- %.1f p (%s)</span>' % (p[0], p[1]) for p in rev.point_deductions])
+                        descr += ' '.join([' <span style="color:red">− %.1f p (%s)</span>' % (p[0], p[1]) for p in rev.point_deductions])
 
                         dt = utc.localize(datetime.fromtimestamp(rev.timestamp))
                         dt_str = dt.astimezone(wiki_tz).strftime('%A, %H:%M').decode('utf-8')
@@ -1600,6 +1600,7 @@ if __name__ == '__main__':
     nnewpages = 0
 
     extraargs = {'namespace': 0}
+    extraargs = {}
     for f in uk.filters:
         if type(f) == NamespaceFilter:
             extraargs['namespace'] = f.namespace

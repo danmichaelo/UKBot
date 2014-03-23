@@ -1,7 +1,7 @@
 #!/bin/sh
 cd /data/project/ukbot
 echo "-----------------------------------------------------------------"
-echo "$(date) : Starting job $JOB_NAME ($JOB_ID) on $HOSTNAME"
+echo "$(date) : Starting UPDATE job $JOB_NAME ($JOB_ID) on $HOSTNAME"
 export UKLANG=$(echo "$JOB_NAME" | cut -c7-20)
 START=$(date +%s)
 echo "running $START" >| logs/$UKLANG.status

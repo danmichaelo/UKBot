@@ -17,21 +17,16 @@ div#navbar {
 }
 h1 {
     margin: 20px 0px;
-    font-size:18px;
+    font-size:34px;
     font-weight: bold;
-    color: #333;
+    text-align: center;
+    color: #888;
 }
 div#navbar ul {
     margin: 0px;
     padding-left: 0px;
     white-space: nowrap;
    border-bottom: 1px solid #000;
-}
-h1 {
-    margin: 20px 0px;
-    font-size:18px;
-    font-weight: bold;
-    color: #333;
 }
 div#navbar ul {
     margin: 0px;
@@ -80,4 +75,6 @@ tr td:first-child { max-width: 400px; }
     text-align: center;
     background-color: 
 }
-
+.container {
+    padding: 1em 3em;
+}

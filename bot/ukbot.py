@@ -751,6 +751,8 @@ class User(object):
                 elif brutto != netto:
                     out = '[[File:Qsicon Achtung.png|14px]] ' + out
                     #titletxt += '<div style="border-top:1px solid red; background:#ffcccc;"><strong>Merk:</strong> En eller flere revisjoner er ikke talt med fordi de ble gjort mens brukeren var suspendert. Hvis suspenderingen oppheves vil bidragene telle med.</div>'
+                if article.new:
+                    out += ' ' + _('<abbr class="newpage" title="New page">N</abbr>')
                 out += ' (<abbr class="uk-ap">%s</abbr>)' % p
 
                 out = '# ' + out

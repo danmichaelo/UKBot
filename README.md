@@ -23,15 +23,12 @@ make all
 
 Current crontab:
 
-	PPATH="/data/project/ukbot"
-	STDOPTS="-q task -hard -j yes"
-	10 * * * * qsub -N ukbot_no $STDOPTS -l h_vmem=384m -o $PPATH/logs/no.log $PPATH/jobs/update.sh
-	15 * * * * qsub -N ukbot_no $STDOPTS -l h_vmem=384m -o $PPATH/logs/no.log $PPATH/jobs/close.sh
-	20 * * * * qsub -N ukbot_fi $STDOPTS -l h_vmem=384m -o $PPATH/logs/fi.log $PPATH/jobs/update.sh
-	25 * * * * qsub -N ukbot_fi $STDOPTS -l h_vmem=384m -o $PPATH/logs/fi.log $PPATH/jobs/close.sh
-	45 */2 * * * qsub -N ukbot_fi-hl $STDOPTS -l h_vmem=1024m -o $PPATH/logs/fi-hl.log $PPATH/jobs/update.sh
-	03 21 * * * qsub -N ukbot_fi-hl $STDOPTS -l h_vmem=256m -o $PPATH/logs/fi-hl.log $PPATH/jobs/upload.sh
-
+    10 * * * * jsub -j y -cwd -N ukbot_no -mem 384m -o logs/no.log jobs/update.sh
+    15 * * * * jsub -j y -cwd -N ukbot_no -mem 384m -o logs/no.log jobs/close.sh
+    30 21 * * * jsub -j y -cwd -N ukbot_no -mem 384m -o logs/no.log jobs/upload.sh
+    20 * * * * jsub -j y -cwd -N ukbot_fi -mem 384m -o logs/fi.log jobs/update.sh
+    25 * * * * jsub -j y -cwd -N ukbot_fi -mem 384m -o logs/fi.log jobs/close.sh
+    35 21 * * * jsub -j y -cwd -N ukbot_fi -mem 384m -o logs/no.log jobs/upload.sh
 
 Forenklet flytkart:
 ![Flowchart](https://github.com/danmichaelo/UKBot/raw/master/flowchart.png)

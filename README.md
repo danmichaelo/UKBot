@@ -17,18 +17,12 @@ Making a [virtualenv](http://www.virtualenv.org/) and installing dependencies (n
 	pip install 
 
 To generate locales:
-````
-make all
-```` 
 
-Current crontab:
+    make all
 
-    10 * * * * jsub -j y -cwd -N ukbot_no -mem 384m -o logs/no.log jobs/update.sh
-    15 * * * * jsub -j y -cwd -N ukbot_no -mem 384m -o logs/no.log jobs/close.sh
-    30 21 * * * jsub -j y -cwd -N ukbot_no -mem 384m -o logs/no.log jobs/upload.sh
-    20 * * * * jsub -j y -cwd -N ukbot_fi -mem 384m -o logs/fi.log jobs/update.sh
-    25 * * * * jsub -j y -cwd -N ukbot_fi -mem 384m -o logs/fi.log jobs/close.sh
-    35 21 * * * jsub -j y -cwd -N ukbot_fi -mem 384m -o logs/no.log jobs/upload.sh
+And setup crontab:
+
+    crontab ukbot.crontab
 
 Forenklet flytkart:
 ![Flowchart](https://github.com/danmichaelo/UKBot/raw/master/flowchart.png)

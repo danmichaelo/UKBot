@@ -7,6 +7,7 @@ from mwtemplates import TemplateEditor
 from mwtextextractor import condition_for_lxml
 from ukcommon import init_localization
 from ukcommon import log
+import urllib
 
 t, _ = init_localization()
 
@@ -230,6 +231,7 @@ class ImageRule(Rule):
         own_imgs_added = []
         others_imgs_added = []
         for filename in imgs_added:
+            filename = urllib.unquote(filename)
             image = rev.article.site.Images[filename]
             imageinfo = image.imageinfo
             if len(imageinfo) > 0:   # seems like image.exists only checks locally

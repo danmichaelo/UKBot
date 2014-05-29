@@ -713,7 +713,11 @@ class User(object):
 
                     if len(rev.points) > 0:
                         descr = ' + '.join(['%.1f p (%s)' % (p[0], p[2]) for p in rev.points])
-                        descr += ' '.join([' <span style="color:red">− %.1f p (%s)</span>' % (p[0], p[1]) for p in rev.point_deductions])
+                        for p in rev.point_deductions:
+                            if p[0] > 0:
+                                descr += ' <span style="color:red">− %.1f p (%s)</span>' % (p[0], p[1])
+                            else:
+                                descr += ' <span style="color:#44bb44">+ %.1f p (%s)</span>' % (-p[0], p[1])
 
                         dt = utc.localize(datetime.fromtimestamp(rev.timestamp))
                         dt_str = dt.astimezone(wiki_tz).strftime('%A, %H:%M').decode('utf-8')

@@ -1,8 +1,8 @@
 # m h  dom mon dow   command
 MAILTO=""
-10 * * * * jsub -j y -cwd -N ukbot_no -mem 384m -o logs/no.log jobs/update.sh
-15 * * * * jsub -j y -cwd -N ukbot_no -mem 384m -o logs/no.log jobs/close.sh
-30 21 * * * jsub -j y -cwd -N ukbot_no -mem 384m -o logs/no.log jobs/upload.sh
-20 * * * * jsub -j y -cwd -N ukbot_fi -mem 384m -o logs/fi.log jobs/update.sh
-25 * * * * jsub -j y -cwd -N ukbot_fi -mem 384m -o logs/fi.log jobs/close.sh
-35 21 * * * jsub -j y -cwd -N ukbot_fi -mem 384m -o logs/fi.log jobs/upload.sh
+10 * * * * jsub -j y -cwd -N ukbot_no -mem 768m -o logs/no.log jobs/update.sh
+15 * * * * jsub -j y -cwd -N ukbot_no -mem 768m -o logs/no.log jobs/close.sh
+30 21 * * * jsub -j y -cwd -N ukbot_no -mem 768m -o logs/no.log jobs/upload.sh
+20 * * * * jsub -j y -cwd -N ukbot_fi -mem 768m -o logs/fi.log jobs/update.sh
+25 * * * * jsub -j y -cwd -N ukbot_fi -mem 768m -o logs/fi.log jobs/close.sh
+35 21 * * * jsub -j y -cwd -N ukbot_fi -mem 768m -o logs/fi.log jobs/upload.sh

@@ -208,7 +208,7 @@ class ImageRule(Rule):
         prefixes = r'(?:file:|tiedosto:|kuva:|image:|bilde:|fil:)'
         suffixes = r'(?:\.svg|\.png|\.jpg|\.jpeg|\.gif|\.tiff)'
         imagematcher = ''.join([
-            r'(?:=', prefixes, '?',     # matches "=File:" or "="
+            r'(?:(?:=|\|)', prefixes, '?',     # matches "=File:" or "=" or "|File:" or "|"
             '|', prefixes, ')',         # or "File:"
             '(',                        # start capture
                 '[^\}\]\[\n=\|]*?',

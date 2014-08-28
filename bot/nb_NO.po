@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: UKBot\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2014-08-28 20:11+0000\n"
+"POT-Creation-Date: 2014-08-28 20:27+0000\n"
 "PO-Revision-Date: 2013-02-10 23:01+0100\n"
 "Last-Translator: Dan Michael Heggø <danmichaelo@gmail.com>\n"
 "Language-Team: \n"
@@ -141,11 +141,6 @@ msgid ""
 "Did not find %(week)s+%(year)s or %(start)s+%(end)s in {{tl|%(templates)s}}."
 msgstr ""
 "Fant ikke %(week)s+%(year)s eller %(start)s+%(end)s i {{tl|%(templates)s}}."
-
-#: bot/ukbot.py:1109
-#, fuzzy
-msgid "%Y-%m-%d %H:%M"
-msgstr "%e. %B %Y, %H:%M"
 
 #: bot/ukbot.py:1111
 #, python-format
@@ -379,6 +374,10 @@ msgstr "bonus %(bytes).f bytes"
 #, python-format
 msgid "bonus %(words)d words"
 msgstr "bonus %(words)d ord"
+
+#, fuzzy
+#~ msgid "%Y-%m-%d %H:%M"
+#~ msgstr "%e. %B %Y, %H:%M"
 
 #~ msgid ""
 #~ "A problem encountered with revision %(revid)d may have influenced the "

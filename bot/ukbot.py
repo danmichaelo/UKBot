@@ -1106,7 +1106,7 @@ class UK(object):
             for templ in dp.templates[sucfg['name']]:
                 uname = templ.parameters[1].value
                 try:
-                    sdate = wiki_tz.localize(datetime.strptime(templ.parameters[2].value, _('%Y-%m-%d %H:%M')))
+                    sdate = wiki_tz.localize(datetime.strptime(templ.parameters[2].value, '%Y-%m-%d %H:%M'))
                 except ValueError:
                     raise ParseError(_("Couldn't parse the date given to the {{tl|%(template)s}} template.") % sucfg['name'])
 

@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: UKBot\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2014-08-28 20:11+0000\n"
+"POT-Creation-Date: 2014-08-28 20:27+0000\n"
 "PO-Revision-Date: 2013-01-25 19:07+0100\n"
 "Last-Translator: Dan Michael Heggø <danmichaelo@gmail.com>\n"
 "Language-Team: \n"
@@ -146,11 +146,6 @@ msgstr ""
 "Kohteesta {{tl|%(templates)s}} ei ole löydetty %(week)s+%(year)s eikä "
 "%(start)s+%(end)s."
 
-#: bot/ukbot.py:1109
-#, fuzzy
-msgid "%Y-%m-%d %H:%M"
-msgstr "%e. %Bta %Y kello %H:%M"
-
 #: bot/ukbot.py:1111
 #, python-format
 msgid "Couldn't parse the date given to the {{tl|%(template)s}} template."
@@ -180,7 +175,7 @@ msgstr "Pisteet"
 #: bot/ukbot.py:1264 bot/ukbot.py:1456 bot/ukbot.py:1710 bot/ukbot.py:1711
 #: bot/ukbot.py:1712
 msgid "%e. %B %Y, %H:%M"
-msgstr "%e. %Bta %Y kello %H:%M"
+msgstr "%e. %Bta %Y kello %H.%M"
 
 #: bot/ukbot.py:1265
 #, python-format
@@ -384,6 +379,10 @@ msgstr "bonus %(bytes).f tavua"
 #, python-format
 msgid "bonus %(words)d words"
 msgstr "bonus %(words)d sanaa"
+
+#, fuzzy
+#~ msgid "%Y-%m-%d %H:%M"
+#~ msgstr "%e. %Bta %Y kello %H.%M"
 
 #~ msgid ""
 #~ "A problem encountered with revision %(revid)d may have influenced the "

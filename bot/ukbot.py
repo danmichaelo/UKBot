@@ -1104,9 +1104,9 @@ class UK(object):
         sucfg = config['templates']['suspended']
         if sucfg['name'] in dp.templates:
             for templ in dp.templates[sucfg['name']]:
-                uname = templ.parameters[1]
+                uname = templ.parameters[1].value
                 try:
-                    sdate = wiki_tz.localize(datetime.strptime(templ.parameters[2], '%Y-%m-%d %H:%M'))
+                    sdate = wiki_tz.localize(datetime.strptime(templ.parameters[2].value, _('%Y-%m-%d %H:%M')))
                 except ValueError:
                     raise ParseError(_("Couldn't parse the date given to the {{tl|%(template)s}} template.") % sucfg['name'])
 
@@ -1125,7 +1125,7 @@ class UK(object):
         dicfg = config['templates']['disqualified']
         if dicfg['name'] in dp.templates:
             for templ in dp.templates[dicfg['name']]:
-                uname = templ.parameters[1]
+                uname = templ.parameters[1].value
                 anon = templ.get_anonymous_parameters()
                 uname = anon[1]
                 if not templ.has_param('s'):
@@ -1261,7 +1261,13 @@ class UK(object):
             ax.set_ylabel(_('Points'))
 
             now = server_tz.localize(datetime.now())
-            ax.set_title(_('Updated %(date)s') % {'date': now.astimezone(wiki_tz).strftime('%e. %B %Y, %H:%M')})
+            now2 = now.astimezone(wiki_tz).strftime(_('%e. %B %Y, %H:%M')).decode('utf-8')
+            ax_title = _('Updated %(date)s')
+
+            #print ax_title.encode('utf-8')
+            #print now2.encode('utf-8')
+            ax_title = ax_title % {'date': now2}
+            ax.set_title(ax_title)
 
             plt.legend()
             ax = plt.gca()
@@ -1447,7 +1453,7 @@ class UK(object):
             if u.suspended_since is not None:
                 d = [self.name, u.name, 'suspension', '']
                 if len(cur.execute(u'SELECT id FROM notifications WHERE contest=? AND user=? AND class=? AND args=?', d).fetchall()) == 0:
-                    msgs.append('Du er inntil videre suspendert fra konkurransen med virkning fra %s. Dette innebærer at dine bidrag gjort etter dette tidspunkt ikke teller i konkurransen, men alle bidrag blir registrert og skulle suspenderingen oppheves i løpet av konkurranseperioden vil også bidrag gjort i suspenderingsperioden telle med. Vi oppfordrer deg derfor til å arbeide med problemene som førte til suspenderingen slik at den kan oppheves.' % u.suspended_since.strftime('%e. %B %Y, %H:%M').decode('utf-8'))
+                    msgs.append('Du er inntil videre suspendert fra konkurransen med virkning fra %s. Dette innebærer at dine bidrag gjort etter dette tidspunkt ikke teller i konkurransen, men alle bidrag blir registrert og skulle suspenderingen oppheves i løpet av konkurranseperioden vil også bidrag gjort i suspenderingsperioden telle med. Vi oppfordrer deg derfor til å arbeide med problemene som førte til suspenderingen slik at den kan oppheves.' % u.suspended_since.strftime(_('%e. %B %Y, %H:%M')).decode('utf-8'))
                     if not simulate:
                         cur.execute(u'INSERT INTO notifications (contest, user, class, args) VALUES (?,?,?,?)', d)
             discs = []
@@ -1701,9 +1707,9 @@ if __name__ == '__main__':
         out += "''" + _('This contest is closed – thanks to everyone who participated!') + "''\n\n"
     else:
         oargs = {
-            'lastupdate': now.astimezone(wiki_tz).strftime('%e. %B %Y, %H:%M').decode('utf-8'),
-            'startdate': uk.start.strftime('%e. %B %Y, %H:%M').decode('utf-8'),
-            'enddate': uk.end.strftime('%e. %B %Y, %H:%M').decode('utf-8')
+            'lastupdate': now.astimezone(wiki_tz).strftime(_('%e. %B %Y, %H:%M')).decode('utf-8'),
+            'startdate': uk.start.strftime(_('%e. %B %Y, %H:%M')).decode('utf-8'),
+            'enddate': uk.end.strftime(_('%e. %B %Y, %H:%M')).decode('utf-8')
         }
         out += "''" + _('Last updated %(lastupdate)s. The contest is open from %(startdate)s to %(enddate)s.') % oargs + "''\n\n"
 

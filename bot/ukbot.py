@@ -474,21 +474,25 @@ class User(object):
             ids = '|'.join(parentids[s0:s0 + apilim])
             for page in site.api('query', prop='revisions', rvprop=props, revids=ids)['query']['pages'].itervalues():
                 article_key = site_key + ':' + page['title']
-                article = self.articles[article_key]
-                for apirev in page['revisions']:
-                    nr += 1
-                    parentid = apirev['revid']
-                    found = False
-                    for revid, rev in article.revisions.iteritems():
-                        if rev.parentid == parentid:
-                            found = True
-                            break
-                    if not found:
-                        raise StandardError("No revision found matching title=%s, parentid=%d" % (page['title'], parentid))
+                
+                # In the case of a merge, the new title (article_key) might not be part of the user's 
+                # contribution list (self.articles), so we need to check:
+                if article_key in self.articles:
+                    article = self.articles[article_key]
+                    for apirev in page['revisions']:
+                        nr += 1
+                        parentid = apirev['revid']
+                        found = False
+                        for revid, rev in article.revisions.iteritems():
+                            if rev.parentid == parentid:
+                                found = True
+                                break
+                        if not found:
+                            raise StandardError("No revision found matching title=%s, parentid=%d" % (page['title'], parentid))
 
-                    rev.parentsize = apirev['size']
-                    if '*' in apirev.keys():
-                        rev.parenttext = apirev['*']
+                        rev.parentsize = apirev['size']
+                        if '*' in apirev.keys():
+                            rev.parenttext = apirev['*']
         if nr > 0:
             log(" -> [%s] Checked %d parent revisions" % (site_key, nr))
 

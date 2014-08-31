@@ -27,11 +27,11 @@ all: $(TD).pot update-po update-mo install
  
 help:
 	@echo "Available targets:"
-	@echo "  pot                       - remake master catalog"
-	@echo "  update-po                 - merge po files"
-	@echo "  update-mo                 - regenerate mo files"
-	@echo "  install                   - install mo files"
-	@echo "  all               - all of the above"
+	@echo "  pot          - Regenerate master catalog from source files"
+	@echo "  update-po    - Update po files from master catalog"
+	@echo "  update-mo    - Regenerate mo files from po files"
+	@echo "  install      - Install mo files"
+	@echo "  all          - All of the above"
  
 POTFILES = $(srcdir)/POTFILES.in \
 	$(shell cat $(srcdir)/POTFILES.in) 

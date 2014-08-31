@@ -724,7 +724,7 @@ class User(object):
                                 descr += ' <span style="color:#44bb44">+ %.1f p (%s)</span>' % (-p[0], p[1])
 
                         dt = utc.localize(datetime.fromtimestamp(rev.timestamp))
-                        dt_str = dt.astimezone(wiki_tz).strftime('%A, %H:%M').decode('utf-8')
+                        dt_str = dt.astimezone(wiki_tz).strftime(_('%A, %H:%M')).decode('utf-8')
                         out = '[%s %s]: %s' % (rev.get_link(), dt_str, descr)
                         if self.suspended_since is not None and dt > self.suspended_since:
                             out = '<s>' + out + '</s>'
@@ -783,7 +783,7 @@ class User(object):
                     break
         suspended = ''
         if self.suspended_since is not None:
-            suspended = ', ' + _('suspended since') + ' %s' % self.suspended_since.strftime('%A, %H.%M').decode('utf-8')
+            suspended = ', ' + _('suspended since') + ' %s' % self.suspended_since.strftime(_('%A, %H:%M')).decode('utf-8')
         userprefix = self.contest.homesite.namespaces[2]
         out = '=== %s [[%s:%s|%s]] (%.f p%s) ===\n' % (ros, userprefix, self.name, self.name, self.points, suspended)
         if len(entries) == 0:

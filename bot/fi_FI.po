@@ -260,7 +260,7 @@ msgid ""
 "Last updated %(lastupdate)s. The contest is open from %(startdate)s to "
 "%(enddate)s."
 msgstr ""
-"Päivitetty viimeksi %(lastupdate)s. Kilpailu on avoinna  %(startdate)s - "
+"Päivitetty viimeksi %(lastupdate)s. Kilpailu on avoinna  %(startdate)s – "
 "%(enddate)s."
 
 #: bot/ukbot.py:1741

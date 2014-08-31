@@ -121,7 +121,7 @@ class TemplateRemovalRule(Rule):
         tc = 0
         for node in dp.templates.doc.findall('.//template'):
             for elem in node:
-                if elem.tag == 'title':
+                if (elem.tag == 'title') and (elem.text is not None):
                     if self.testtpl(elem.text):
                         tc += 1
  #       for tpl in dp.templates._templates():

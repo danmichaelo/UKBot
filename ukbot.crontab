@@ -1,8 +1,15 @@
 # m h  dom mon dow   command
 MAILTO=""
-10 * * * * jsub -j y -cwd -N ukbot_no -mem 768m -o logs/no.log jobs/update.sh
-15 * * * * jsub -j y -cwd -N ukbot_no -mem 768m -o logs/no.log jobs/close.sh
-30 21 * * * jsub -j y -cwd -N ukbot_no -mem 768m -o logs/no.log jobs/upload.sh
-20 * * * * jsub -j y -cwd -N ukbot_fi -mem 768m -o logs/fi.log jobs/update.sh
-25 * * * * jsub -j y -cwd -N ukbot_fi -mem 768m -o logs/fi.log jobs/close.sh
-35 21 * * * jsub -j y -cwd -N ukbot_fi -mem 768m -o logs/fi.log jobs/upload.sh
+#
+10 * * * * jsub -once -j y -cwd -N ukbot_no -mem 768m -o logs/no.log jobs/update.sh
+15 * * * * jsub -once -j y -cwd -N ukbot_no -mem 768m -o logs/no.log jobs/close.sh
+30 21 * * * jsub -once -j y -cwd -N ukbot_no -mem 256m -o logs/no.log jobs/upload.sh
+#
+20 * * * * jsub -once -j y -cwd -N ukbot_fi -mem 768m -o logs/fi.log jobs/update.sh
+25 * * * * jsub -once -j y -cwd -N ukbot_fi -mem 768m -o logs/fi.log jobs/close.sh
+35 21 * * * jsub -once -j y -cwd -N ukbot_fi -mem 256m -o logs/fi.log jobs/upload.sh
+#
+# 40 * * * * jsub -once -j y -cwd -N ukbot_fi-ek -mem 1524m -o logs/fi-ek.log jobs/update.sh
+# 45 * * * * jsub -once -j y -cwd -N ukbot_fi-ek -mem 1524m -o logs/fi-ek.log jobs/close.sh
+# 55 21 * * * jsub -once -j y -cwd -N ukbot_fi-ek -mem 256m -o logs/fi-ek.log jobs/upload.sh
+

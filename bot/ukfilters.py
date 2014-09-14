@@ -134,7 +134,7 @@ class TemplateFilter(Filter):
 class CatFilter(Filter):
     """ Filters articles that belong to a given overcategory """
 
-    def __init__(self, verbose, sites, catnames, maxdepth=4, ignore=[]):
+    def __init__(self, verbose, sites, catnames, maxdepth=6, ignore=[]):
         """
         Arguments:
             sites     : dict { 'no': <mwclient.client.Site>, ... }

@@ -813,7 +813,7 @@ class UK(object):
         self.config = config
         self.homesite = homesite
         resultsSection = config['contestPages']['resultsSection']
-        txt = page.edit(readonly=True)
+        txt = page.edit()
         m = re.search('==\s*' + resultsSection + '\s*==', txt)
         if not m:
             raise ParseError(_('Found no "%(section)s" sections in the page "%(page)s"') % {'section': resultsSection, 'page': self.page.name})

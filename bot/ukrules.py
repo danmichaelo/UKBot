@@ -205,7 +205,7 @@ class ImageRule(Rule):
         self.maxinitialcount = int(maxinitialcount)
 
     def get_images(self, txt):
-        prefixes = r'(?:file:|tiedosto:|kuva:|image:|bilde:|fil:|filla:)'
+        prefixes = r'(?:file:|tiedosto:|kuva:|image:|bilde:|fil:|fiila:)'
         suffixes = r'(?:\.svg|\.png|\.jpg|\.jpeg|\.gif|\.tiff)'
         imagematcher = ''.join([
             r'(?:(?:=|\|)', prefixes, '?',     # matches "=File:" or "=" or "|File:" or "|"

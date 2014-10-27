@@ -892,6 +892,8 @@ class UK(object):
                 key = anon[1].lower()
                 params = {'verbose': self.verbose}
                 if key == filtercfg['new']:
+                    if templ.has_param(filtercfg['redirects']):
+                        params['redirects'] = True
                     filt = NewPageFilter(**params)
 
                 elif key == filtercfg['existing']:

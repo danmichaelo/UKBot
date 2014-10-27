@@ -349,15 +349,19 @@ class ByteFilter(Filter):
 class NewPageFilter(Filter):
     """Filters new articles"""
 
-    def __init__(self, verbose):
+    def __init__(self, verbose, redirects=False):
         Filter.__init__(self, verbose)
+        self.redirects = redirects
 
     def filter(self, articles):
         log("  [+] Applying new page filter")
         out = odict()
         for a, aa in articles.iteritems():
-            if aa.new_non_redirect:
+            if not self.redirects and aa.new_non_redirect:
                 out[a] = aa
+            elif self.redirects and aa.new:
+                out[a] = aa
+        log("  [+] Applying new page filter: %d -> %d" % (len(articles), len(out)))
         return out
 
 

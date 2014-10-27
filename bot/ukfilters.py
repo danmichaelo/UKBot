@@ -406,12 +406,15 @@ class BackLinkFilter(Filter):
                         continue
                     else:
                         aname2 = kv[1]
-                p = site.pages[aname2]
-                if p.exists:
-                    for link in p.links(redirects=True):
-                        self.links.append(site_key+':'+link.name)
-                    for link in p.iwlinks():
-                        self.links.append(link[0]+':'+link[1].replace('_', ' '))
+                try:
+                    p = site.pages[aname2]
+                    if p.exists:
+                        for link in p.links(redirects=True):
+                            self.links.append(site_key+':'+link.name)
+                        for link in p.iwlinks():
+                            self.links.append(link[0]+':'+link[1].replace('_', ' '))
+                except KeyError:
+                    pass
 
         #print self.links
 

@@ -377,6 +377,7 @@ class ExistingPageFilter(Filter):
         for aname, article in articles.iteritems():
             if not article.new:
                 out[aname] = article
+        log("  [+] Applying existing page filter: %d -> %d" % (len(articles), len(out)))
         return out
 
 
@@ -484,7 +485,7 @@ class PageFilter(Filter):
         for article_key, article in articles.iteritems():
             if article_key in self.pages:
                 out[article_key] = article
-        log("  [+] Applying page link filter (%s): %d -> %d" % (','.join(self.pages), len(articles), len(out)))
+        log("  [+] Applying page filter (%s): %d -> %d" % (','.join(self.pages), len(articles), len(out)))
         return out
 
 

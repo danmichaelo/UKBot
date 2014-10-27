@@ -140,7 +140,8 @@ class Article(object):
 
     @property
     def new(self):
-        return self.revisions[self.revisions.firstkey()].new
+        firstrev = self.revisions[self.revisions.firstkey()]
+        return firstrev.new
 
     @property
     def new_non_redirect(self):

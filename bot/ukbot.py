@@ -33,6 +33,8 @@ import logging
 logger = logging.getLogger()
 logger.setLevel(logging.WARN)
 
+import rollbar
+
 #locale.setlocale(locale.LC_TIME, 'no_NO'.encode('utf-8'))
 
 # Read args
@@ -51,6 +53,7 @@ if args.log != '':
     ukcommon.logfile = open(args.log, 'a')
 
 config = yaml.load(open(args.config, 'r'))
+rollbar.init(config['rollbar_token'], 'production')
 wiki_tz = pytz.timezone(config['wiki_timezone'])
 server_tz = pytz.timezone(config['server_timezone'])
 
@@ -1521,7 +1524,7 @@ class UK(object):
     #     trans = gettext.NullTranslations()
     # trans.install(unicode = True)
 
-if __name__ == '__main__':
+def main():
 
     host = config['homesite']
     homesite = Site(host, config['account']['user'], config['account']['pass'])
@@ -1545,7 +1548,7 @@ if __name__ == '__main__':
         rows = cur.execute(u'SELECT name FROM contests WHERE ended=1 AND closed=0 LIMIT 1').fetchall()
         if len(rows) == 0:
             log(" -> Found no contests to close!")
-            sys.exit(0)
+            return
         cur.close()
         ktitle = rows[0][0]
         log(" -> Contest %s is to be closed" % rows[0])
@@ -1554,7 +1557,7 @@ if __name__ == '__main__':
         revc = lastrev['comment']
         if revc.find('/* ' + config['awardstatus']['send'] + ' */') == -1:
             log('>> Award delivery has not been confirmed yet')
-            sys.exit(0)
+            return
     elif args.page is not None:
         ktitle = args.page.decode('utf-8')
     else:
@@ -1583,7 +1586,7 @@ if __name__ == '__main__':
     kpage = homesite.pages[ktitle]
     if not kpage.exists:
         log('  !! kpage does not exist! Exiting')
-        sys.exit(0)
+        return
 
     # Initialize the contest
 
@@ -1601,7 +1604,7 @@ if __name__ == '__main__':
     if args.close and closeuser not in uk.ledere:
         log('!! Konkurransen ble forsøkt avsluttet av %s, men konkurranseledere er oppgitt som: %s' % (closeuser, ', '.join(uk.ledere)))
         #log('!! Konkurransen ble forsøkt avsluttet av andre enn konkurranseleder')
-        #sys.exit(0)
+        #return
 
     # Check if contest is to be ended
 
@@ -1614,7 +1617,7 @@ if __name__ == '__main__':
         if len(cur.execute(u'SELECT ended FROM contests WHERE name=? AND ended=1', [ktitle]).fetchall()) == 1:
             log("  -> Already ended. Abort")
             #print "Konkurransen kunne ikke avsluttes da den allerede er avsluttet"
-            sys.exit(0)
+            return
 
         cur.close()
 
@@ -1891,3 +1894,12 @@ if __name__ == '__main__':
     runend = server_tz.localize(datetime.now())
     runtime = (runend - runstart).total_seconds()
     log('UKBot finishing at %s. Runtime was %.f seconds.' % (runend.strftime('%F %T'), runtime))
+
+if __name__ == '__main__':
+    try:
+        main()
+    except IOError:
+        rollbar.report_message('Got an IOError in the main loop', 'warning')
+    except:
+        # catch-all
+        rollbar.report_exc_info()

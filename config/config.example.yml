@@ -1,4 +1,5 @@
 locale: [nb_NO, no_NO]
+rollbar_token: add rollbar token here
 server_timezone: UTC
 wiki_timezone: Europe/Oslo
 homesite: no.wikipedia.org
@@ -98,6 +99,7 @@ templates:
         namespace: navnerom
         alias: alias
         maxdepth: maksdybde
+        redirects: omdirigeringer 
 pages:
     catignore: Bruker:UKBot/cat-ignore
     base: Wikipedia:Ukens konkurranse/Ukens konkurranse

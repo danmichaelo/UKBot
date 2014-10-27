@@ -338,8 +338,8 @@ class User(object):
         # sort articles by first revision id
         self.articles.sort(key=lambda x: x[1].revisions.firstkey())
 
-    def add_article_if_necessary(self, site_key, article_title):
-        article_key = site_key + ':' + article_title
+    def add_article_if_necessary(self, site, article_title):
+        article_key = site.key + ':' + article_title
 
         if not article_key in self.articles:
             self.articles[article_key] = Article(site, self, article_title)
@@ -401,14 +401,14 @@ class User(object):
                         if self.revisions[rev_id].article.name != article_title:
                             rev = self.revisions[rev_id]
                             log(' -> Moving revision %d from "%s" to "%s"' % (rev_id, rev.article.name, article_title))
-                            article = self.add_article_if_necessary(site_key, article_title)
+                            article = self.add_article_if_necessary(site, article_title)
                             rev.article.revisions.pop(rev_id)  # remove from old article
                             article.revisions[rev_id] = rev    # add to new article
                             rev.article = article              # and update reference
 
                     else:
 
-                        article = self.add_article_if_necessary(site_key, article_title)
+                        article = self.add_article_if_necessary(site, article_title)
                         rev = article.add_revision(rev_id, timestamp=time.mktime(c['timestamp']), username=self.name)
                         new_revisions.append(rev)
 
@@ -941,8 +941,15 @@ class UK(object):
                     filt = NamespaceFilter(**params)
 
                 elif key == filtercfg['pages']:
+                    homesiteprefix = self.homesite.site['servername'].split('.')[0]
                     params['sites'] = self.sites
-                    params['pages'] = anon[2:]
+                    params['pages'] = []
+                    for x in anon[2:]:
+                        y = x.split(':')
+                        if len(y) == 1:
+                            params['pages'].append('%s:%s' % (homesiteprefix, x))
+                        else:
+                            params['pages'].append(x)
                     filt = PageFilter(**params)
 
                 else:

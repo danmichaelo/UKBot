@@ -1617,7 +1617,7 @@ if __name__ == '__main__':
     nwords = 0
     nnewpages = 0
 
-    extraargs = {'namespace': 0}
+    # extraargs = {'namespace': 0}
     extraargs = {}
     for f in uk.filters:
         if type(f) == NamespaceFilter:

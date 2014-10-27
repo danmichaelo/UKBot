@@ -500,9 +500,12 @@ class NamespaceFilter(Filter):
         self.namespace = namespace
 
     def filter(self, articles):
-        #out = odict()
-        #for article_key, article in articles.iteritems():
+        # Note: The .namespace property does not yet exist on the Article object!
+        # out = odict()
+        # for article_key, article in articles.iteritems():
         #    if article.namespace == self.namespace:
         #        out[article_key] = article
-        #log("  [+] Applying namespace filter (%s): %d -> %d" % (','.join(self.articles), len(articles), len(out)))
-        return articles  # already filtered
+        # log("  [+] Applying namespace filter (%s): %d -> %d" % (','.join(self.articles), len(articles), len(out)))
+        # return articles
+        return odict() # already filtered
+

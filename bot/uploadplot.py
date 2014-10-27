@@ -73,7 +73,7 @@ if not kpage.exists:
 ibcfg = config['templates']['infobox']
 commonargs = config['templates']['commonargs']
 
-dp = TemplateEditor(kpage.edit(readonly=True))
+dp = TemplateEditor(kpage.edit())
 try:
     infoboks = dp.templates[ibcfg['name']][0]
 except:

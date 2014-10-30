@@ -590,27 +590,31 @@ class User(object):
 
     def filter(self, filters, serial=False):
 
-        if serial:
-            for filter in filters:
-                if self.contest.verbose:
-                    log('>> Before %s (%d) : %s' % (type(filter).__name__, len(self.articles), ', '.join(self.articles.keys())))
+        if len(filters) == 1 and type(filters[0]) == NamespaceFilter:
+            pass
 
-                self.articles = filter.filter(self.articles)
-
-                if self.contest.verbose:
-                    log('>> After %s (%d) : %s' % (type(filter).__name__, len(self.articles), ', '.join(self.articles.keys())))
         else:
-            articles = odict([])
-            if self.contest.verbose:
-                log('>> Before filtering (%d) : %s' % (len(self.articles), ', '.join(self.articles.keys())))
-            for filter in filters:
-                for a in filter.filter(self.articles):
-                    if a not in articles:
-                        #print a
-                        articles[a] = self.articles[a]
+            if serial:
+                for filter in filters:
+                    if self.contest.verbose:
+                        log('>> Before %s (%d) : %s' % (type(filter).__name__, len(self.articles), ', '.join(self.articles.keys())))
+
+                    self.articles = filter.filter(self.articles)
+
+                    if self.contest.verbose:
+                        log('>> After %s (%d) : %s' % (type(filter).__name__, len(self.articles), ', '.join(self.articles.keys())))
+            else:
+                articles = odict([])
                 if self.contest.verbose:
-                    log('>> After %s (%d) : %s' % (type(filter).__name__, len(articles), ', '.join(articles.keys())))
-            self.articles = articles
+                    log('>> Before filtering (%d) : %s' % (len(self.articles), ', '.join(self.articles.keys())))
+                for filter in filters:
+                    for a in filter.filter(self.articles):
+                        if a not in articles:
+                            #print a
+                            articles[a] = self.articles[a]
+                    if self.contest.verbose:
+                        log('>> After %s (%d) : %s' % (type(filter).__name__, len(articles), ', '.join(articles.keys())))
+                self.articles = articles
 
         # We should re-sort afterwards since not all filters preserve the order (notably the CatFilter)
         self.sort_contribs()

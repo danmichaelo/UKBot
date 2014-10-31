@@ -213,13 +213,12 @@ class CatFilter(Filter):
                         ids = '|'.join(titles0[s0:s0+requestlimit])
 
                         cont = True
-                        clcont = ''
+                        clcont = {'continue': ''}
                         while cont:
-                            #print clcont
-                            if clcont != '':
-                                q = site.api('query', prop='categories', titles=ids, cllimit=returnlimit, clcontinue=clcont)
-                            else:
-                                q = site.api('query', prop='categories', titles=ids, cllimit=returnlimit)
+                            # print clcont
+                            args = {'prop': 'categories', 'titles': ids, 'cllimit': returnlimit}
+                            args.update(clcont)
+                            q = site.api('query', **args)
 
                             if 'warnings' in q:
                                 raise StandardError(q['warnings']['query']['*'])
@@ -258,8 +257,8 @@ class CatFilter(Filter):
                                                         #        node.add_child(name = cat_short.encode('utf-8'))
                                         else:
                                             nnc += 1
-                            if 'query-continue' in q:
-                                clcont = q['query-continue']['categories']['clcontinue']
+                            if 'continue' in q:
+                                clcont = q['continue']
                             else:
                                 cont = False
                     titles = list(set(titles))  # to remove duplicates (not order preserving)

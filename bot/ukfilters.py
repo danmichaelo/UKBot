@@ -148,7 +148,7 @@ class CatFilter(Filter):
         self.include = [c[c.rfind(':')+1:] for c in catnames]
         self.maxdepth = int(maxdepth)
         if self.verbose:
-            log("  CatFilter: %s" % (" OR ".join(self.include)))
+            log("  CatFilter: %s, maxdepth=%d" % (" OR ".join(self.include), maxdepth))
 
     def extend(self, catfilter):
         self.include.extend(catfilter.include)

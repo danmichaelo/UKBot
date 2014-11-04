@@ -964,10 +964,10 @@ class UK(object):
                     raise ParseError(_('Unknown argument given to {{tl|%(template)s}}: %(argument)s') % {'template': filtercfg['name'], 'argument': key})
 
                 foundfilter = False
-                for f in filters:
-                    if type(f) == type(filt):
-                        foundfilter = True
-                        f.extend(filt)
+                #for f in filters:
+                #    if type(f) == type(filt):
+                #        foundfilter = True
+                #        f.extend(filt)
                 if not foundfilter:
                     nfilters += 1
                     filters.append(filt)

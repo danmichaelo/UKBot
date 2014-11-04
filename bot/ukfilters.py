@@ -134,7 +134,7 @@ class TemplateFilter(Filter):
 class CatFilter(Filter):
     """ Filters articles that belong to a given overcategory """
 
-    def __init__(self, verbose, sites, catnames, maxdepth=6, ignore=[]):
+    def __init__(self, verbose, sites, catnames, maxdepth=5, ignore=[]):
         """
         Arguments:
             sites     : dict { 'no': <mwclient.client.Site>, ... }
@@ -159,7 +159,7 @@ class CatFilter(Filter):
         # Make a list of the categories of a given article, with one list for each level
         # > cats[article_key][level] = [cat1, cat2, ...]
 
-        cats = {p: [[] for n in range(self.maxdepth)] for p in articles}
+        cats = {p: [[] for n in range(self.maxdepth + 1)] for p in articles}
 
         # Also, for each article, keep a list of category parents, so we can build
         # a path along the category tree from any matched category to the article
@@ -199,7 +199,7 @@ class CatFilter(Filter):
             #.flush()
             if len(titles) > 0:
 
-                for level in range(self.maxdepth):
+                for level in range(self.maxdepth + 1):
 
                     titles0 = copy(titles)
                     titles = []  # make a new list of titles to search

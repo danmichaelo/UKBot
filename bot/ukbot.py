@@ -927,9 +927,11 @@ class UK(object):
                 elif key == filtercfg['category']:
                     if len(anon) < 3:
                         raise ParseError(_('No categories given to {{tlx|%(template)s|%(firstarg)s}}') % {'template': filtercfg['name'], 'firstarg': filtercfg['bytes']})
+                    params['ignore'] = catignore
+                    if templ.has_param(filtercfg['ignore']):
+                        params['ignore'].extend([a.strip() for a in par[filtercfg['ignore']].split(',')])
                     params['sites'] = self.sites
                     params['catnames'] = anon[2:]
-                    params['ignore'] = catignore
                     if templ.has_param(filtercfg['maxdepth']):
                         params['maxdepth'] = int(par[filtercfg['maxdepth']])
                     filt = CatFilter(**params)

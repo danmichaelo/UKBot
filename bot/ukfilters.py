@@ -140,6 +140,7 @@ class CatFilter(Filter):
             sites     : dict { 'no': <mwclient.client.Site>, ... }
             catnames  : list of category names
             maxdepth  : number of subcategory levels to traverse
+            ignore    : list of categories to ignore
         """
         Filter.__init__(self, verbose)
 

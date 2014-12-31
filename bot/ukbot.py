@@ -1887,8 +1887,8 @@ def main():
             tema = homesite.api('parse', text='{{subst:%s|%s=%s}}' % (tpllist['name'], commonargs['week'], now2.strftime('%Y-%V')), pst=1, onlypst=1)['parse']['text']['*']
             tpl.parameters[1] = tema
             tpl.parameters[boardtpl['date']] = now2.strftime('%e. %h')
-            tpl.parameters[commonargs['year']] = now2.strftime('%Y')
-            tpl.parameters[commonargs['week']] = now2.strftime('%V')
+            tpl.parameters[commonargs['year']] = now2.isocalendar()[0]
+            tpl.parameters[commonargs['week']] = now2.isocalendar()[1]
             txt2 = dp.wikitext()
             if txt != txt2:
                 oppslagstavle.save(txt2, summary=_('The weekly contest is: %(link)s') % {'link': tema})

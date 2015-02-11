@@ -914,7 +914,7 @@ class UK(object):
                     if len(anon) < 3:
                         raise ParseError(_('No template (second argument) given to {{tlx|%(template)s|%(firstarg)s}}') % {'template': filtercfg['name'], 'firstarg': filtercfg['template']})
                     if templ.has_param(filtercfg['alias']):
-                        params['aliases'] = [a.strip() for a in par[filtercfg['alias']].split(',')]
+                        params['aliases'] = [a.strip() for a in par[filtercfg['alias']].value.split(',')]
                     params['templates'] = anon[2:]
                     filt = TemplateFilter(**params)
 
@@ -929,7 +929,7 @@ class UK(object):
                         raise ParseError(_('No categories given to {{tlx|%(template)s|%(firstarg)s}}') % {'template': filtercfg['name'], 'firstarg': filtercfg['bytes']})
                     params['ignore'] = catignore
                     if templ.has_param(filtercfg['ignore']):
-                        params['ignore'].extend([a.strip() for a in par[filtercfg['ignore']].split(',')])
+                        params['ignore'].extend([a.strip() for a in par[filtercfg['ignore']].value.split(',')])
                     params['sites'] = self.sites
                     params['catnames'] = anon[2:]
                     if templ.has_param(filtercfg['maxdepth']):

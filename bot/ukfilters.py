@@ -146,7 +146,7 @@ class CatFilter(Filter):
 
         self.ignore = ignore
         self.sites = sites
-        self.include = [c[c.rfind(':')+1:] for c in catnames]
+        self.include = catnames
         self.maxdepth = int(maxdepth)
         if self.verbose:
             log("  CatFilter: %s, maxdepth=%d" % (" OR ".join(self.include), maxdepth))
@@ -232,6 +232,7 @@ class CatFilter(Filter):
                                     for cat in page['categories']:
                                         cat_title = cat['title']
                                         cat_short = cat_title.split(':', 1)[1]
+                                        site_cat = site_key + ':' + cat_title
                                         follow = True
                                         for d in self.ignore:
                                             if re.search(d, cat_short):
@@ -242,16 +243,17 @@ class CatFilter(Filter):
                                             nc += 1
                                             titles.append(cat_title)
                                             if level == 0:
-                                                cats[article_key][level].append(cat_short)
-                                                parents[article_key][cat_short] = fulltitle
+                                                cats[article_key][level].append(site_cat)
+                                                parents[article_key][site_cat] = article_key
                                                 #print cat_short
                                                 # use iter_search_nodes instead?
                                                 #ctree.search_nodes( name = fulltitle.encode('utf-8') )[0].add_child( name = cat_short.encode('utf-8') )
                                             else:
-                                                for article_key, ccc in cats.iteritems():
-                                                    if shorttitle in ccc[level-1]:
-                                                        ccc[level].append(cat_short)
-                                                        parents[article_key][cat_short] = shorttitle
+                                                for article_key2, ccc in cats.iteritems():
+                                                    if article_key in ccc[level-1]:
+                                                        ccc[level].append(site_cat)
+                                                        parents[article_key2][site_cat] = article_key
+                                                        # print '>',article_key2, ':', site_cat,' = ',article_key
 
                                                         #for node in ctree.search_nodes( name = shorttitle.encode('utf-8') ):
                                                         #    if not cat_short.encode('utf-8') in [i.name for i in node.get_children()]:
@@ -269,7 +271,7 @@ class CatFilter(Filter):
                     log(' %d' % (len(titles)), newline=False)
                     #.stdout.flush()
                     #print "Found %d unique categories (%d total) at level %d (skipped %d categories)" % (len(titles), nc, level, nnc)
-
+        
         return cats, parents
 
     def check_article_cats(self, article_cats):
@@ -301,18 +303,22 @@ class CatFilter(Filter):
                 for l, ca in enumerate(article_cats):
                     log('[%d] %s' % (l, ', '.join(ca)), newline=False)
 
+            #print
             #print article_key
             #print article_cats
+            #print
             catname = self.check_article_cats(article_cats)
             if catname:
 
                 # Add category path to the article object, so we can check how the article matched
                 article.cat_path = [catname]
+                print '[%s]' % (article_key)
                 try:
                     i = 0
-                    while not catname == article.name:
-                        #print ' [%d] %s' % (i,catname)
-                        if not parents[article_key][catname] == article.name:
+                    aname = article.site.key + ':' + article.name
+                    while not catname == aname:
+                        print ' [%d] %s' % (i,catname)
+                        if not parents[article_key][catname] == aname:
                             article.cat_path.append(parents[article_key][catname])
                         catname = parents[article_key][catname]
                         i += 1

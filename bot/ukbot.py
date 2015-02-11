@@ -931,7 +931,17 @@ class UK(object):
                     if templ.has_param(filtercfg['ignore']):
                         params['ignore'].extend([a.strip() for a in par[filtercfg['ignore']].value.split(',')])
                     params['sites'] = self.sites
-                    params['catnames'] = anon[2:]
+                    params['catnames'] = []
+                    for x in anon[2:]:
+                        xx = x.split(':')
+                        if len(xx) == 1:
+                            prefix = self.config['default_prefix']
+                            val = xx[0]
+                        else:
+                            prefix = xx[0]
+                            val = xx[1]
+                        ns = self.sites[prefix].namespaces[14]
+                        params['catnames'].append('%s:%s:%s' % (prefix, ns, val))
                     if templ.has_param(filtercfg['maxdepth']):
                         params['maxdepth'] = int(par[filtercfg['maxdepth']])
                     filt = CatFilter(**params)

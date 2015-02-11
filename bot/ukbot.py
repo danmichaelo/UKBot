@@ -729,7 +729,7 @@ class User(object):
                             if p[0] > 0:
                                 descr += ' <span style="color:red">− %.1f p (%s)</span>' % (p[0], p[1])
                             else:
-                                descr += ' <span style="color:#44bb44">+ %.1f p (%s)</span>' % (-p[0], p[1])
+                                descr += ' <span style="color:green">+ %.1f p (%s)</span>' % (-p[0], p[1])
 
                         dt = utc.localize(datetime.fromtimestamp(rev.timestamp))
                         dt_str = dt.astimezone(wiki_tz).strftime(_('%A, %H:%M')).decode('utf-8')

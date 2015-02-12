@@ -312,12 +312,12 @@ class CatFilter(Filter):
 
                 # Add category path to the article object, so we can check how the article matched
                 article.cat_path = [catname]
-                print '[%s]' % (article_key)
+                # print '[%s]' % (article_key)
                 try:
                     i = 0
                     aname = article.site.key + ':' + article.name
                     while not catname == aname:
-                        print ' [%d] %s' % (i,catname)
+                        # print ' [%d] %s' % (i,catname)
                         if not parents[article_key][catname] == aname:
                             article.cat_path.append(parents[article_key][catname])
                         catname = parents[article_key][catname]

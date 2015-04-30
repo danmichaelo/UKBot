@@ -34,6 +34,7 @@ logger = logging.getLogger()
 logger.setLevel(logging.WARN)
 
 import rollbar
+import platform
 
 #locale.setlocale(locale.LC_TIME, 'no_NO'.encode('utf-8'))
 
@@ -62,6 +63,7 @@ t, _ = init_localization(config['locale'])
 runstart = server_tz.localize(datetime.now())
 log('-----------------------------------------------------------------')
 log('UKBot starting at %s (server time), %s (wiki time)' % (runstart.strftime('%F %T'), runstart.astimezone(wiki_tz).strftime('%F %T')))
+log('Running on %s %s %s' % platform.linux_distribution())
 
 from ukrules import *
 from ukfilters import *

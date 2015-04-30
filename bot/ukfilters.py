@@ -326,8 +326,8 @@ class CatFilter(Filter):
                             raise CategoryLoopError(article.cat_path)
                 except CategoryLoopError as e:
                     article.errors.append(_('Encountered an infinite category loop: ')
-                        + ' → '.join(['[[:%(lang)s:Category:%(catname)s|%(catname)s]]'
-                        % {'lang': lang, 'catname': c} for c in e.catpath]))
+                        + ' → '.join(['[[:%(catname)s|]]'
+                        % {'catname': c} for c in e.catpath]))
 
                 out[article_key] = article
 

@@ -233,7 +233,7 @@ class Revision(object):
 
 
     def __repr__(self):
-        return ("<Revision %d for %s:%s>" % (self.revid, self.site.key, self.article.name)).encode('utf-8')
+        return ("<Revision %d for %s:%s>" % (self.revid, self.article.site.key, self.article.name)).encode('utf-8')
 
     @property
     def bytes(self):
@@ -744,7 +744,8 @@ class User(object):
 
                 titletxt = ''
                 try:
-                    titletxt = "''" + _('Category hit') + "'': " + ' &gt; '.join(article.cat_path) + '<br />'
+                    cat_path = [x.split(':')[-1] for x in article.cat_path]
+                    titletxt = "''" + _('Category hit') + "'': " + ' &gt; '.join(cat_path) + '<br />'
                 except AttributeError:
                     pass
                 titletxt += '<br />'.join(revs)

@@ -925,8 +925,13 @@ class UK(object):
                 elif key == filtercfg['template']:
                     if len(anon) < 3:
                         raise ParseError(_('No template (second argument) given to {{tlx|%(template)s|%(firstarg)s}}') % {'template': filtercfg['name'], 'firstarg': filtercfg['template']})
-                    if templ.has_param(filtercfg['alias']):
-                        params['aliases'] = [a.strip() for a in par[filtercfg['alias']].value.split(',')]
+                
+                    tplpage = self.homesite.pages['Template:' + params['template']]
+                    if not tplpage.exists:
+                        raise ParseError(_('Template does not exist: %(argument)s') % {'argument': params['template']})
+
+                    params['aliases'] = [x.page_title for x in tplpage.backlinks(filterredir='redirects')]
+
                     params['templates'] = anon[2:]
                     filt = TemplateFilter(**params)
 
@@ -1060,8 +1065,11 @@ class UK(object):
 
             elif key == rulecfg['templateremoval']:
                 params = {'key': key, 'points': anon[2], 'template': anon[3]}
-                if templ.has_param(rulecfg['alias']):
-                    params['aliases'] = [a.strip() for a in p[rulecfg['alias']].value.split(',')]
+                tplpage = self.homesite.pages['Template:' + params['template']]
+                if not tplpage.exists:
+                    raise ParseError(_('Template does not exist: %(argument)s') % {'argument': params['template']})
+
+                params['aliases'] = [x.page_title for x in tplpage.backlinks(filterredir='redirects')]
                 rules.append(TemplateRemovalRule(**params))
 
             elif key == rulecfg['bytebonus']:

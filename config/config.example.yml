@@ -4,7 +4,9 @@ server_timezone: UTC
 wiki_timezone: Europe/Oslo
 homesite: no.wikipedia.org
 default_prefix: fi
-db: storage/ukbot.db
+db:
+    host: tools-db
+    db: SOME-USERNAME__uk
 plot:
     datafile: ../plots/no.json
     figname: 'Nowp Ukens konkurranse %(year)d-%(week)02d.svg'

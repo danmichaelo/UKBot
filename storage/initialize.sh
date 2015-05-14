@@ -1,8 +1,13 @@
 #!/bin/bash
-DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
-if [ ! -f "$DIR/uk.db" ]; then
-    echo "Creating uk.db from baseline.sql"
-    sqlite3 "$DIR/uk.db" < "$DIR/baseline.sql"
-else
-    echo "uk.db already exists"
-fi
+
+USER=s51083
+
+mysql --defaults-file="${HOME}"/replica.my.cnf -h tools-db << END
+
+DROP DATABASE IF EXISTS ${USER}__ukbot ;
+CREATE DATABASE ${USER}__ukbot ;
+
+END
+
+mysql --defaults-file="${HOME}"/replica.my.cnf -h tools-db ${USER}__ukbot < baseline.sql
+

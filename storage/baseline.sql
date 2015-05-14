@@ -1,45 +1,54 @@
+
 CREATE TABLE contests (
-  name TEXT,
-  ended INTEGER NOT NULL,
-  closed INTEGER NOT NULL,
-  PRIMARY KEY(name)  
-);
-CREATE TABLE contribs (
-  revid INTEGER NOT NULL,
-  site TEXT NOT NULL,
-  parentid INTEGER NOT NULL,
-  user TEXT NOT NULL, 
-  page TEXT NOT NULL, 
-  timestamp DATETIME NOT NULL, 
-  size  INTEGER NOT NULL,
-  parentsize  INTEGER NOT NULL,
-  PRIMARY KEY(revid, site)
-);
-CREATE TABLE fulltexts (
-  revid INTEGER NOT NULL,
-  site TEXT NOT NULL,
-  revtxt TEXT NOT NULL,
-  PRIMARY KEY(revid, site)  
-);
-CREATE TABLE notifications (
-  id INTEGER NOT NULL PRIMARY KEY,
-  contest TEXT,
-  user TEXT NOT NULL,
-  class TEXT NOT NULL,
-  args TEXT NOT NULL
-);
-CREATE TABLE users (
-  contest TEXT,
-  user TEXT NOT NULL,
-  week INTEGER NOT NULL,
-  points REAL NOT NULL,
-  bytes INTEGER NOT NULL,
-  newpages INTEGER NOT NULL,
-  week2 INTEGER NOT NULL, 
-  PRIMARY KEY (contest,user)
-);
-CREATE TABLE schemachanges (
-  version INT PRIMARY KEY,
-  commithash TEXT NOT NULL,
-  dateapplied DATETIME NOT NULL
-);
+  `site` VARCHAR(8) NOT NULL,
+  `name` VARCHAR(100) NOT NULL,
+  `ended` TINYINT(1) UNSIGNED NOT NULL DEFAULT '0',
+  `closed` TINYINT(1) UNSIGNED NOT NULL DEFAULT '0',
+  PRIMARY KEY(`site`, `name`)
+) ENGINE=MyISAM DEFAULT CHARSET=utf8 DEFAULT COLLATE=utf8_bin ;
+
+CREATE TABLE `contribs` (
+  `revid` INT(11) UNSIGNED NOT NULL,
+  `site` VARCHAR(8) NOT NULL,
+  `parentid` INT(12) UNSIGNED NOT NULL,
+  `user` VARCHAR(100) NOT NULL, 
+  `page` VARCHAR(255) NOT NULL, 
+  `timestamp` DATETIME NOT NULL, 
+  `size`  INT(8) UNSIGNED NOT NULL,
+  `parentsize`  INT(8) UNSIGNED NOT NULL,
+  PRIMARY KEY(`revid`, `site`)
+) ENGINE=MyISAM DEFAULT CHARSET=utf8 DEFAULT COLLATE=utf8_bin ;
+
+CREATE TABLE `fulltexts` (
+  `revid` INT(11) UNSIGNED NOT NULL,
+  `site` VARCHAR(8) NOT NULL,
+  `revtxt` MEDIUMTEXT NOT NULL,
+  PRIMARY KEY(`revid`, `site`)
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 DEFAULT COLLATE=utf8mb4_bin ;
+
+CREATE TABLE `notifications` (
+  `id` INT(11) UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
+  `contest` VARCHAR(100) NOT NULL,
+  `site` VARCHAR(8) NOT NULL,
+  `user` VARCHAR(100) NOT NULL,
+  `class` VARCHAR(50) NOT NULL,
+  `args` VARCHAR(255) NOT NULL
+) ENGINE=MyISAM DEFAULT CHARSET=utf8 DEFAULT COLLATE=utf8_bin ;
+
+CREATE TABLE `users` (
+  `site` VARCHAR(8) NOT NULL,
+  `contest` VARCHAR(100) NOT NULL,
+  `user` VARCHAR(100) NOT NULL,
+  `week` INT(2) UNSIGNED NOT NULL,
+  `points` FLOAT(10, 4) UNSIGNED NOT NULL,
+  `bytes` INT(8) UNSIGNED NOT NULL,
+  `newpages` INT(5) UNSIGNED NOT NULL,
+  `week2` INT(2) UNSIGNED NOT NULL, 
+  PRIMARY KEY (`site`, `contest`, `user`)
+) ENGINE=MyISAM DEFAULT CHARSET=utf8 DEFAULT COLLATE=utf8_bin ;
+
+CREATE TABLE `schemachanges` (
+  `version` INT(4) UNSIGNED PRIMARY KEY,
+  `commithash` VARCHAR(180) NOT NULL,
+  `dateapplied` DATETIME NOT NULL
+) ENGINE=MyISAM DEFAULT CHARSET=utf8 DEFAULT COLLATE=utf8_bin ;

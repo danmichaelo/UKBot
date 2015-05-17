@@ -1587,7 +1587,7 @@ def main():
     if args.close:
         # Check if there are contests to be closed
         cur = sql.cursor()
-        cur.execute(u'SELECT name FROM contests WHERE site=? AND ended=1 AND closed=0 LIMIT 1', [self.config['default_prefix']])
+        cur.execute(u'SELECT name FROM contests WHERE site=? AND ended=1 AND closed=0 LIMIT 1', [config['default_prefix']])
         rows = cur.fetchall()
         if len(rows) == 0:
             log(" -> Found no contests to close!")
@@ -1657,7 +1657,7 @@ def main():
         ending = True
         log("  -> Ending contest")
         cur = sql.cursor()
-        cur.execute(u'SELECT ended FROM contests WHERE site=? AND name=? AND ended=1', [self.config['default_prefix'], ktitle])
+        cur.execute(u'SELECT ended FROM contests WHERE site=? AND name=? AND ended=1', [config['default_prefix'], ktitle])
         if len(cur.fetchall()) == 1:
             log("  -> Already ended. Abort")
             #print "Konkurransen kunne ikke avsluttes da den allerede er avsluttet"
@@ -1859,7 +1859,7 @@ def main():
             page.save(text=aws['wait'], summary=aws['wait'], bot=True)
 
             cur = sql.cursor()
-            cur.execute(u'INSERT INTO contests (site, name, ended, closed) VALUES (?,?,1,0)', [self.config['default_prefix'], ktitle])
+            cur.execute(u'INSERT INTO contests (site, name, ended, closed) VALUES (?,?,1,0)', [config['default_prefix'], ktitle])
             sql.commit()
             cur.close()
 
@@ -1869,13 +1869,13 @@ def main():
 
         cur = sql.cursor()
         for u in uk.users:
-            arg = [self.config['default_prefix'], ktitle, u.name, int(uk.startweek), u.points, int(u.bytes), int(u.newpages), '']
+            arg = [config['default_prefix'], ktitle, u.name, int(uk.startweek), u.points, int(u.bytes), int(u.newpages), '']
             if uk.startweek != uk.endweek:
                 arg[-1] = int(uk.endweek)
             #print arg
             cur.execute(u"INSERT INTO users (site, contest, user, week, points, bytes, newpages, week2) VALUES (?,?,?,?,?,?,?,?)", arg)
 
-        cur.execute(u'UPDATE contests SET closed=1 WHERE site=? AND name=?', [self.config['default_prefix'], ktitle])
+        cur.execute(u'UPDATE contests SET closed=1 WHERE site=? AND name=?', [config['default_prefix'], ktitle])
         sql.commit()
         cur.close()
 

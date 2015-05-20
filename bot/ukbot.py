@@ -1869,7 +1869,7 @@ def main():
 
         cur = sql.cursor()
         for u in uk.users:
-            arg = [config['default_prefix'], ktitle, u.name, int(uk.startweek), u.points, int(u.bytes), int(u.newpages), '']
+            arg = [config['default_prefix'], ktitle, u.name, int(uk.startweek), u.points, int(u.bytes), int(u.newpages), 0]
             if uk.startweek != uk.endweek:
                 arg[-1] = int(uk.endweek)
             #print arg

@@ -36,15 +36,16 @@ CREATE TABLE `notifications` (
 ) ENGINE=MyISAM DEFAULT CHARSET=utf8 DEFAULT COLLATE=utf8_bin ;
 
 CREATE TABLE `users` (
+  `id` INT(11) UNSIGNED NOT NULL AUTO_INCREMENT,
   `site` VARCHAR(8) NOT NULL,
   `contest` VARCHAR(100) NOT NULL,
   `user` VARCHAR(100) NOT NULL,
   `week` INT(2) UNSIGNED NOT NULL,
-  `points` FLOAT(10, 4) UNSIGNED NOT NULL,
-  `bytes` INT(8) UNSIGNED NOT NULL,
+  `points` FLOAT(10,4) NOT NULL,
+  `bytes` INT(8) NOT NULL,
   `newpages` INT(5) UNSIGNED NOT NULL,
-  `week2` INT(2) UNSIGNED NOT NULL, 
-  PRIMARY KEY (`site`, `contest`, `user`)
+  `week2` INT(2) UNSIGNED NOT NULL,
+  PRIMARY KEY (`id`)
 ) ENGINE=MyISAM DEFAULT CHARSET=utf8 DEFAULT COLLATE=utf8_bin ;
 
 CREATE TABLE `schemachanges` (

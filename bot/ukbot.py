@@ -507,8 +507,6 @@ class User(object):
         """ Save self.articles to DB so it can be read by add_contribs_from_db """
 
         cur = sql.cursor()
-        cur.execute(u'SET NAMES "utf8"');
-        cur.execute(u'SET CHARACTER SET utf8');
         nrevs = 0
         ntexts = 0
 
@@ -582,13 +580,13 @@ class User(object):
             # Add revision text
             cur2.execute(u"""SELECT revtxt FROM fulltexts WHERE revid=? AND site=?""", [rev_id, site_key])
             for row2 in cur2.fetchall():
-                rev.text = row2[0]
+                rev.text = row2[0].decode('utf-8')
 
             # Add parent revision text
             if not rev.new:
                 cur2.execute(u"""SELECT revtxt FROM fulltexts WHERE revid=? AND site=?""", [parent_id, site_key])
                 for row2 in cur2.fetchall():
-                    rev.parenttext = row2[0]
+                    rev.parenttext = row2[0].decode('utf-8')
 
         cur.close()
         cur2.close()

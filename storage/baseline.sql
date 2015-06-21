@@ -22,7 +22,7 @@ CREATE TABLE `contribs` (
 CREATE TABLE `fulltexts` (
   `revid` INT(11) UNSIGNED NOT NULL,
   `site` VARCHAR(8) NOT NULL,
-  `revtxt` MEDIUMTEXT NOT NULL,
+  `revtxt` MEDIUMBLOB NOT NULL,
   PRIMARY KEY(`revid`, `site`)
 ) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 DEFAULT COLLATE=utf8mb4_bin ;
 

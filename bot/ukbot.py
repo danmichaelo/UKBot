@@ -1576,7 +1576,7 @@ def main():
 
     cpage = config['pages']['catignore']
     sql = oursql.connect(host=config['db']['host'], db=config['db']['db'], charset='utf8'.encode('utf8'), use_unicode=True,
-        read_default_file=os.path.expanduser('~/replica.my.cnf'))
+        read_default_file=os.path.expanduser('~/replica.my.cnf'), autoreconnect=True)
 
     now = server_tz.localize(datetime.now())
 

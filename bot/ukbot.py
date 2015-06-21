@@ -378,7 +378,7 @@ class User(object):
         args = {}
         if 'namespace' in kwargs:
             args['namespace'] = kwargs['namespace']
-            log(' -> Limiting to namespace: %d' % args['namespace'])
+            log(' -> Limiting to namespaces: %s' % args['namespace'])
 
         #new_articles = []
         new_revisions = []
@@ -972,7 +972,7 @@ class UK(object):
                     filt = ForwardLinkFilter(**params)
 
                 elif key == filtercfg['namespace']:
-                    params['namespace'] = int(anon[2])
+                    params['namespaces'] = [x.strip() for x in anon[2:]]
                     filt = NamespaceFilter(**params)
 
                 elif key == filtercfg['pages']:
@@ -1674,7 +1674,7 @@ def main():
     extraargs = {}
     for f in uk.filters:
         if type(f) == NamespaceFilter:
-            extraargs['namespace'] = f.namespace
+            extraargs['namespace'] = '|'.join(f.namespaces)
 
     for u in uk.users:
         log("=== %s ===" % u.name)

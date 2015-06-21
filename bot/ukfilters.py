@@ -501,13 +501,13 @@ class PageFilter(Filter):
 class NamespaceFilter(Filter):
     """Filters articles with forwardlinks to <name>"""
 
-    def __init__(self, verbose, namespace):
+    def __init__(self, verbose, namespaces):
         """
         Arguments:
-            namespace : int
+            namespaces : list
         """
         Filter.__init__(self, verbose)
-        self.namespace = namespace
+        self.namespaces = namespaces
 
     def filter(self, articles):
         # Note: The .namespace property does not yet exist on the Article object!

@@ -87,6 +87,7 @@ templates:
         wordbonus: ordbonus
         alias: alias
         own: own 
+        ownwork: ownwork
         maxinitialcount: maxinitialcount
     filter:
         name: Ukens konkurranse kriterium

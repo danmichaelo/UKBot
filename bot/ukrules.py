@@ -192,7 +192,7 @@ class WordRule(Rule):
 
 class ImageRule(Rule):
 
-    def __init__(self, key, points, maxpoints=-1, own=-1, maxinitialcount=9999):
+    def __init__(self, key, points, maxpoints=-1, own=-1, ownwork=-1, maxinitialcount=9999):
         Rule.__init__(self, key)
         self.points = float(points)
         self.maxpoints = float(maxpoints)
@@ -202,6 +202,10 @@ class ImageRule(Rule):
             self.own = float(points)
         else:
             self.own = float(own)
+        if ownwork == -1:
+            self.ownwork = self.own
+        else:
+            self.ownwork = float(ownwork)
         self.maxinitialcount = int(maxinitialcount)
 
     def get_images(self, txt):
@@ -228,24 +232,38 @@ class ImageRule(Rule):
         imgs_added = set(imgs1).difference(set(imgs0))
 
 
-        own_imgs_added = []
-        others_imgs_added = []
+        #own_imgs_added = []
+        #others_imgs_added = []
+        counters = {'ownwork': [], 'own': [], 'other': []}
         for filename in imgs_added:
             filename = urllib.unquote(filename)
-            image = rev.article.site.Images[filename]
+            image = rev.article.site.images[filename]
             imageinfo = image.imageinfo
             if len(imageinfo) > 0:   # seems like image.exists only checks locally
                 try:
                     uploader = imageinfo['user']
                 except KeyError:
                     log("ERR: Could not locate user for file '%s' in rev. %s " % (filename, rev.revid))
+                    continue
 
                 log("- File '%s' uploaded by '%s', revision made by '%s'" % (filename, uploader, rev.username))
                 if uploader == rev.username:
                     #print "own image!"
-                    own_imgs_added.append(filename)
+                    #own_imgs_added.append(filename)
+                    credit = ''
+                    extrainfo = rev.article.site.api('query', prop='imageinfo', titles=u'File:{}'.format(filename), iiprop='extmetadata')
+                    try:
+                        credit = extrainfo['query']['pages']['-1']['imageinfo'][0]['extmetadata']['Credit']['value']
+                    except KeyError:
+                        pass
+
+                    print u' [ CREDIT: {} - {} ]'.format(filename, credit)
+                    if re.search('int-own-work', credit, re.I):
+                        counters['ownwork'].append(filename)
+                    else:
+                        counters['own'].append(filename)
                 else:
-                    others_imgs_added.append(filename)
+                    counters['other'].append(filename)
             else:
                 log("- File '%s' does not exist" % (filename))
 
@@ -254,12 +272,15 @@ class ImageRule(Rule):
         # If an user adds both an own image and an image by someone else,
         # we should make sure to credit the own image, not the other.
         # We therefore process the own images first.
-        imgs_added = own_imgs_added + others_imgs_added
-        self.totalimages += len(imgs_added)
+        # imgs_added = own_imgs_added + others_imgs_added
+        total_added = len(counters['own']) + len(counters['ownwork']) + len(counters['other'])
+        self.totalimages += total_added
         revpoints = 0
         for n, img in enumerate(imgs_added):
             if len(imgs0) + n <= self.maxinitialcount:
-                if img in own_imgs_added:
+                if img in counters['ownwork']:
+                    revpoints += self.ownwork
+                elif img in counters['own']:
                     revpoints += self.own
                 else:
                     revpoints += self.points

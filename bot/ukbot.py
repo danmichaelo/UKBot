@@ -1047,6 +1047,8 @@ class UK(object):
                     params['maxpoints'] = p[maxpoints]
                 if templ.has_param(rulecfg['own']):
                     params['own'] = p[rulecfg['own']]
+                if templ.has_param(rulecfg['ownwork']):
+                    params['ownwork'] = p[rulecfg['ownwork']]
                 if templ.has_param(rulecfg['maxinitialcount']):
                     params['maxinitialcount'] = p[rulecfg['maxinitialcount']]
                 rules.append(ImageRule(**params))

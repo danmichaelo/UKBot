@@ -247,7 +247,7 @@ class Revision(object):
         except:
             mt1 = get_body_text(self.text)
             mt2 = get_body_text(self.parenttext)
-            log("Wordcount: %d -> %d" % ( len(mt2.split()), len(mt1.split()) ))
+            log(u"Body size: %d -> %d, wordcount: %d -> %d (%s)" % ( len(self.parenttext), len(self.text), len(mt2.split()), len(mt1.split()), self.article.name ))
             self._wordcount = len(mt1.split()) - len(mt2.split())
             if not self.new and len(mt2.split()) == 0 and self._wordcount > 1:
                 w = _('Revision [//%(host)s/w/index.php?diff=prev&oldid=%(revid)s %(revid)s]: The word count difference might be wrong, because no words were found in the parent revision (%(parentid)s) of size %(size)d, possibly due to unclosed tags or templates in that revision.') % { 'host': self.article.site.host, 'revid': self.revid, 'parentid': self.parentid, 'size': len(self.parenttext) }
@@ -500,6 +500,9 @@ class User(object):
                         rev.parentsize = apirev['size']
                         if '*' in apirev.keys():
                             rev.parenttext = apirev['*']
+                            log(u'[ %s: %d ]' % (article.name, len(rev.parenttext)))
+                        else:
+                            log(u'[ %s: Err: did not get rev text for ]' % (article.name))
         if nr > 0:
             log(" -> [%s] Checked %d parent revisions" % (site_key, nr))
 
@@ -539,6 +542,45 @@ class User(object):
         cur.close()
         if nrevs > 0 or ntexts > 0:
             log(" -> Wrote %d revisions and %d fulltexts to DB" % (nrevs, ntexts))
+
+
+    def backfill_text(self, sql, site, rev):
+        parentid = None
+        props = 'ids|size|content'
+        res = site.api('query', prop='revisions', rvprop=props, revids='{}|{}'.format(rev.revid, rev.parentid))['query']
+        if res.get('pages') is None:
+            log(': Failed, revision deleted? ')
+            return
+        
+        for page in res['pages'].itervalues():
+            for apirev in page['revisions']:
+                if apirev['revid'] == rev.revid:
+                    if '*' in apirev.keys():
+                        rev.text = apirev['*']
+                    else:
+                        log(' WARN: no revision text avail ')
+                elif apirev['revid'] == rev.parentid:
+                    if '*' in apirev.keys():
+                        rev.parenttext = apirev['*']
+                    else:
+                        log(' WARN: No parent revision text avail ')
+
+        cur = sql.cursor()
+
+        # Save revision text if we have it and if not already saved
+        cur.execute(u'SELECT revid FROM fulltexts WHERE revid=? AND site=?', [rev.revid, site.key])
+        if len(rev.text) > 0 and len(cur.fetchall()) == 0:
+            cur.execute(u'INSERT INTO fulltexts (revid, site, revtxt) VALUES (?,?,?)', (rev.revid, site.key, rev.text))
+
+        # Save parent revision text if we have it and if not already saved
+        if parentid is not None:
+            log(' store parenttext %d , revid %s ' % (len(rev.parenttext), rev.parentid))
+            cur.execute(u'SELECT revid FROM fulltexts WHERE revid=? AND site=?', [rev.parentid, site.key])
+            if len(rev.parenttext) > 0 and len(cur.fetchall()) == 0:
+                cur.execute(u'INSERT INTO fulltexts (revid, site, revtxt) VALUES (?,?,?)', (rev.parentid, site.key, rev.parenttext))
+
+        sql.commit()
+        cur.close()
 
     def add_contribs_from_db(self, sql, start, end, sites):
         """
@@ -581,12 +623,18 @@ class User(object):
             cur2.execute(u"""SELECT revtxt FROM fulltexts WHERE revid=? AND site=?""", [rev_id, site_key])
             for row2 in cur2.fetchall():
                 rev.text = row2[0].decode('utf-8')
+            if rev.text == '':
+                log('Article: %s, text missing %s, backfilling' % (article.name, rev_id))
+                self.backfill_text(sql, sites[site_key], rev)
 
             # Add parent revision text
             if not rev.new:
                 cur2.execute(u"""SELECT revtxt FROM fulltexts WHERE revid=? AND site=?""", [parent_id, site_key])
                 for row2 in cur2.fetchall():
                     rev.parenttext = row2[0].decode('utf-8')
+                if rev.parenttext == '':
+                    log('Article: %s, parent text missing: %s,  backfilling' % (article.name, parent_id))
+                    self.backfill_text(sql, sites[site_key], rev)
 
         cur.close()
         cur2.close()

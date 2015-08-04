@@ -257,7 +257,6 @@ class ImageRule(Rule):
                     except KeyError:
                         pass
 
-                    print u' [ CREDIT: {} - {} ]'.format(filename, credit)
                     if re.search('int-own-work', credit, re.I):
                         counters['ownwork'].append(filename)
                     else:

@@ -3,8 +3,12 @@ from __future__ import division
 from __future__ import unicode_literals
 
 from flask import Flask
+from flask import request
 from flask import render_template
 from time import time
+from mwclient import Site
+from requests import ConnectionError
+from mwtextextractor import get_body_text
 
 import sqlite3
 
@@ -89,6 +93,50 @@ def show_uk_user_details(lang, user):
         name=user,
         contests=konk
         )
+
+def validate(data):
+    errors = []
+    if len(data.get('lang', '')) < 2 or len(data.get('lang', '')) > 3:
+        errors.append('invalid_lang')
+    if len(data.get('page', '')) < 1:
+        errors.append('no_page')
+    if len(errors) != 0:
+        return None, errors
+    try:
+        site = Site('{}.wikipedia.org'.format(data.get('lang')))
+    except ConnectionError:
+        return None, ['invalid_lang']
+    page = site.pages[data.get('page')]
+    if not page.exists:
+        return None, ['invalid_page']
+    return page, errors
+
+
+@app.route('/wordcount')
+def show_wordcount():
+    lang = request.args.get('lang', '')
+    page = request.args.get('page', '')
+    revision = request.args.get('revision', '')
+    args = {'lang': lang, 'page': page, 'revision': revision}
+    if lang == '' or page == '':
+        return render_template('wordcount.html', **args)
+    mwpage, errors = validate(request.args)
+    if len(errors) != 0:
+        return render_template('wordcount.html',
+            errors=errors, **args)
+    
+    if revision == '':
+        revision = mwpage.revision
+        args['revision'] = revision
+    
+    rev = next(mwpage.revisions(revision, prop='ids|content', limit=1))
+    txt = rev['*']
+    body = get_body_text(txt)
+    return render_template('wordcount.html',
+            body=body,
+            word_count=len(body.split()),
+            **args
+    )
 
 if __name__ == "__main__":
     app.run()

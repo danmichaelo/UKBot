@@ -1,0 +1,36 @@
+{# -*- coding: utf-8; tab-width: 4; indent-tabs-mode: nil; c-basic-offset: 4 -*- vim:fenc=utf-8:et:sw=4:ts=4:sts=4 #}
+{% extends "layout.html" %}
+{% block title %}Ukens konkurranse{% endblock %}
+{% block body %}
+
+<h2>Test text extraction / word counting</h2>
+
+<form method="GET" action="/ukbot/wordcount">
+
+    <ul>
+    {% for error in errors %}
+        <li>{{ error }}</li>
+    {% endfor %}
+    </ul>
+
+    Lang: <input type="text" name="lang" value="{{ lang }}"><br>
+    Page: <input type="text" name="page" value="{{ page }}"><br>
+    Revision (optional): <input type="text" name="revision" value="{{ revision }}"><br>
+
+    <button type="submit">Check</button>
+
+</form>
+
+
+{% if body %}
+
+<p>
+<a href="https://{{ lang }}.wikipedia.org/w/index.php?oldid={{ revision }}">{{ page }} @ rev. {{ revision }}</a>
+    : <strong>{{ word_count }}</strong> words
+</p>
+<p style='background:#ffffee; padding: 10px; border: 1px dashed #ccc;'>
+{{body}}
+</p>
+{% endif %}
+
+{% endblock %}

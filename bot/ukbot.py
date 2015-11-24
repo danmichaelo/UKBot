@@ -12,6 +12,8 @@ import gettext
 import pytz
 from isoweek import Week  # Sort-of necessary until datetime supports %V, see http://bugs.python.org/issue12006
                           # and See http://stackoverflow.com/questions/5882405/get-date-from-iso-week-number-in-python
+import sys
+import unicodedata
 import re
 import json
 import os
@@ -40,6 +42,16 @@ import platform
 #locale.setlocale(locale.LC_TIME, 'no_NO'.encode('utf-8'))
 
 # Read args
+
+all_chars = (unichr(i) for i in xrange(sys.maxunicode))
+control_chars = ''.join(c for c in all_chars if unicodedata.category(c) in set(['Cc','Cf','Cn','Co','Cs']))
+control_char_re = re.compile('[%s]' % re.escape(control_chars))
+
+def remove_control_chars(s):
+    if type(s) == str or type(s) == unicode:
+        return control_char_re.sub('', s)
+    else:
+        return s
 
 parser = argparse.ArgumentParser(description='The UKBot')
 parser.add_argument('--page', required=False, help='Name of the contest page to work with')
@@ -955,6 +967,10 @@ class UK(object):
                 par = templ.parameters
                 anon = templ.get_anonymous_parameters()
 
+
+                par = {remove_control_chars(k): remove_control_chars(v.value) for k, v in par.items()}
+                anon = [remove_control_chars(v) if v is not None else None for v in anon]
+
                 key = anon[1].lower()
                 params = {'verbose': self.verbose}
                 if key == filtercfg['new']:
@@ -972,13 +988,13 @@ class UK(object):
                     if len(anon) < 3:
                         raise ParseError(_('No template (second argument) given to {{tlx|%(template)s|%(firstarg)s}}') % {'template': filtercfg['name'], 'firstarg': filtercfg['template']})
                 
-                    tplpage = self.homesite.pages['Template:' + params['template']]
-                    if not tplpage.exists:
-                        raise ParseError(_('Template does not exist: %(argument)s') % {'argument': params['template']})
-
-                    params['aliases'] = [x.page_title for x in tplpage.backlinks(filterredir='redirects')]
-
                     params['templates'] = anon[2:]
+                    params['aliases'] = []
+                    for tp in params['templates']:
+                        tplpage = self.homesite.pages['Template:' + tp] 
+                        if tplpage.exists:
+                            params['aliases'].extend([x.page_title for x in tplpage.backlinks(filterredir='redirects')])
+
                     filt = TemplateFilter(**params)
 
                 elif key == filtercfg['bytes']:
@@ -992,7 +1008,7 @@ class UK(object):
                         raise ParseError(_('No categories given to {{tlx|%(template)s|%(firstarg)s}}') % {'template': filtercfg['name'], 'firstarg': filtercfg['bytes']})
                     params['ignore'] = catignore
                     if templ.has_param(filtercfg['ignore']):
-                        params['ignore'].extend([a.strip() for a in par[filtercfg['ignore']].value.split(',')])
+                        params['ignore'].extend([a.strip() for a in par[filtercfg['ignore']].split(',')])
                     params['sites'] = self.sites
                     params['catnames'] = []
                     for x in anon[2:]:
@@ -1114,10 +1130,9 @@ class UK(object):
             elif key == rulecfg['templateremoval']:
                 params = {'key': key, 'points': anon[2], 'template': anon[3]}
                 tplpage = self.homesite.pages['Template:' + params['template']]
-                if not tplpage.exists:
-                    raise ParseError(_('Template does not exist: %(argument)s') % {'argument': params['template']})
+                if tplpage.exists:
+                    params['aliases'] = [x.page_title for x in tplpage.backlinks(filterredir='redirects')]
 
-                params['aliases'] = [x.page_title for x in tplpage.backlinks(filterredir='redirects')]
                 rules.append(TemplateRemovalRule(**params))
 
             elif key == rulecfg['bytebonus']:

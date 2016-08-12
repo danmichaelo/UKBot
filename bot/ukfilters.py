@@ -96,7 +96,8 @@ class TemplateFilter(Filter):
     def has_template(self, text):
         """ Checks if a given text contains the template"""
 
-        m = re.search(r'{{(%s)[\s]*(\||}})' % '|'.join(self.templates), text, flags=re.IGNORECASE)
+        tpls = [x.replace('*', '[^}]*?') for x in self.templates]
+        m = re.search(r'{{(%s)[\s]*(\||}})' % '|'.join(tpls), text, flags=re.IGNORECASE)
         if m:
             return m.group(1)
         return None

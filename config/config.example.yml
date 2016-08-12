@@ -28,8 +28,10 @@ plot:
 #     - nn.wikipedia.org
 #     - se.wikipedia.org
 account:
-    user: 
-    pass: 
+    consumer_token:
+    consumer_secret:
+    access_token:
+    access_secret:
 awards:
     blå: { file: Article blue.svg, winner: true }
     rød: { file: Article red.svg, winner: true }
@@ -66,6 +68,8 @@ templates:
         name: UK bruker suspendert
     disqualified:
         name: UK bidrag diskvalifisert
+    bonus:
+        name: UK poeng
     penalty:
         name: UK poengtrekk
     contestlist:

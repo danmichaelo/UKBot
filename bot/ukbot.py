@@ -33,8 +33,12 @@ from ukcommon import log, init_localization
 import locale
 
 import logging
-logger = logging.getLogger()
+logger = logging.getLogger(__name__)
 logger.setLevel(logging.WARN)
+
+ch = logging.StreamHandler()
+ch.setLevel(logging.WARN)
+logger.addHandler(ch)
 
 import rollbar
 import platform
@@ -67,7 +71,7 @@ if args.log != '':
     ukcommon.logfile = open(args.log, 'a')
 
 config = yaml.load(open(args.config, 'r'))
-rollbar.init(config['rollbar_token'], 'production')
+# rollbar.init(config['rollbar_token'], 'production')
 wiki_tz = pytz.timezone(config['wiki_timezone'])
 server_tz = pytz.timezone(config['server_timezone'])
 
@@ -120,15 +124,14 @@ class ParseError(Exception):
 
 class Site(mwclient.Site):
 
-    def __init__(self, host, username, password):
+    def __init__(self, host, **kwargs):
 
         self.errors = []
         self.name = host
         self.key = host.split('.')[0]
         log('@ Initializing site: %s' % host)
-        mwclient.Site.__init__(self, host, clients_useragent='UKBot [[:no:Bruker:UKBot]]')
-        # Login to increase api limit from 50 to 500
-        self.login(username, password)
+        ua = 'UKBot. Run by User:Danmichaelo. Using mwclient/' + mwclient.__ver__
+        mwclient.Site.__init__(self, host, clients_useragent=ua, **kwargs)
 
 
 class Article(object):
@@ -891,7 +894,7 @@ class UK(object):
         self.config = config
         self.homesite = homesite
         resultsSection = config['contestPages']['resultsSection']
-        txt = page.edit()
+        txt = page.text()
         m = re.search('==\s*' + resultsSection + '\s*==', txt)
         if not m:
             raise ParseError(_('Found no "%(section)s" sections in the page "%(page)s"') % {'section': resultsSection, 'page': self.page.name})
@@ -1019,8 +1022,10 @@ class UK(object):
                         else:
                             prefix = xx[0]
                             val = xx[1]
-                        ns = self.sites[prefix].namespaces[14]
-                        params['catnames'].append('%s:%s:%s' % (prefix, ns, val))
+                        if len(val) > 0:
+                            ns = self.sites[prefix].namespaces[14]
+                            valn = val[0].upper() + val[1:]
+                            params['catnames'].append('%s:%s:%s' % (prefix, ns, valn))
                     if templ.has_param(filtercfg['maxdepth']):
                         params['maxdepth'] = int(par[filtercfg['maxdepth']])
                     filt = CatFilter(**params)
@@ -1154,7 +1159,7 @@ class UK(object):
         try:
             infoboks = dp.templates[ibcfg['name']][0]
         except:
-            raise ParseError(_('Could not parse the {{tl|%(template)s}} template.') % {'template': infoboxcfg['name']})
+            raise ParseError(_('Could not parse the {{tl|%(template)s}} template.') % {'template': ibcfg['name']})
 
         utc = pytz.utc
 
@@ -1272,6 +1277,26 @@ class UK(object):
                 for u in self.users:
                     if u.name == uname:
                         u.point_deductions.append([revid, points, reason])
+                        ufound = True
+                if not ufound:
+                    raise ParseError(_("Couldn't find the user %(user)s given to the {{tl|%(template)s}} template.") % {'user': uname, 'template': dicfg['name']})
+
+        pocfg = config['templates']['bonus']
+        if pocfg['name'] in dp.templates:
+            for templ in dp.templates[pocfg['name']]:
+                uname = templ.parameters[1].value
+                revid = int(templ.parameters[2].value)
+
+                #if not re.match('^[a-z]{2,3}:', aname):
+                #    aname = config['default_prefix'] + ':' + aname
+
+                points = float(templ.parameters[3].value.replace(',', '.'))
+                reason = templ.parameters[4].value
+                ufound = False
+                log('poeng: USER: %s REVISION: %s POINTS: %d REASON: %s' % (uname, revid, points, reason))
+                for u in self.users:
+                    if u.name == uname:
+                        u.point_deductions.append([revid, -points, reason])
                         ufound = True
                 if not ufound:
                     raise ParseError(_("Couldn't find the user %(user)s given to the {{tl|%(template)s}} template.") % {'user': uname, 'template': dicfg['name']})
@@ -1522,7 +1547,7 @@ class UK(object):
             log(' -> Leverer kvittering til %s' % page.name)
 
             # Find section number
-            txt = page.edit()
+            txt = page.text()
             sections = [s.strip() for s in re.findall('^[\s]*==([^=]+)==', txt, flags=re.M)]
             try:
                 csection = sections.index(heading) + 1
@@ -1531,7 +1556,7 @@ class UK(object):
                 return
 
             # Append text to section
-            txt = page.edit(section=csection)
+            txt = page.text(section=csection)
             page.save(appendtext=mld, bot=False, summary=heading)
 
     def delete_contribs_from_db(self):
@@ -1631,13 +1656,14 @@ class UK(object):
 def main():
 
     host = config['homesite']
-    homesite = Site(host, config['account']['user'], config['account']['pass'])
+    homesite = Site(host, **config['account'])
+    assert homesite.logged_in
     prefix = host.split('.')[0]
     sites = {prefix: homesite}
     if 'othersites' in config:
         for host in config['othersites']:
             prefix = host.split('.')[0]
-            sites[prefix] = Site(host, config['account']['user'], config['account']['pass'])
+            sites[prefix] = Site(host, **config['account'])
 
     cpage = config['pages']['catignore']
     sql = oursql.connect(host=config['db']['host'], db=config['db']['db'], charset='utf8'.encode('utf8'), use_unicode=True,
@@ -1697,7 +1723,7 @@ def main():
     # Initialize the contest
 
     try:
-        uk = UK(kpage, homesite.pages[cpage].edit(), sites=sites, homesite=homesite, sql=sql, verbose=args.verbose, config=config)
+        uk = UK(kpage, homesite.pages[cpage].text(), sites=sites, homesite=homesite, sql=sql, verbose=args.verbose, config=config)
     except ParseError as e:
         err = "\n* '''%s'''" % e.msg
         out = '\n{{%s | error | %s }}' % (config['templates']['botinfo'], err)
@@ -1874,7 +1900,7 @@ def main():
     ib = config['templates']['infobox']
 
     if not args.simulate:
-        txt = kpage.edit()
+        txt = kpage.text()
         tp = TemplateEditor(txt)
         #print "---"
         #print sammen
@@ -1961,7 +1987,7 @@ def main():
         if re.match('^' + config['pages']['base'], ktitle) and not args.simulate and not args.close and not ending:
             page = homesite.pages[config['pages']['redirect']]
             txt = _('#REDIRECT [[%s]]') % ktitle
-            if page.edit() != txt:
+            if page.text() != txt:
                 page.save(txt, summary=_('Redirecting to %s') % ktitle)
 
     # Update Wikipedia:Portal/Oppslagstavle
@@ -1972,7 +1998,7 @@ def main():
         commonargs = config['templates']['commonargs']
         tplname = boardtpl['name']
         oppslagstavle = homesite.pages[boardname]
-        txt = oppslagstavle.edit()
+        txt = oppslagstavle.text()
 
         dp = TemplateEditor(txt)
         ntempl = len(dp.templates[tplname])
@@ -2003,10 +2029,11 @@ def main():
     log('UKBot finishing at %s. Runtime was %.f seconds.' % (runend.strftime('%F %T'), runtime))
 
 if __name__ == '__main__':
-    try:
-        main()
-    except IOError:
-        rollbar.report_message('Got an IOError in the main loop', 'warning')
-    except:
-        # catch-all
-        rollbar.report_exc_info()
+    main()
+    #try:
+    #    main()
+    #except IOError:
+    #    rollbar.report_message('Got an IOError in the main loop', 'warning')
+    #except:
+    #    # catch-all
+    #    rollbar.report_exc_info()

@@ -1439,16 +1439,48 @@ class UK(object):
             args['week2'] = self.endweek
             return '{{%(template)s|%(yearname)s=%(year)d|%(weekname)s=%(week)02d|%(week2name)s=%(week2)02d|%(award)s=%(yes)s%(extraargs)s' % args
 
-    def msg_heading(self):
+    def format_heading(self):
         if self.startweek == self.endweek:
-            return '== ' + _('Weekly contest for week %(week)d') % {'week': self.startweek} + ' =='
+            return _('Weekly contest for week %(week)d') % {'week': self.startweek}
         else:
-            return '== ' + _('Weekly contest for week %(startweek)d–%(endweek)d') % {'startweek': self.startweek, 'endweek': self.endweek} + ' =='
+            return _('Weekly contest for week %(startweek)d–%(endweek)d') % {'startweek': self.startweek, 'endweek': self.endweek}
 
-    def deliver_prices(self):
+    def deliver_price(self, username, topic, body):
+        log(' -> Delivering message to %s' % username)
+
+        prefix = self.homesite.namespaces[3]
+        prefixed = prefix + ':' + username
+
+        flinfo = self.homesite.api(action='query', prop='flowinfo', titles=prefixed)
+        flow_enabled = ('enabled' in flinfo['query']['pages'].values()[0]['flowinfo']['flow'])
+
+        if flow_enabled:
+            token = self.homesite.get_token('csrf')
+            self.homesite.api(action='flow',
+                              submodule='new-topic',
+                              nttopic='== ' + topic + ' ==',
+                              ntcontent=body,
+                              ntformat='wikitext',
+                              token=token)
+
+        else:
+            page = self.homesite.pages['%s:%s' % (prefix, username)]
+            page.save(text=body, bot=False, section='new', summary=topic)
+
+
+    def deliver_prices(self, sql, siteprefix, ktitle):
 
         config = self.config
-        heading = self.msg_heading()
+        heading = self.format_heading()
+
+        cur = sql.cursor()
+        cur.execute(u'SELECT contest_id FROM contests WHERE site=? AND name=?', [config['default_prefix'], ktitle])
+        contest_id = cur.fetchall()[0][0]
+
+        print 'Delivering prices for contest', contest_id
+
+        # sql.commit()
+        # cur.close()
 
         for i, u in enumerate(self.users):
 
@@ -1477,7 +1509,6 @@ class UK(object):
             now = server_tz.localize(datetime.now())
             yearweek = now.astimezone(wiki_tz).strftime('%Y-%V')
             userprefix = self.homesite.namespaces[2]
-            usertalkprefix = self.homesite.namespaces[3]
 
             mld += _("Note that the contest this week is [[%(url)s|{{%(template)s|%(weekarg)s=%(week)s}}]]. Join in!") % {
                 'url': self.config['pages']['base'] + ' ' + yearweek,
@@ -1488,12 +1519,16 @@ class UK(object):
             mld += _('Regards') + ' ' + ', '.join(['[[%s:%s|%s]]' % (userprefix, s, s) for s in self.ledere]) + ' ' + _('and') + ' ~~~~'
 
             if prizefound:
-                page = self.homesite.pages['%s:%s' % (usertalkprefix, u.name)]
-                log(' -> Delivering message to %s' % page.name)
-                page.save(text=mld, bot=False, section='new', summary=heading)
+
+                cur.execute(u'SELECT prize_id FROM prizes WHERE contest_id=? AND site=? AND user=?', [contest_id, siteprefix, u.name])
+                rows = cur.fetchall()
+                if len(rows) == 0:
+                    self.deliver_price(u.name, heading, mld)
+                    cur.execute(u'INSERT INTO prizes (contest_id, site, user, timestamp) VALUES (?, ?, ?, NOW())', [contest_id, siteprefix, u.name])
+                    sql.commit()
 
     def deliver_leader_notification(self, pagename):
-        heading = self.msg_heading()
+        heading = self.format_heading()
         args = {'prefix': self.homesite.site['server'] + self.homesite.site['script'], 'page': config['awardstatus']['pagename'], 'title': urllib.quote(config['awardstatus']['send'])}
         link = '%(prefix)s?title=%(page)s&action=edit&section=new&preload=%(page)s/Preload&preloadtitle=%(title)s' % args
         usertalkprefix = self.homesite.namespaces[3]
@@ -1533,10 +1568,10 @@ class UK(object):
 
             page = self.homesite.pages['%s:%s' % (usertalkprefix, u)]
             log(' -> Leverer arrangørmelding til %s' % page.name)
-            page.save(text=mld, bot=False, section='new', summary=heading)
+            page.save(text=mld, bot=False, section='new', summary='== ' + heading + ' ==')
 
     def deliver_receipt_to_leaders(self):
-        heading = self.msg_heading()
+        heading = self.format_heading()
         usertalkprefix = self.homesite.namespaces[3]
 
         args = {'prefix': self.homesite.site['server'] + self.homesite.site['script'], 'page': 'Special:Contributions'}
@@ -1557,7 +1592,7 @@ class UK(object):
 
             # Append text to section
             txt = page.text(section=csection)
-            page.save(appendtext=mld, bot=False, summary=heading)
+            page.save(appendtext=mld, bot=False, summary='== ' + heading + ' ==')
 
     def delete_contribs_from_db(self):
         cur = self.sql.cursor()
@@ -1954,7 +1989,8 @@ def main():
 
     if args.close:
         log(" -> Delivering prices")
-        uk.deliver_prices()
+
+        uk.deliver_prices(sql, config['default_prefix'], ktitle)
 
         cur = sql.cursor()
         for u in uk.users:

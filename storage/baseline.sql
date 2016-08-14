@@ -1,10 +1,12 @@
 
 CREATE TABLE contests (
+  `contest_id` INT(11) UNSIGNED NOT NULL AUTO_INCREMENT,
   `site` VARCHAR(8) NOT NULL,
   `name` VARCHAR(100) NOT NULL,
   `ended` TINYINT(1) UNSIGNED NOT NULL DEFAULT '0',
   `closed` TINYINT(1) UNSIGNED NOT NULL DEFAULT '0',
-  PRIMARY KEY(`site`, `name`)
+  PRIMARY KEY (`contest_id`),
+  UNIQUE `site_name` (`site`, `name`)
 ) ENGINE=MyISAM DEFAULT CHARSET=utf8 DEFAULT COLLATE=utf8_bin ;
 
 CREATE TABLE `contribs` (
@@ -52,4 +54,14 @@ CREATE TABLE `schemachanges` (
   `version` INT(4) UNSIGNED PRIMARY KEY,
   `commithash` VARCHAR(180) NOT NULL,
   `dateapplied` DATETIME NOT NULL
+) ENGINE=MyISAM DEFAULT CHARSET=utf8 DEFAULT COLLATE=utf8_bin ;
+
+CREATE TABLE `prizes` (
+  `prize_id` INT(11) UNSIGNED NOT NULL AUTO_INCREMENT,
+  `contest_id` INT(11) UNSIGNED NOT NULL,
+  `site` VARCHAR(8) NOT NULL,
+  `user` VARCHAR(100) NOT NULL,
+  `timestamp` DATETIME NOT NULL,
+  PRIMARY KEY (`prize_id`),
+  UNIQUE `contest_site_user` (`contest_id`, `site`, `user`)
 ) ENGINE=MyISAM DEFAULT CHARSET=utf8 DEFAULT COLLATE=utf8_bin ;

@@ -1445,7 +1445,7 @@ class UK(object):
         else:
             return _('Weekly contest for week %(startweek)d–%(endweek)d') % {'startweek': self.startweek, 'endweek': self.endweek}
 
-    def deliver_message(self, username, topic, body):
+    def deliver_message(self, username, topic, body, sig='~~~~'):
         log(' -> Delivering message to %s' % username)
 
         prefix = self.homesite.namespaces[3]
@@ -1468,7 +1468,7 @@ class UK(object):
 
         else:
             page = self.homesite.pages[pagename]
-            page.save(text=body + ' ~~~~', bot=False, section='new', summary=topic)
+            page.save(text=body + ' ' + sig, bot=False, section='new', summary=topic)
 
 
     def deliver_prices(self, sql, siteprefix, ktitle, simulate):
@@ -1518,8 +1518,8 @@ class UK(object):
                 'template': self.config['templates']['contestlist']['name'],
                 'weekarg': self.config['templates']['commonargs']['week'],
                 'week': yearweek
-            } + ' '
-            mld += _('Regards') + ' ' + ', '.join(['[[%s:%s|%s]]' % (userprefix, s, s) for s in self.ledere]) + ' ' + _('and')
+            }
+            sig = _('Regards') + ' ' + ', '.join(['[[%s:%s|%s]]' % (userprefix, s, s) for s in self.ledere]) + ' ' + _('and') + ' ~~~~'
 
             if prizefound:
 
@@ -1527,7 +1527,7 @@ class UK(object):
                     cur.execute(u'SELECT prize_id FROM prizes WHERE contest_id=? AND site=? AND user=?', [contest_id, siteprefix, u.name])
                     rows = cur.fetchall()
                     if len(rows) == 0:
-                        self.deliver_message(u.name, heading, mld)
+                        self.deliver_message(u.name, heading, mld, sig)
                         cur.execute(u'INSERT INTO prizes (contest_id, site, user, timestamp) VALUES (?, ?, ?, NOW())', [contest_id, siteprefix, u.name])
                         sql.commit()
 
@@ -1568,10 +1568,10 @@ class UK(object):
                     'yes': self.config['templates']['commonargs'][True]
                 }
             mld += _('Now you must check if the results look ok. If there are error messages at the bottom of the [[%(page)s|contest page]], you should check that the related contributions have been awarded the correct number of points. Also check if there are comments or complaints on the discussion page. If everything looks fine, [%(link)s click here] (and save) to indicate that I can send out the awards at first occasion.') % {'page': pagename, 'link': link}
-            mld += ' ' + _('Thanks, ~~~~')
+            sig = _('Thanks, ~~~~')
 
             log(' -> Leverer arrangørmelding til %s' % page.name)
-            self.deliver_message(u, heading, mld)
+            self.deliver_message(u, heading, mld, sig)
 
 
     def deliver_receipt_to_leaders(self):

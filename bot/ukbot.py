@@ -1468,7 +1468,7 @@ class UK(object):
             page.save(text=body, bot=False, section='new', summary=topic)
 
 
-    def deliver_prices(self, sql, siteprefix, ktitle):
+    def deliver_prices(self, sql, siteprefix, ktitle, simulate):
 
         config = self.config
         heading = self.format_heading()
@@ -1520,12 +1520,13 @@ class UK(object):
 
             if prizefound:
 
-                cur.execute(u'SELECT prize_id FROM prizes WHERE contest_id=? AND site=? AND user=?', [contest_id, siteprefix, u.name])
-                rows = cur.fetchall()
-                if len(rows) == 0:
-                    self.deliver_price(u.name, heading, mld)
-                    cur.execute(u'INSERT INTO prizes (contest_id, site, user, timestamp) VALUES (?, ?, ?, NOW())', [contest_id, siteprefix, u.name])
-                    sql.commit()
+                if not simulate:
+                    cur.execute(u'SELECT prize_id FROM prizes WHERE contest_id=? AND site=? AND user=?', [contest_id, siteprefix, u.name])
+                    rows = cur.fetchall()
+                    if len(rows) == 0:
+                        self.deliver_price(u.name, heading, mld)
+                        cur.execute(u'INSERT INTO prizes (contest_id, site, user, timestamp) VALUES (?, ?, ?, NOW())', [contest_id, siteprefix, u.name])
+                        sql.commit()
 
     def deliver_leader_notification(self, pagename):
         heading = self.format_heading()
@@ -1990,28 +1991,34 @@ def main():
     if args.close:
         log(" -> Delivering prices")
 
-        uk.deliver_prices(sql, config['default_prefix'], ktitle)
+        uk.deliver_prices(sql, config['default_prefix'], ktitle, args.simulate)
 
         cur = sql.cursor()
+
         for u in uk.users:
             arg = [config['default_prefix'], ktitle, u.name, int(uk.startweek), u.points, int(u.bytes), int(u.newpages), 0]
             if uk.startweek != uk.endweek:
                 arg[-1] = int(uk.endweek)
             #print arg
-            cur.execute(u"INSERT INTO users (site, contest, user, week, points, bytes, newpages, week2) VALUES (?,?,?,?,?,?,?,?)", arg)
+            if not args.simulate:
+                cur.execute(u"INSERT INTO users (site, contest, user, week, points, bytes, newpages, week2) VALUES (?,?,?,?,?,?,?,?)", arg)
 
-        cur.execute(u'UPDATE contests SET closed=1 WHERE site=? AND name=?', [config['default_prefix'], ktitle])
-        sql.commit()
+        if not args.simulate:
+            cur.execute(u'UPDATE contests SET closed=1 WHERE site=? AND name=?', [config['default_prefix'], ktitle])
+            sql.commit()
+
         cur.close()
 
         aws = config['awardstatus']
         page = homesite.pages[aws['pagename']]
         page.save(text=aws['sent'], summary=aws['sent'], bot=True)
 
-        uk.deliver_receipt_to_leaders()
+        if not args.simulate:
+            uk.deliver_receipt_to_leaders()
 
         log(' -> Cleaning DB')
-        uk.delete_contribs_from_db()
+        if not args.simulate:
+            uk.delete_contribs_from_db()
 
     # Notify users about issues
 

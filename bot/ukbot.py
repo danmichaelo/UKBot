@@ -1454,17 +1454,20 @@ class UK(object):
         flinfo = self.homesite.api(action='query', prop='flowinfo', titles=prefixed)
         flow_enabled = ('enabled' in flinfo['query']['pages'].values()[0]['flowinfo']['flow'])
 
+        pagename = '%s:%s' % (prefix, username)
+
         if flow_enabled:
             token = self.homesite.get_token('csrf')
             self.homesite.api(action='flow',
                               submodule='new-topic',
-                              nttopic='== ' + topic + ' ==',
+                              page=pagename,
+                              nttopic=topic,
                               ntcontent=body,
                               ntformat='wikitext',
                               token=token)
 
         else:
-            page = self.homesite.pages['%s:%s' % (prefix, username)]
+            page = self.homesite.pages[pagename]
             page.save(text=body, bot=False, section='new', summary=topic)
 
 

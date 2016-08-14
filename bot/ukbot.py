@@ -1468,7 +1468,7 @@ class UK(object):
 
         else:
             page = self.homesite.pages[pagename]
-            page.save(text=body, bot=False, section='new', summary=topic)
+            page.save(text=body + ' ~~~~', bot=False, section='new', summary=topic)
 
 
     def deliver_prices(self, sql, siteprefix, ktitle, simulate):
@@ -1519,7 +1519,7 @@ class UK(object):
                 'weekarg': self.config['templates']['commonargs']['week'],
                 'week': yearweek
             } + ' '
-            mld += _('Regards') + ' ' + ', '.join(['[[%s:%s|%s]]' % (userprefix, s, s) for s in self.ledere]) + ' ' + _('and') + ' ~~~~'
+            mld += _('Regards') + ' ' + ', '.join(['[[%s:%s|%s]]' % (userprefix, s, s) for s in self.ledere]) + ' ' + _('and')
 
             if prizefound:
 
@@ -1527,7 +1527,7 @@ class UK(object):
                     cur.execute(u'SELECT prize_id FROM prizes WHERE contest_id=? AND site=? AND user=?', [contest_id, siteprefix, u.name])
                     rows = cur.fetchall()
                     if len(rows) == 0:
-                        self.deliver_price(u.name, heading, mld)
+                        self.deliver_message(u.name, heading, mld)
                         cur.execute(u'INSERT INTO prizes (contest_id, site, user, timestamp) VALUES (?, ?, ?, NOW())', [contest_id, siteprefix, u.name])
                         sql.commit()
 
@@ -1580,7 +1580,7 @@ class UK(object):
 
         args = {'prefix': self.homesite.site['server'] + self.homesite.site['script'], 'page': 'Special:Contributions'}
         link = '%(prefix)s?title=%(page)s&contribs=user&target=UKBot&namespace=3' % args
-        mld = '\n:' + _('Awards have been [%(link)s sent out].') % {'link': link} + ' ~~~~'
+        mld = '\n:' + _('Awards have been [%(link)s sent out].') % {'link': link}
         for u in self.ledere:
             page = self.homesite.pages['%s:%s' % (usertalkprefix, u)]
             log(' -> Leverer kvittering til %s' % page.name)

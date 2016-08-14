@@ -1445,7 +1445,7 @@ class UK(object):
         else:
             return _('Weekly contest for week %(startweek)d–%(endweek)d') % {'startweek': self.startweek, 'endweek': self.endweek}
 
-    def deliver_price(self, username, topic, body):
+    def deliver_message(self, username, topic, body):
         log(' -> Delivering message to %s' % username)
 
         prefix = self.homesite.namespaces[3]
@@ -1570,9 +1570,9 @@ class UK(object):
             mld += _('Now you must check if the results look ok. If there are error messages at the bottom of the [[%(page)s|contest page]], you should check that the related contributions have been awarded the correct number of points. Also check if there are comments or complaints on the discussion page. If everything looks fine, [%(link)s click here] (and save) to indicate that I can send out the awards at first occasion.') % {'page': pagename, 'link': link}
             mld += ' ' + _('Thanks, ~~~~')
 
-            page = self.homesite.pages['%s:%s' % (usertalkprefix, u)]
             log(' -> Leverer arrangørmelding til %s' % page.name)
-            page.save(text=mld, bot=False, section='new', summary='== ' + heading + ' ==')
+            self.deliver_message(u, heading, mld)
+
 
     def deliver_receipt_to_leaders(self):
         heading = self.format_heading()
@@ -2016,8 +2016,10 @@ def main():
         page = homesite.pages[aws['pagename']]
         page.save(text=aws['sent'], summary=aws['sent'], bot=True)
 
-        if not args.simulate:
-            uk.deliver_receipt_to_leaders()
+        # if not args.simulate:
+        #
+        # Skip for now: not Flow compatible
+        #     uk.deliver_receipt_to_leaders()
 
         log(' -> Cleaning DB')
         if not args.simulate:

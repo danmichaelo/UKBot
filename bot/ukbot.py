@@ -509,15 +509,15 @@ class User(object):
                             if rev.parentid == parentid:
                                 found = True
                                 break
-                        if not found:
-                            raise StandardError("No revision found matching title=%s, parentid=%d" % (page['title'], parentid))
-
-                        rev.parentsize = apirev['size']
-                        if '*' in apirev.keys():
-                            rev.parenttext = apirev['*']
-                            log(u'[ %s: %d ]' % (article.name, len(rev.parenttext)))
+                        if found:
+                            rev.parentsize = apirev['size']
+                            if '*' in apirev.keys():
+                                rev.parenttext = apirev['*']
+                                log(u'[ %s: %d ]' % (article.name, len(rev.parenttext)))
+                            else:
+                                log(u'[ %s: Err: did not get rev text for ]' % (article.name))
                         else:
-                            log(u'[ %s: Err: did not get rev text for ]' % (article.name))
+                            rev.parenttext = ''  # New page
         if nr > 0:
             log(" -> [%s] Checked %d parent revisions" % (site_key, nr))
 
@@ -1497,7 +1497,11 @@ class UK(object):
                         break
                 for r in self.prices:
                     if r[1] == 'pointlimit' and u.points >= r[2]:
-                        mld += '|%s=%s' % (r[0], self.config['templates']['commonargs'][True])
+                        if prizefound:
+                            mld += '|%s=%s' % (r[0], self.config['templates']['commonargs'][True])
+                        else:
+                            mld = self.format_msg('winner_template', r[0])
+                        prizefound = True
                         break
                 mld += '}}\n'
             else:
@@ -1530,6 +1534,8 @@ class UK(object):
                         self.deliver_message(u.name, heading, mld, sig)
                         cur.execute(u'INSERT INTO prizes (contest_id, site, user, timestamp) VALUES (?, ?, ?, NOW())', [contest_id, siteprefix, u.name])
                         sql.commit()
+            else:
+                log(' -> No price found for %s' % u.name)
 
     def deliver_leader_notification(self, pagename):
         heading = self.format_heading()
@@ -1570,7 +1576,7 @@ class UK(object):
             mld += _('Now you must check if the results look ok. If there are error messages at the bottom of the [[%(page)s|contest page]], you should check that the related contributions have been awarded the correct number of points. Also check if there are comments or complaints on the discussion page. If everything looks fine, [%(link)s click here] (and save) to indicate that I can send out the awards at first occasion.') % {'page': pagename, 'link': link}
             sig = _('Thanks, ~~~~')
 
-            log(' -> Leverer arrangørmelding til %s' % page.name)
+            log(' -> Leverer arrangørmelding til %s' % pagename)
             self.deliver_message(u, heading, mld, sig)
 
 

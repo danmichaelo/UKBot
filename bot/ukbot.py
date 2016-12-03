@@ -1220,6 +1220,16 @@ class UK(object):
 
         self.prices.sort(key=lambda x: x[2], reverse=True)
 
+        ####################### Check if contest is in DB yet ##################
+
+        cur = sql.cursor()
+        cur.execute(u'SELECT contest_id FROM contests WHERE site=? AND name=?', [self.config['default_prefix'], self.name])
+        rows = cur.fetchall()
+        if len(rows) == 0:
+            cur.execute(u'INSERT INTO contests (site, name, start_date, end_date) VALUES (?,?,?,?)', [self.config['default_prefix'], self.name, self.start.strftime('%F %T'), self.end.strftime('%F %T')])
+            sql.commit()
+        cur.close()
+
         ######################## Read disqualifications ########################
 
         sucfg = config['templates']['suspended']
@@ -1685,6 +1695,63 @@ class UK(object):
                     page.save(text=msg, bot=False, section='new', summary=heading)
             self.sql.commit()
 
+
+def get_contest_page_title(cursor, homesite, config):
+
+    # 1) Check if there are contests to close
+    cursor.execute(u'SELECT name FROM contests WHERE site=? AND ended=1 AND closed=0 LIMIT 1', [config['default_prefix']])
+    rows = cursor.fetchall()
+    if len(rows) != 0:
+        page_title = rows[0][0]
+        log(" -> Contest %s is to be closed" % rows[0])
+        lastrev = homesite.pages[config['awardstatus']['pagename']].revisions(prop='user|comment').next()
+        closeuser = lastrev['user']
+        revc = lastrev['comment']
+        if revc.find('/* ' + config['awardstatus']['send'] + ' */') == -1:
+            log('>> Award delivery has not been confirmed yet')
+        else:
+            log('>> Award delivery has been confirmed')
+            return 'closing', page_title
+
+    # 2) Check if there are contests to end
+    now = server_tz.localize(datetime.now()).strftime('%F %T')
+    cursor.execute(u'SELECT name FROM contests WHERE site=? AND ended=0 AND closed=0 AND end_date < ? LIMIT 1', [config['default_prefix'], now])
+    rows = cursor.fetchall()
+    if len(rows) != 0:
+        page_title = rows[0][0]
+        log(" -> Contest %s is to be closed" % rows[0])
+        lastrev = homesite.pages[config['awardstatus']['pagename']].revisions(prop='user|comment').next()
+        closeuser = lastrev['user']
+        revc = lastrev['comment']
+        if revc.find('/* ' + config['awardstatus']['send'] + ' */') == -1:
+            log('>> Award delivery has not been confirmed yet')
+        else:
+            log('>> Award delivery has been confirmed')
+            return 'closing', page_title
+
+    # 3) Get contest page from current date
+    page_title = config['pages']['default']
+    w = Week.withdate((now - timedelta(hours=1)).astimezone(wiki_tz).date())
+    # subtract one hour, so we close last week's contest right after midnight
+    page_title = page_title % { 'year': w.year, 'week': w.week }
+    #strftime(page_title.encode('utf-8')).decode('utf-8')
+    return 'normal', page_title
+
+
+def get_contest_page(sql, homesite, config, page_title=None):
+    if page_title is not None:
+        page_title = args.page.decode('utf-8')
+    else:
+        cur = sql.cursor()
+        status, page_title = get_contest_page_title(cur, homesite, config)
+        cur.close()
+
+    page = homesite.pages[page_title]
+    page = page.resolve_redirect()
+
+    return status, page
+
+
 ############################################################################################################################
 # Main
 ############################################################################################################################
@@ -1714,55 +1781,12 @@ def main():
     sql = oursql.connect(host=config['db']['host'], db=config['db']['db'], charset='utf8'.encode('utf8'), use_unicode=True,
         read_default_file=os.path.expanduser('~/replica.my.cnf'), autoreconnect=True)
 
-    now = server_tz.localize(datetime.now())
+    # Determine what to work with
 
-    # Determine kpage
-
-    if args.close:
-        # Check if there are contests to be closed
-        cur = sql.cursor()
-        cur.execute(u'SELECT name FROM contests WHERE site=? AND ended=1 AND closed=0 LIMIT 1', [config['default_prefix']])
-        rows = cur.fetchall()
-        if len(rows) == 0:
-            log(" -> Found no contests to close!")
-            return
-        cur.close()
-        ktitle = rows[0][0]
-        log(" -> Contest %s is to be closed" % rows[0])
-        lastrev = homesite.pages[config['awardstatus']['pagename']].revisions(prop='user|comment').next()
-        closeuser = lastrev['user']
-        revc = lastrev['comment']
-        if revc.find('/* ' + config['awardstatus']['send'] + ' */') == -1:
-            log('>> Award delivery has not been confirmed yet')
-            return
-    elif args.page is not None:
-        ktitle = args.page.decode('utf-8')
-    else:
-        log('  No page specified. Using default page')
-        ktitle = config['pages']['default']
-        w = Week.withdate((now - timedelta(hours=1)).astimezone(wiki_tz).date())
-        # subtract one hour, so we close last week's contest right after midnight
-        ktitle = ktitle % { 'year': w.year, 'week': w.week }
-        #strftime(ktitle.encode('utf-8')).decode('utf-8')
-
-    # Is ktitle redirect? Resolve
-
-    log('@ ktitle is %s' % ktitle)
-    pp = homesite.api('query', prop='pageprops', titles=ktitle, redirects='1')
-    if 'redirects' in pp['query']:
-        ktitle = pp['query']['redirects'][0]['to']
-        log('  -> Redirected to:  %s' % ktitle)
-
-    # Check that we're not given some very wrong page
-    userprefix = homesite.namespaces[2]
-    #if not (re.match('^'+config['pages']['base'], ktitle) or re.match('^' + userprefix + ':UKBot/', ktitle)):
-    #    raise StandardError('I refuse to work with that page!')
-
-    # Check if page exists
-
-    kpage = homesite.pages[ktitle]
+    # Check if there are contests to be closed
+    kstatus, kpage = get_contest_page(sql, homesite, config, args.page)
     if not kpage.exists:
-        log('  !! kpage does not exist! Exiting')
+        log('  !! contest page does not exist! Exiting')
         return
 
     # Initialize the contest
@@ -1778,26 +1802,12 @@ def main():
             kpage.save('dummy', summary=_('UKBot encountered a problem'), appendtext=out)
         raise
 
-    if args.close and closeuser not in uk.ledere:
-        log('!! Konkurransen ble forsøkt avsluttet av %s, men konkurranseledere er oppgitt som: %s' % (closeuser, ', '.join(uk.ledere)))
-        #log('!! Konkurransen ble forsøkt avsluttet av andre enn konkurranseleder')
-        #return
-
-    # Check if contest is to be ended
+    # if kstatus == 'closing' and closeuser not in uk.ledere:
+    #     log('!! Konkurransen ble forsøkt avsluttet av %s, men konkurranseledere er oppgitt som: %s' % (closeuser, ', '.join(uk.ledere)))
+    #     #log('!! Konkurransen ble forsøkt avsluttet av andre enn konkurranseleder')
+    #     #return
 
     log('@ Contest open from %s to %s' % (uk.start.strftime('%F %T'), uk.end.strftime('%F %T')))
-    ending = False
-    if args.close is False and now > uk.end:
-        ending = True
-        log("  -> Ending contest")
-        cur = sql.cursor()
-        cur.execute(u'SELECT ended FROM contests WHERE site=? AND name=? AND ended=1', [config['default_prefix'], ktitle])
-        if len(cur.fetchall()) == 1:
-            log("  -> Already ended. Abort")
-            #print "Konkurransen kunne ikke avsluttes da den allerede er avsluttet"
-            return
-
-        cur.close()
 
     # Loop over users
 
@@ -1895,10 +1905,10 @@ def main():
     #out += sammen + '\n'
 
     now = server_tz.localize(datetime.now())
-    if ending:
+    if kstatus == 'ending':
         # Konkurransen er nå avsluttet – takk til alle som deltok! Rosetter vil bli delt ut så snart konkurransearrangøren(e) har sjekket resultatene.
         out += "''" + _('This contest is closed – thanks to everyone who participated! Awards will be sent out as soon as the contest organizer has checked the results.') + "''\n\n"
-    elif args.close:
+    elif kstatus == 'closing':
         out += "''" + _('This contest is closed – thanks to everyone who participated!') + "''\n\n"
     else:
         oargs = {
@@ -1909,7 +1919,7 @@ def main():
         out += "''" + _('Last updated %(lastupdate)s. The contest is open from %(startdate)s to %(enddate)s.') % oargs + "''\n\n"
 
     for i, u in enumerate(uk.users):
-        out += u.format_result(pos=i, closing=args.close, prices=uk.prices)
+        out += u.format_result(pos=i, closing=(kstatus == 'closing'), prices=uk.prices)
 
     article_errors = {}
     for u in uk.users:
@@ -1970,9 +1980,9 @@ def main():
                 txt = txt[:secstart] + out + txt[secend:]
 
             log(" -> Updating wiki, section = %d " % (uk.results_section))
-            if ending:
+            if kstatus == 'ending':
                 kpage.save(txt, summary=_('Updating with final results, the contest is now closed.'))
-            elif args.close:
+            elif kstatus == 'closing':
                 kpage.save(txt, summary=_('Checking results and handing out awards'))
             else:
                 kpage.save(txt, summary=_('Updating'))
@@ -1983,7 +1993,7 @@ def main():
         f.write(out)
         f.close()
 
-    if ending:
+    if kstatus == 'ending':
         log(" -> Ending contest")
         if not args.simulate:
             uk.deliver_leader_notification(ktitle)
@@ -1997,7 +2007,7 @@ def main():
             sql.commit()
             cur.close()
 
-    if args.close:
+    if kstatus == 'closing':
         log(" -> Delivering prices")
 
         uk.deliver_prices(sql, config['default_prefix'], ktitle, args.simulate)
@@ -2038,7 +2048,7 @@ def main():
     # Update WP:UK
 
     if 'redirect' in config['pages']:
-        if re.match('^' + config['pages']['base'], ktitle) and not args.simulate and not args.close and not ending:
+        if re.match('^' + config['pages']['base'], ktitle) and not args.simulate and kstatus == 'normal':
             page = homesite.pages[config['pages']['redirect']]
             txt = _('#REDIRECT [[%s]]') % ktitle
             if page.text() != txt:

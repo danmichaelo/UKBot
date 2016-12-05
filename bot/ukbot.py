@@ -1222,12 +1222,12 @@ class UK(object):
 
         ####################### Check if contest is in DB yet ##################
 
-        cur = sql.cursor()
+        cur = self.sql.cursor()
         cur.execute(u'SELECT contest_id FROM contests WHERE site=? AND name=?', [self.config['default_prefix'], self.name])
         rows = cur.fetchall()
         if len(rows) == 0:
             cur.execute(u'INSERT INTO contests (site, name, start_date, end_date) VALUES (?,?,?,?)', [self.config['default_prefix'], self.name, self.start.strftime('%F %T'), self.end.strftime('%F %T')])
-            sql.commit()
+            self.sql.commit()
         cur.close()
 
         ######################## Read disqualifications ########################
@@ -1714,25 +1714,20 @@ def get_contest_page_title(cursor, homesite, config):
             return 'closing', page_title
 
     # 2) Check if there are contests to end
-    now = server_tz.localize(datetime.now()).strftime('%F %T')
-    cursor.execute(u'SELECT name FROM contests WHERE site=? AND ended=0 AND closed=0 AND end_date < ? LIMIT 1', [config['default_prefix'], now])
+    now = server_tz.localize(datetime.now())
+    now_s = now.astimezone(wiki_tz).strftime('%F %T')
+    cursor.execute(u'SELECT name FROM contests WHERE site=? AND ended=0 AND closed=0 AND end_date < ? LIMIT 1', [config['default_prefix'], now_s])
     rows = cursor.fetchall()
     if len(rows) != 0:
         page_title = rows[0][0]
-        log(" -> Contest %s is to be closed" % rows[0])
-        lastrev = homesite.pages[config['awardstatus']['pagename']].revisions(prop='user|comment').next()
-        closeuser = lastrev['user']
-        revc = lastrev['comment']
-        if revc.find('/* ' + config['awardstatus']['send'] + ' */') == -1:
-            log('>> Award delivery has not been confirmed yet')
-        else:
-            log('>> Award delivery has been confirmed')
-            return 'closing', page_title
+        log(" -> Contest %s just ended" % rows[0])
+        return 'ending', page_title
 
     # 3) Get contest page from current date
     page_title = config['pages']['default']
-    w = Week.withdate((now - timedelta(hours=1)).astimezone(wiki_tz).date())
     # subtract one hour, so we close last week's contest right after midnight
+    # w = Week.withdate((now - timedelta(hours=1)).astimezone(wiki_tz).date())
+    w = Week.withdate(now.astimezone(wiki_tz).date())
     page_title = page_title % { 'year': w.year, 'week': w.week }
     #strftime(page_title.encode('utf-8')).decode('utf-8')
     return 'normal', page_title
@@ -1996,26 +1991,26 @@ def main():
     if kstatus == 'ending':
         log(" -> Ending contest")
         if not args.simulate:
-            uk.deliver_leader_notification(ktitle)
+            uk.deliver_leader_notification(kpage.name)
 
             aws = config['awardstatus']
             page = homesite.pages[aws['pagename']]
             page.save(text=aws['wait'], summary=aws['wait'], bot=True)
 
             cur = sql.cursor()
-            cur.execute(u'INSERT INTO contests (site, name, ended, closed) VALUES (?,?,1,0)', [config['default_prefix'], ktitle])
+            cur.execute(u'UPDATE contests SET ended=1 WHERE site=? AND name=?', [config['default_prefix'], kpage.name])
             sql.commit()
             cur.close()
 
     if kstatus == 'closing':
         log(" -> Delivering prices")
 
-        uk.deliver_prices(sql, config['default_prefix'], ktitle, args.simulate)
+        uk.deliver_prices(sql, config['default_prefix'], kpage.name, args.simulate)
 
         cur = sql.cursor()
 
         for u in uk.users:
-            arg = [config['default_prefix'], ktitle, u.name, int(uk.startweek), u.points, int(u.bytes), int(u.newpages), 0]
+            arg = [config['default_prefix'], kpage.name, u.name, int(uk.startweek), u.points, int(u.bytes), int(u.newpages), 0]
             if uk.startweek != uk.endweek:
                 arg[-1] = int(uk.endweek)
             #print arg
@@ -2023,7 +2018,7 @@ def main():
                 cur.execute(u"INSERT INTO users (site, contest, user, week, points, bytes, newpages, week2) VALUES (?,?,?,?,?,?,?,?)", arg)
 
         if not args.simulate:
-            cur.execute(u'UPDATE contests SET closed=1 WHERE site=? AND name=?', [config['default_prefix'], ktitle])
+            cur.execute(u'UPDATE contests SET closed=1 WHERE site=? AND name=?', [config['default_prefix'], kpage.name])
             sql.commit()
 
         cur.close()
@@ -2048,11 +2043,11 @@ def main():
     # Update WP:UK
 
     if 'redirect' in config['pages']:
-        if re.match('^' + config['pages']['base'], ktitle) and not args.simulate and kstatus == 'normal':
+        if re.match('^' + config['pages']['base'], kpage.name) and not args.simulate and kstatus == 'normal':
             page = homesite.pages[config['pages']['redirect']]
-            txt = _('#REDIRECT [[%s]]') % ktitle
+            txt = _('#REDIRECT [[%s]]') % kpage.name
             if page.text() != txt:
-                page.save(txt, summary=_('Redirecting to %s') % ktitle)
+                page.save(txt, summary=_('Redirecting to %s') % kpage.name)
 
     # Update Wikipedia:Portal/Oppslagstavle
 

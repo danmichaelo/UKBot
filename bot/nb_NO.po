@@ -78,7 +78,7 @@ msgstr "Ingen kvalifiserte bidrag har blitt registrert enda"
 
 #: bot/ukbot.py:792
 msgid "articles"
-msgstr "artikler"
+msgstr "%(articlecount)d {{subst:PLURAL:%(articlecount)d|artikkel|artikler}}"
 
 #: bot/ukbot.py:794
 msgid "{{Kolonner}}\n"

@@ -71,7 +71,7 @@ msgstr "Hyväksyttyjä muokkauksia ei ole vielä rekisteröity"
 
 #: bot/ukbot.py:792
 msgid "articles"
-msgstr "artikkelia"
+msgstr "%(articlecount)d {{subst:PLURAL:%(articlecount)d|artikkeli|artikkelia}}"
 
 #: bot/ukbot.py:794
 msgid "{{Kolonner}}\n"

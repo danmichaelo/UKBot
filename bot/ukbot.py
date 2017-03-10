@@ -870,7 +870,7 @@ class User(object):
         if len(entries) == 0:
             out += "''" + _('No qualifying contributions registered yet') + "''"
         else:
-            out += '%d %s, {{formatnum:%.2f}} kB\n' % (len(entries), _('articles'), self.bytes / 1000.)
+            out += '%s, {{formatnum:%.2f}} kB\n' % (_('articles') % {'articlecount' : len(entries)}, self.bytes / 1000.)
         if len(entries) > 10:
             out += _('{{Kolonner}}\n')
         out += '\n'.join(entries)

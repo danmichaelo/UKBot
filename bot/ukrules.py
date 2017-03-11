@@ -285,7 +285,7 @@ class ImageRule(Rule):
                     revpoints += self.points
 
         if revpoints > 0:
-            self.add_points(rev, revpoints, 'image', '%d %s' % (len(imgs_added), _('images') if len(imgs_added) > 1 else _('image')), self.maxpoints)
+            self.add_points(rev, revpoints, 'image', _('images') % {'images': len(imgs_added)}, self.maxpoints)
 
 
 class ExternalLinkRule(Rule):
@@ -307,7 +307,7 @@ class ExternalLinkRule(Rule):
 
         if links > 0:
             revpoints = links * self.points
-            self.add_points(rev, revpoints, 'link', '%d %s' % (links, _('links') if links > 1 else _('link')), self.maxpoints)
+            self.add_points(rev, revpoints, 'link', _('links') % {'links': links}, self.maxpoints)
 
 
 class RefRule(Rule):
@@ -372,10 +372,10 @@ class RefRule(Rule):
             s = []
             if sources_added > 0:
                 p += sources_added * self.sourcepoints
-                s.append(t.ungettext('one reference', '%(num)d references', sources_added) % {'num': sources_added})
+                s.append(_('references') % {'num': sources_added})
             if refs_added > 0:
                 p += refs_added * self.refpoints
-                s.append(t.ungettext('one reference pointer', '%(num)d reference pointers', refs_added) % {'num': refs_added})
+                s.append(_('reference pointers') % {'num': refs_added})
             txt = ', '.join(s)
 
             rev.points.append([p, 'ref', txt])

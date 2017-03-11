@@ -54,7 +54,7 @@ msgstr "Kategoritreff"
 #: bot/ukbot.py:747
 #, python-format
 msgid "Total: {{formatnum:%(bytecount)d}} bytes, %(wordcount)d words"
-msgstr "Totalt: {{formatnum:%(bytecount)d}} bytes, %(wordcount)d ord"
+msgstr "Totalt: {{formatnum:%(bytecount)d}} {{subst:PLURAL:%(bytecount)d|byte}}, %(wordcount)d {{subst:PLURAL:%(wordcount)d|ord}}"
 
 #: bot/ukbot.py:758
 msgid ""
@@ -77,6 +77,7 @@ msgid "No qualifying contributions registered yet"
 msgstr "Ingen kvalifiserte bidrag har blitt registrert enda"
 
 #: bot/ukbot.py:792
+#, python-format
 msgid "articles"
 msgstr "%(articlecount)d {{subst:PLURAL:%(articlecount)d|artikkel|artikler}}"
 
@@ -335,42 +336,32 @@ msgstr "kvalifisert"
 #: bot/ukrules.py:172
 #, python-format
 msgid "%(bytes).f bytes"
-msgstr "%(bytes).f bytes"
+msgstr "%(bytes).f {{subst:PLURAL:%(bytes).f|byte}}"
 
 #: bot/ukrules.py:189
 #, python-format
 msgid "%(words).f words"
-msgstr "%(words).f ord"
+msgstr "%(words).f {{subst:PLURAL:%(words).f|ord}}"
 
 #: bot/ukrules.py:268
+#, python-format
 msgid "images"
-msgstr "bilder"
-
-#: bot/ukrules.py:268
-msgid "image"
-msgstr "bilde"
+msgstr "%(images).f {{subst:PLURAL:%(images).f|bilde|bilder}}"
 
 #: bot/ukrules.py:290
+#, python-format
 msgid "links"
-msgstr "lenker"
-
-#: bot/ukrules.py:290
-msgid "link"
-msgstr "lenke"
+msgstr "%(links).f {{subst:PLURAL:%(links).f|lenke|lenker}}"
 
 #: bot/ukrules.py:355
 #, python-format
-msgid "one reference"
-msgid_plural "%(num)d references"
-msgstr[0] "én kilde"
-msgstr[1] "%(num)d kilder"
+msgid "references"
+msgstr "{{subst:PLURAL:%(num)d|én kilde|%(num)d kilder}}"
 
 #: bot/ukrules.py:358
 #, python-format
-msgid "one reference pointer"
-msgid_plural "%(num)d reference pointers"
-msgstr[0] "én henvisning til navngitt kilde"
-msgstr[1] "%(num)d henvisninger til navngitte kilder"
+msgid "reference pointers"
+msgstr "{{subst:PLURAL:%(num)d|én henvisning til navngitt kilde|%(num)d henvisninger til navngitte kilder}}"
 
 #: bot/ukrules.py:391
 msgid "added reference section"
@@ -379,9 +370,9 @@ msgstr "la til referanseavsnitt"
 #: bot/ukrules.py:416
 #, python-format
 msgid "bonus %(bytes).f bytes"
-msgstr "bonus %(bytes).f bytes"
+msgstr "bonus %(bytes).f {{subst:PLURAL:%(bytes).f|byte}}"
 
 #: bot/ukrules.py:443
 #, python-format
 msgid "bonus %(words)d words"
-msgstr "bonus %(words)d ord"
+msgstr "bonus %(words)d {{subst:PLURAL:%(words)d|ord}}"

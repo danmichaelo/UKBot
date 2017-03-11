@@ -47,7 +47,7 @@ msgstr "Luokkaosuma"
 #: bot/ukbot.py:747
 #, python-format
 msgid "Total: {{formatnum:%(bytecount)d}} bytes, %(wordcount)d words"
-msgstr "Yhteensä: {{formatnum:%(bytecount)d}} tavua, %(wordcount)d sanaa"
+msgstr "Yhteensä: {{formatnum:%(bytecount)d}} {{subst:PLURAL:%(bytecount)d|tavu|tavua}}, %(wordcount)d {{subst:PLURAL:%(wordcount)d|sanaa|sanoja}}"
 
 #: bot/ukbot.py:758
 msgid ""
@@ -70,6 +70,7 @@ msgid "No qualifying contributions registered yet"
 msgstr "Hyväksyttyjä muokkauksia ei ole vielä rekisteröity"
 
 #: bot/ukbot.py:792
+#, python-format
 msgid "articles"
 msgstr "%(articlecount)d {{subst:PLURAL:%(articlecount)d|artikkeli|artikkelia}}"
 
@@ -332,42 +333,32 @@ msgstr "hyväksytty"
 #: bot/ukrules.py:172
 #, python-format
 msgid "%(bytes).f bytes"
-msgstr "%(bytes).f tavua"
+msgstr "%(bytes).f {{subst:PLURAL:%(bytes).f|tavu|tavua}}"
 
 #: bot/ukrules.py:189
 #, python-format
 msgid "%(words).f words"
-msgstr "%(words).f sanaa"
+msgstr "%(words).f {{subst:PLURAL:%(words).f|sana|sanaa}}"
 
 #: bot/ukrules.py:268
+#, python-format
 msgid "images"
-msgstr "kuvaa"
-
-#: bot/ukrules.py:268
-msgid "image"
-msgstr "kuva"
+msgstr "%(images).f {{subst:PLURAL:%(images).f|kuva|kuvaa}}"
 
 #: bot/ukrules.py:290
+#, python-format
 msgid "links"
-msgstr "linkkiä"
-
-#: bot/ukrules.py:290
-msgid "link"
-msgstr "linkki"
+msgstr "%(links).f {{subst:PLURAL:%(links).f|linkkit|linkkiä}}"
 
 #: bot/ukrules.py:355
 #, python-format
-msgid "one reference"
-msgid_plural "%(num)d references"
-msgstr[0] "Yksi lähde on lisätty"
-msgstr[1] "%(num)d lähdettä on lisätty"
+msgid "references"
+msgstr "{{subst:PLURAL:%(num)d|Yksi lähde on lisätty|%(num)d lähdettä on lisätty}}"
 
 #: bot/ukrules.py:358
 #, python-format
-msgid "one reference pointer"
-msgid_plural "%(num)d reference pointers"
-msgstr[0] "Yksi viittaus jo olemassa olevaan lähteeseen"
-msgstr[1] "%(num)d viittausta jo olemassa oleviin lähteisiin"
+msgid "reference pointers"
+msgstr "{{subst:PLURAL:%(num)d|Yksi viittaus jo olemassa olevaan lähteeseen|%(num)d viittausta jo olemassa oleviin lähteisiin}}"
 
 #: bot/ukrules.py:391
 #, fuzzy
@@ -377,9 +368,9 @@ msgstr "Yksi viittaus jo olemassaolevaan lähteeseen"
 #: bot/ukrules.py:416
 #, python-format
 msgid "bonus %(bytes).f bytes"
-msgstr "bonus %(bytes).f tavua"
+msgstr "bonus %(bytes).f {{subst:PLURAL:%(bytes).f|tavu|tavua}}"
 
 #: bot/ukrules.py:443
 #, python-format
 msgid "bonus %(words)d words"
-msgstr "bonus %(words)d sanaa"
+msgstr "bonus %(words)d {{subst:PLURAL:%(words)d|sana|sanaa}}"

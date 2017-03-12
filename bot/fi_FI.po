@@ -47,7 +47,7 @@ msgstr "Luokkaosuma"
 #: bot/ukbot.py:747
 #, python-format
 msgid "Total: {{formatnum:%(bytecount)d}} bytes, %(wordcount)d words"
-msgstr "Yhteensä: {{formatnum:%(bytecount)d}} {{subst:PLURAL:%(bytecount)d|tavu|tavua}}, %(wordcount)d {{subst:PLURAL:%(wordcount)d|sanaa|sanoja}}"
+msgstr "Yhteensä: {{formatnum:%(bytecount)d}} {{subst:PLURAL:%(bytecount)d|tavu|tavua}}, %(wordcount)d {{subst:PLURAL:%(wordcount)d|sana|sanaa}}"
 
 #: bot/ukbot.py:758
 msgid ""

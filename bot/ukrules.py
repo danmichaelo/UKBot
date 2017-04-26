@@ -158,6 +158,16 @@ class QualiRule(Rule):
             rev.points.append([self.points, 'quali', _('qualified')])
 
 
+class ContribRule(Rule):
+
+    def __init__(self, key, points):
+        Rule.__init__(self, key)
+        self.points = float(points)
+
+    def test(self, rev):
+        rev.points.append([self.points, 'contrib', _('contribution')])
+
+
 class ByteRule(Rule):
 
     def __init__(self, key, points, maxpoints=-1):

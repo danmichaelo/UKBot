@@ -1089,6 +1089,9 @@ class UK(object):
             elif key == rulecfg['qualified']:
                 rules.append(QualiRule(key, anon[2]))
 
+            elif key == rulecfg['contrib']:
+                rules.append(ContribRule(key, anon[2]))
+
             elif key == rulecfg['refsectionfi']:
                 params = {'key': key, 'points': anon[2]}
                 if templ.has_param(maxpoints):

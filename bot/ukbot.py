@@ -937,6 +937,10 @@ class UK(object):
         filters = []
         config = self.config
 
+        rulecfg = config['templates']['rule']
+        maxpoints = rulecfg['maxpoints']
+        site_param = rulecfg['site']
+
         dp = TemplateEditor(txt)
         if catignore_txt == '':
             catignore = []
@@ -1042,6 +1046,8 @@ class UK(object):
 
                 elif key == filtercfg['namespace']:
                     params['namespaces'] = [x.strip() for x in anon[2:]]
+                    if templ.has_param(site_param):
+                        params['site'] = par[site_param]
                     filt = NamespaceFilter(**params)
 
                 elif key == filtercfg['pages']:
@@ -1070,7 +1076,6 @@ class UK(object):
 
         ######################## Read rules ########################
 
-        rulecfg = config['templates']['rule']
         nrules = 0
         for templ in dp.templates[rulecfg['name']]:
             nrules += 1
@@ -1078,7 +1083,6 @@ class UK(object):
             anon = templ.get_anonymous_parameters()
 
             key = anon[1].lower()
-            maxpoints = rulecfg['maxpoints']
 
             if key == rulecfg['new']:
                 rules.append(NewPageRule(key, anon[2]))
@@ -1816,9 +1820,11 @@ def main():
 
     # extraargs = {'namespace': 0}
     extraargs = {}
+    host_filter = None
     for f in uk.filters:
         if type(f) == NamespaceFilter:
             extraargs['namespace'] = '|'.join(f.namespaces)
+            host_filter = f.site
 
     for u in uk.users:
         log("=== %s ===" % u.name)
@@ -1828,7 +1834,9 @@ def main():
 
         # Then fill in new contributions from wiki
         for site in sites.itervalues():
-            u.add_contribs_from_wiki(site, uk.start, uk.end, fulltext=True, **extraargs)
+
+            if host_filter is None or site.host == host_filter:
+                u.add_contribs_from_wiki(site, uk.start, uk.end, fulltext=True, **extraargs)
 
         # And update db
         u.save_contribs_to_db(sql)

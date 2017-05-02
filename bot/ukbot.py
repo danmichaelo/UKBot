@@ -809,7 +809,7 @@ class User(object):
 
                         dt = utc.localize(datetime.fromtimestamp(rev.timestamp))
                         dt_str = dt.astimezone(wiki_tz).strftime(_('%A, %H:%M')).decode('utf-8')
-                        out = '[%s %s]: %s' % (rev.get_link(), dt_str, descr)
+                        out = '[%s %s] (%s): %s' % (rev.get_link(), dt_str, rev.parsedcomment, descr)
                         if self.suspended_since is not None and dt > self.suspended_since:
                             out = '<s>' + out + '</s>'
                         if len(rev.errors) > 0:

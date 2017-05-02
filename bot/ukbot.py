@@ -226,6 +226,7 @@ class Revision(object):
         self.parentsize = 0
         self.parenttext = ''
         self.username = ''
+        self.parsedcomment = None
 
         self.points = []
 
@@ -240,6 +241,8 @@ class Revision(object):
                 self.parentsize = int(v)
             elif k == 'username':
                 self.username = v[0].upper() + v[1:]
+            elif k == 'parsedcomment':
+                self.parsedcomment = v
             else:
                 raise StandardError('add_revision got unknown argument %s' % k)
 
@@ -459,7 +462,7 @@ class User(object):
 
         # 3) Fetch info about the new revisions: diff size, possibly content
 
-        props = 'ids|size'
+        props = 'ids|size|parsedcomment'
         if fulltext:
             props += '|content'
         revids = [str(r.revid) for r in new_revisions]
@@ -468,13 +471,14 @@ class User(object):
         for s0 in range(0, len(new_revisions), apilim):
             #print "API limit is ",apilim," getting ",s0
             ids = '|'.join(revids[s0:s0 + apilim])
-            for page in site.api('query', prop='revisions', rvprop=props, revids=ids)['query']['pages'].itervalues():
+            for page in site.api('query', prop='revisions', rvprop=props, revids=ids, uselang='nb')['query']['pages'].itervalues():
                 article_key = site_key + ':' + page['title']
                 for apirev in page['revisions']:
                     nr += 1
                     rev = self.articles[article_key].revisions[apirev['revid']]
                     rev.parentid = apirev['parentid']
                     rev.size = apirev['size']
+                    rev.parsedcomment = apirev['parsedcomment']
                     if '*' in apirev.keys():
                         rev.text = apirev['*']
                     if not rev.new:
@@ -537,8 +541,8 @@ class User(object):
                 # Save revision if not already saved
                 cur.execute(u'SELECT revid FROM contribs WHERE revid=? AND site=?', [revid, site_key])
                 if len(cur.fetchall()) == 0:
-                    cur.execute(u'INSERT INTO contribs (revid, site, parentid, user, page, timestamp, size, parentsize) VALUES (?,?,?,?,?,?,?,?)',
-                                (revid, site_key, rev.parentid, self.name, article.name, ts, rev.size, rev.parentsize))
+                    cur.execute(u'INSERT INTO contribs (revid, site, parentid, user, page, timestamp, size, parentsize, parsedcomment) VALUES (?,?,?,?,?,?,?,?,?)',
+                                (revid, site_key, rev.parentid, self.name, article.name, ts, rev.size, rev.parentsize, rev.parsedcomment))
                     nrevs += 1
 
                 # Save revision text if we have it and if not already saved
@@ -611,11 +615,11 @@ class User(object):
         ts_end = end.astimezone(pytz.utc).strftime('%F %T')
         nrevs = 0
         narts = 0
-        cur.execute(u"""SELECT revid, site, parentid, page, timestamp, size, parentsize FROM contribs
+        cur.execute(u"""SELECT revid, site, parentid, page, timestamp, size, parentsize, parsedcomment FROM contribs
                                    WHERE user=? AND timestamp >= ? AND timestamp <= ?""", (self.name, ts_start, ts_end))
         for row in cur.fetchall():
 
-            rev_id, site_key, parent_id, article_title, ts, size, parentsize = row
+            rev_id, site_key, parent_id, article_title, ts, size, parentsize, parsedcomment = row
             article_key = site_key + ':' + article_title
 
             ts = unix_time(pytz.utc.localize(ts))
@@ -631,7 +635,7 @@ class User(object):
             # Add revision if not present
             if not rev_id in self.revisions:
                 nrevs += 1
-                article.add_revision(rev_id, timestamp=ts, parentid=parent_id, size=size, parentsize=parentsize, username=self.name)
+                article.add_revision(rev_id, timestamp=ts, parentid=parent_id, size=size, parentsize=parentsize, username=self.name, parsedcomment=parsedcomment)
             rev = self.revisions[rev_id]
 
             # Add revision text

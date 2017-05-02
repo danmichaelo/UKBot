@@ -837,7 +837,10 @@ class User(object):
                     if netto != 0.:
                         p += '%.1f p' % netto
 
-                out = '[[:%s|%s]]' % (article_key, article.name)
+                if article_key.find('www:') == 0:
+                    out = '{{subst:Q|%s}}' % (article.name,)
+                else:
+                    out = '[[:%s|%s]]' % (article_key, article.name)
                 if article_key in self.disqualified_articles:
                     out = '[[File:Qsicon Achtung.png|14px]] <s>' + out + '</s>'
                     titletxt += '<div style="border-top:1px solid red; background:#ffcccc;">' + _('<strong>Note:</strong> The contributions to this article are currently disqualified.') + '</div>'

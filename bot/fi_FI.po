@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: UKBot\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2014-08-31 14:54+0200\n"
+"POT-Creation-Date: 2017-05-01 21:53+0000\n"
 "PO-Revision-Date: 2014-08-31 15:05+0100\n"
 "Last-Translator: Dan Michael O. Heggø <danmichaelo@gmail.com>\n"
 "Language-Team: \n"
@@ -18,7 +18,7 @@ msgstr ""
 "Plural-Forms: nplurals=2; plural=(n != 1);\n"
 "X-Generator: Poedit 1.5.7\n"
 
-#: bot/ukbot.py:246
+#: bot/ukbot.py:268
 #, python-format
 msgid ""
 "Revision [//%(host)s/w/index.php?diff=prev&oldid=%(revid)s %(revid)s]: The "
@@ -27,7 +27,7 @@ msgid ""
 "tags or templates in that revision."
 msgstr ""
 
-#: bot/ukbot.py:253
+#: bot/ukbot.py:275
 #, python-format
 msgid ""
 "Revision [//%(host)s/w/index.php?diff=prev&oldid=%(revid)s %(revid)s]: The "
@@ -36,20 +36,22 @@ msgid ""
 "may occur for invalid wiki text."
 msgstr ""
 
-#: bot/ukbot.py:727 bot/ukbot.py:786
+#: bot/ukbot.py:807 bot/ukbot.py:867
 msgid "%A, %H:%M"
 msgstr "%A kello %H.%M"
 
-#: bot/ukbot.py:737
+#: bot/ukbot.py:818
 msgid "Category hit"
 msgstr "Luokkaosuma"
 
-#: bot/ukbot.py:747
+#: bot/ukbot.py:828
 #, python-format
 msgid "Total: {{formatnum:%(bytecount)d}} bytes, %(wordcount)d words"
-msgstr "Yhteensä: {{formatnum:%(bytecount)d}} {{subst:PLURAL:%(bytecount)d|tavu|tavua}}, %(wordcount)d {{subst:PLURAL:%(wordcount)d|sana|sanaa}}"
+msgstr ""
+"Yhteensä: {{formatnum:%(bytecount)d}} {{subst:PLURAL:%(bytecount)d|tavu|"
+"tavua}}, %(wordcount)d {{subst:PLURAL:%(wordcount)d|sana|sanaa}}"
 
-#: bot/ukbot.py:758
+#: bot/ukbot.py:839
 msgid ""
 "<strong>Note:</strong> The contributions to this article are currently "
 "disqualified."
@@ -57,37 +59,37 @@ msgstr ""
 "<strong>Huomio:</strong> Muokkaukset tähän artikkeliin on toistaiseksi "
 "hylätty."
 
-#: bot/ukbot.py:763
+#: bot/ukbot.py:844
 msgid "<abbr class=\"newpage\" title=\"New page\">N</abbr>"
 msgstr "<abbr class=\"newpage\" title=\"Uusi sivu\">U</abbr>"
 
-#: bot/ukbot.py:786
+#: bot/ukbot.py:867
 msgid "suspended since"
 msgstr "suspendert siden"
 
-#: bot/ukbot.py:790
+#: bot/ukbot.py:871
 msgid "No qualifying contributions registered yet"
 msgstr "Hyväksyttyjä muokkauksia ei ole vielä rekisteröity"
 
-#: bot/ukbot.py:792
-#, python-format
+#: bot/ukbot.py:873
 msgid "articles"
-msgstr "%(articlecount)d {{subst:PLURAL:%(articlecount)d|artikkeli|artikkelia}}"
+msgstr ""
+"%(articlecount)d {{subst:PLURAL:%(articlecount)d|artikkeli|artikkelia}}"
 
-#: bot/ukbot.py:794
+#: bot/ukbot.py:875
 msgid "{{Kolonner}}\n"
 msgstr "{{Sarakkeet}}\n"
 
-#: bot/ukbot.py:819
+#: bot/ukbot.py:900
 #, python-format
 msgid "Found no \"%(section)s\" sections in the page \"%(page)s\""
 msgstr "Ei löydettyjä \"%(section)s\"-osioita sivulla \"%(page)s\""
 
-#: bot/ukbot.py:841
+#: bot/ukbot.py:922
 msgid "Couldn't find the list of participants!"
 msgstr "Osallistujaluettelon löytäminen epäonnistui!"
 
-#: bot/ukbot.py:866
+#: bot/ukbot.py:951
 #, python-format
 msgid ""
 "There are no point rules defined for this contest. Point rules are defined "
@@ -96,16 +98,16 @@ msgstr ""
 "Tähän kilpailuun ei ole asetettu pistelaskusääntöjä. Säännöt merkitään näin: "
 "{{tl|%(template)s}}."
 
-#: bot/ukbot.py:873
+#: bot/ukbot.py:958
 #, python-format
 msgid "This contest is missing a {{tl|%(template)s}} template."
 msgstr "Tästä kilpailusta puuttuu {{tl|%(template)s}}-malline."
 
-#: bot/ukbot.py:879
+#: bot/ukbot.py:964
 msgid "Could not parse the catignore page"
 msgstr "Catignore-sivun sisältöä ei ymmärretty"
 
-#: bot/ukbot.py:905
+#: bot/ukbot.py:996
 #, python-format
 msgid ""
 "No template (second argument) given to {{tlx|%(template)s|%(firstarg)s}}"
@@ -113,7 +115,7 @@ msgstr ""
 "Mallineita (toinen argumentti) ei ole annettu kohteeseen {{tlx|%(template)s|"
 "%(firstarg)s}}"
 
-#: bot/ukbot.py:913
+#: bot/ukbot.py:1009
 #, python-format
 msgid ""
 "No byte limit (second argument) given to {{tlx|%(template)s|%(firstarg)s}}"
@@ -121,29 +123,29 @@ msgstr ""
 "Tavurajaa (toinen argumentti) ei ole annettu kohteeseen {{tlx|%(template)s|"
 "%(firstarg)s}}"
 
-#: bot/ukbot.py:919
+#: bot/ukbot.py:1015
 #, python-format
 msgid "No categories given to {{tlx|%(template)s|%(firstarg)s}}"
 msgstr "Kohteeseen {{tlx|%(template)s|%(firstarg)s}} ei ole annettu luokkia"
 
-#: bot/ukbot.py:947
+#: bot/ukbot.py:1066
 #, python-format
 msgid "Unknown argument given to {{tl|%(template)s}}: %(argument)s"
 msgstr ""
 "Tuntematon argumentti on annettu kohteeseen {{tl|%(template)s}}: %(argument)s"
 
-#: bot/ukbot.py:1033
+#: bot/ukbot.py:1157
 #, python-format
 msgid "Unkown argument given to {{tl|%(template)s}}: %(argument)s"
 msgstr ""
 "Tuntematon argumentti on annettu kohteeseen {{tl|%(template)s}}: %(argument)s"
 
-#: bot/ukbot.py:1045
+#: bot/ukbot.py:1169
 #, python-format
 msgid "Could not parse the {{tl|%(template)s}} template."
 msgstr "{{tl|%(template)s}}-mallineen ymmärtäminen epäonnistui."
 
-#: bot/ukbot.py:1071
+#: bot/ukbot.py:1195
 #, python-format
 msgid ""
 "Did not find %(week)s+%(year)s or %(start)s+%(end)s in {{tl|%(templates)s}}."
@@ -151,53 +153,53 @@ msgstr ""
 "Kohteesta {{tl|%(templates)s}} ei ole löydetty %(week)s+%(year)s eikä "
 "%(start)s+%(end)s."
 
-#: bot/ukbot.py:1115
+#: bot/ukbot.py:1249
 #, python-format
 msgid "Couldn't parse the date given to the {{tl|%(template)s}} template."
 msgstr ""
 "{{tl|%(template)s}}-mallineeseen annettu päivämäärä ei tullut ymmärretyksi."
 
-#: bot/ukbot.py:1145
+#: bot/ukbot.py:1279
 #, python-format
 msgid ""
 "Could not find the user %(user)s given to the {{tl|%(template)s}} template."
 msgstr "Käyttäjää %(user)s ri löytynyt {{tl|%(template)s}}-mallineesta."
 
-#: bot/ukbot.py:1165
+#: bot/ukbot.py:1299 bot/ukbot.py:1319
 #, python-format
 msgid ""
 "Couldn't find the user %(user)s given to the {{tl|%(template)s}} template."
 msgstr "Ei löydetty käyttäjää %(user)s {{tl|%(template)s}}-mallineesta."
 
-#: bot/ukbot.py:1264
+#: bot/ukbot.py:1418
 msgid "Day"
 msgstr "Päiva"
 
-#: bot/ukbot.py:1265
+#: bot/ukbot.py:1419
 msgid "Points"
 msgstr "Pisteet"
 
-#: bot/ukbot.py:1268 bot/ukbot.py:1460 bot/ukbot.py:1714 bot/ukbot.py:1715
-#: bot/ukbot.py:1716
+#: bot/ukbot.py:1422 bot/ukbot.py:1663 bot/ukbot.py:1921 bot/ukbot.py:1922
+#: bot/ukbot.py:1923
 msgid "%e. %B %Y, %H:%M"
 msgstr "%e. %Bta %Y kello %H.%M"
 
-#: bot/ukbot.py:1269
+#: bot/ukbot.py:1423
 #, python-format
 msgid "Updated %(date)s"
 msgstr "Päivitetty %(date)s"
 
-#: bot/ukbot.py:1307
+#: bot/ukbot.py:1461
 #, python-format
 msgid "Weekly contest for week %(week)d"
 msgstr "Viikon %(week)d kilpailu"
 
-#: bot/ukbot.py:1309
+#: bot/ukbot.py:1463
 #, python-format
 msgid "Weekly contest for week %(startweek)d–%(endweek)d"
 msgstr "Viikkojen %(startweek)d–%(endweek)d kilpailu"
 
-#: bot/ukbot.py:1345
+#: bot/ukbot.py:1537
 #, python-format
 msgid ""
 "Note that the contest this week is [[%(url)s|{{%(template)s|%(weekarg)s="
@@ -206,15 +208,15 @@ msgstr ""
 "Muista, että tämän viikon kilpailu on [[%(url)s|{{%(template)s|%(weekarg)s="
 "%(week)s}}]]. Onnea matkaan!"
 
-#: bot/ukbot.py:1351
+#: bot/ukbot.py:1543
 msgid "Regards"
 msgstr "Terveisin"
 
-#: bot/ukbot.py:1351
+#: bot/ukbot.py:1543
 msgid "and"
 msgstr "ja"
 
-#: bot/ukbot.py:1394
+#: bot/ukbot.py:1593
 #, python-format
 msgid ""
 "Now you must check if the results look ok. If there are error messages at "
@@ -230,20 +232,20 @@ msgstr ""
 "tai valituksia. Jos kaikki näyttää olevan kunnossa, paina [%(link)s tästä] "
 "(ja tallenna), niin rusetit lähetetään melko nopeasti."
 
-#: bot/ukbot.py:1395
+#: bot/ukbot.py:1594
 msgid "Thanks, ~~~~"
 msgstr "Terveisin, ~~~~"
 
-#: bot/ukbot.py:1407
+#: bot/ukbot.py:1606
 #, python-format
 msgid "Awards have been [%(link)s sent out]."
 msgstr "Rusetit on nyt [%(link)s jaettu]."
 
-#: bot/ukbot.py:1588 bot/ukbot.py:1658
+#: bot/ukbot.py:1804 bot/ukbot.py:1865
 msgid "UKBot encountered a problem"
 msgstr "UKBot havaitsi ongelman"
 
-#: bot/ukbot.py:1709
+#: bot/ukbot.py:1916
 msgid ""
 "This contest is closed – thanks to everyone who participated! Awards will be "
 "sent out as soon as the contest organizer has checked the results."
@@ -251,11 +253,11 @@ msgstr ""
 "Tämä kilpailu on päättynyt – kiitos kaikille osallistuneille! Rusetit "
 "jaetaan heti kun kilpailun järjestäjä on tarkistanut tulokset."
 
-#: bot/ukbot.py:1711
+#: bot/ukbot.py:1918
 msgid "This contest is closed – thanks to everyone who participated!"
 msgstr "Tämä kilpailu on päättynyt – kiitos kaikille osallistuneille!"
 
-#: bot/ukbot.py:1718
+#: bot/ukbot.py:1925
 #, python-format
 msgid ""
 "Last updated %(lastupdate)s. The contest is open from %(startdate)s to "
@@ -264,39 +266,39 @@ msgstr ""
 "Päivitetty viimeksi %(lastupdate)s. Kilpailu on avoinna  %(startdate)s – "
 "%(enddate)s."
 
-#: bot/ukbot.py:1741
+#: bot/ukbot.py:1948
 #, python-format
 msgid "UKBot encountered the following problems with the article [[:%s]]"
 msgstr "UKBot havaitsi seuraavat ongelmat artikkeliin [[:%s]] liittyen"
 
-#: bot/ukbot.py:1783
+#: bot/ukbot.py:1990
 msgid "Updating with final results, the contest is now closed."
 msgstr "Lisätään lopulliset tulokset ja merkitään kilpailu päättyneeksi."
 
-#: bot/ukbot.py:1785
+#: bot/ukbot.py:1992
 msgid "Checking results and handing out awards"
 msgstr "Tarkistetaan tulokset ja jaetaan rusetit"
 
-#: bot/ukbot.py:1787
+#: bot/ukbot.py:1994
 msgid "Updating"
 msgstr "Päivitetään"
 
-#: bot/ukbot.py:1843
+#: bot/ukbot.py:2059
 #, python-format
 msgid "#REDIRECT [[%s]]"
 msgstr "#OHJAUS [[%s]]"
 
-#: bot/ukbot.py:1845
+#: bot/ukbot.py:2061
 #, python-format
 msgid "Redirecting to %s"
 msgstr "Ohjaus sivulle %s"
 
-#: bot/ukbot.py:1875
+#: bot/ukbot.py:2091
 #, python-format
 msgid "The weekly contest is: %(link)s"
 msgstr "Viikon kilpailu on: %(link)s"
 
-#: bot/ukfilters.py:127
+#: bot/ukfilters.py:128
 #, python-format
 msgid ""
 "Could not analyze the article %(article)s because one of the revisions "
@@ -305,7 +307,7 @@ msgstr ""
 "Artikkelin %(article)s analysointi epäonnistui sillä versio %(prevrev)d tai "
 "%(rev)d ei tullut ymmärreyksi: %(error)s"
 
-#: bot/ukfilters.py:322
+#: bot/ukfilters.py:329
 msgid "Encountered an infinite category loop: "
 msgstr "Jumiutunut loputtomaan luokkasilmukkaan: "
 
@@ -330,47 +332,50 @@ msgstr "mallineen {{tl|%(template)s}} poisto"
 msgid "qualified"
 msgstr "hyväksytty"
 
-#: bot/ukrules.py:172
+#: bot/ukrules.py:168
+msgid "contribution"
+msgstr ""
+
+#: bot/ukrules.py:182
 #, python-format
 msgid "%(bytes).f bytes"
 msgstr "%(bytes).f {{subst:PLURAL:%(bytes).f|tavu|tavua}}"
 
-#: bot/ukrules.py:189
+#: bot/ukrules.py:199
 #, python-format
 msgid "%(words).f words"
 msgstr "%(words).f {{subst:PLURAL:%(words).f|sana|sanaa}}"
 
-#: bot/ukrules.py:268
-#, python-format
+#: bot/ukrules.py:298
 msgid "images"
 msgstr "%(images).f {{subst:PLURAL:%(images).f|kuva|kuvaa}}"
 
-#: bot/ukrules.py:290
-#, python-format
+#: bot/ukrules.py:320
 msgid "links"
 msgstr "%(links).f {{subst:PLURAL:%(links).f|linkkit|linkkiä}}"
 
-#: bot/ukrules.py:355
-#, python-format
+#: bot/ukrules.py:385
 msgid "references"
-msgstr "{{subst:PLURAL:%(num)d|Yksi lähde on lisätty|%(num)d lähdettä on lisätty}}"
+msgstr ""
+"{{subst:PLURAL:%(num)d|Yksi lähde on lisätty|%(num)d lähdettä on lisätty}}"
 
-#: bot/ukrules.py:358
-#, python-format
+#: bot/ukrules.py:388
 msgid "reference pointers"
-msgstr "{{subst:PLURAL:%(num)d|Yksi viittaus jo olemassa olevaan lähteeseen|%(num)d viittausta jo olemassa oleviin lähteisiin}}"
+msgstr ""
+"{{subst:PLURAL:%(num)d|Yksi viittaus jo olemassa olevaan lähteeseen|%(num)d "
+"viittausta jo olemassa oleviin lähteisiin}}"
 
-#: bot/ukrules.py:391
+#: bot/ukrules.py:421
 #, fuzzy
 msgid "added reference section"
 msgstr "Yksi viittaus jo olemassaolevaan lähteeseen"
 
-#: bot/ukrules.py:416
+#: bot/ukrules.py:446
 #, python-format
 msgid "bonus %(bytes).f bytes"
 msgstr "bonus %(bytes).f {{subst:PLURAL:%(bytes).f|tavu|tavua}}"
 
-#: bot/ukrules.py:443
+#: bot/ukrules.py:473
 #, python-format
 msgid "bonus %(words)d words"
 msgstr "bonus %(words)d {{subst:PLURAL:%(words)d|sana|sanaa}}"

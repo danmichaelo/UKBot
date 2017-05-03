@@ -80,9 +80,11 @@ templates:
         redirect: omdirigering
         refsectionfi: refsectionfi
         qualified: kvalifisert
+        contrib: endring
         byte: byte
         word: ord
         maxpoints: makspoeng
+        site: nettsted
         image: bilde
         external_link: ekstern lenke
         ref: ref

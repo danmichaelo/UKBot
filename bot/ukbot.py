@@ -579,8 +579,9 @@ class User(object):
             t0 = time.time()
 
             cur.executemany("""
-                insert ignore into fulltexts (revid, site, revtxt)
+                insert into fulltexts (revid, site, revtxt)
                 values (%s,%s,%s)
+                on duplicate key update revtxt=values(revtxt);
                 """, fulltexts_query_params
             )
 

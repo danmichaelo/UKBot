@@ -190,8 +190,10 @@ class Article(object):
         return firstrev.new and not firstrev.redirect
 
     def add_revision(self, revid, **kwargs):
-        self.revisions[revid] = Revision(self, revid, **kwargs)
-        return self.revisions[revid]
+        rev = Revision(self, revid, **kwargs)
+        self.revisions[revid] = rev
+        self.user.revisions[revid] = rev
+        return rev
 
     @property
     def bytes(self):
@@ -359,6 +361,7 @@ class User(object):
     def __init__(self, username, contest):
         self.name = username
         self.articles = odict()
+        self.revisions = odict()
         self.contest = contest
         self.suspended_since = None
         self.disqualified_articles = []
@@ -366,11 +369,6 @@ class User(object):
 
     def __repr__(self):
         return ("<User %s>" % self.name).encode('utf-8')
-
-    @property
-    def revisions(self):
-        # oh my, funny (and fast) one-liner for making a flat list of revisions
-        return {rev.revid: rev for article in self.articles.values() for rev in article.revisions.values()}
 
     def sort_contribs(self):
 

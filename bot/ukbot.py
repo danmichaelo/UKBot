@@ -247,6 +247,8 @@ class Revision(object):
         self.parenttext = ''
         self.username = ''
         self.parsedcomment = None
+        self.saved = False  # Saved in local DB
+        self.dirty = False  #
 
         self.points = []
 
@@ -455,6 +457,7 @@ class User(object):
 
                         article = self.add_article_if_necessary(site, article_title)
                         rev = article.add_revision(rev_id, timestamp=time.mktime(c['timestamp']), username=self.name)
+                        rev.saved = False  # New revision that should be stored in DB
                         new_revisions.append(rev)
 
         # If revisions were moved from one article to another, and the redirect was not created by the same user,
@@ -504,6 +507,7 @@ class User(object):
                     rev.parsedcomment = apirev['parsedcomment']
                     if '*' in apirev.keys():
                         rev.text = apirev['*']
+                        rev.dirty = True
                     if not rev.new:
                         parentids.append(rev.parentid)
 
@@ -569,23 +573,26 @@ class User(object):
                 ts = datetime.fromtimestamp(rev.timestamp).strftime('%F %T')
 
                 # Save revision if not already saved
-                cur.execute(u'SELECT revid FROM contribs WHERE revid=? AND site=?', [revid, site_key])
-                if len(cur.fetchall()) == 0:
+                if not rev.saved:
+                # cur.execute(u'SELECT revid FROM contribs WHERE revid=? AND site=?', [revid, site_key])
+                # if len(cur.fetchall()) == 0:
                     cur.execute(u'INSERT INTO contribs (revid, site, parentid, user, page, timestamp, size, parentsize, parsedcomment) VALUES (?,?,?,?,?,?,?,?,?)',
                                 (revid, site_key, rev.parentid, self.name, article.name, ts, rev.size, rev.parentsize, rev.parsedcomment))
                     nrevs += 1
+                    rev.saved = True
 
-                # Save revision text if we have it and if not already saved
-                cur.execute(u'SELECT revid FROM fulltexts WHERE revid=? AND site=?', [revid, site_key])
-                if len(rev.text) > 0 and len(cur.fetchall()) == 0:
-                    cur.execute(u'INSERT INTO fulltexts (revid, site, revtxt) VALUES (?,?,?)', (revid, site_key, rev.text))
-                    ntexts += 1
+                if rev.dirty:
+                    # Save revision text if we have it and if not already saved
+                    cur.execute(u'SELECT revid FROM fulltexts WHERE revid=? AND site=?', [revid, site_key])
+                    if len(rev.text) > 0 and len(cur.fetchall()) == 0:
+                        cur.execute(u'INSERT INTO fulltexts (revid, site, revtxt) VALUES (?,?,?)', (revid, site_key, rev.text))
+                        ntexts += 1
 
-                # Save parent revision text if we have it and if not already saved
-                cur.execute(u'SELECT revid FROM fulltexts WHERE revid=? AND site=?', [rev.parentid, site_key])
-                if len(rev.parenttext) > 0 and len(cur.fetchall()) == 0:
-                    cur.execute(u'INSERT INTO fulltexts (revid, site, revtxt) VALUES (?,?,?)', (rev.parentid, site_key, rev.parenttext))
-                    ntexts += 1
+                    # Save parent revision text if we have it and if not already saved
+                    cur.execute(u'SELECT revid FROM fulltexts WHERE revid=? AND site=?', [rev.parentid, site_key])
+                    if len(rev.parenttext) > 0 and len(cur.fetchall()) == 0:
+                        cur.execute(u'INSERT INTO fulltexts (revid, site, revtxt) VALUES (?,?,?)', (rev.parentid, site_key, rev.parenttext))
+                        ntexts += 1
 
         sql.commit()
         cur.close()
@@ -647,11 +654,23 @@ class User(object):
         ts_end = end.astimezone(pytz.utc).strftime('%F %T')
         nrevs = 0
         narts = 0
-        cur.execute(u"""SELECT revid, site, parentid, page, timestamp, size, parentsize, parsedcomment FROM contribs
-                                   WHERE user=? AND timestamp >= ? AND timestamp <= ?""", (self.name, ts_start, ts_end))
+        t0 = time.time()
+        cur.execute(u"""
+            SELECT
+                c.revid, c.site, c.parentid, c.page, c.timestamp, c.size, c.parentsize, c.parsedcomment,
+                ft.revtxt,
+                ft2.revtxt
+            FROM contribs AS c
+            LEFT JOIN fulltexts AS ft ON ft.revid = c.revid AND ft.site = c.site
+            LEFT JOIN fulltexts AS ft2 ON ft2.revid = c.parentid AND ft2.site = c.site
+            WHERE c.user = ?
+            AND c.timestamp >= ? AND c.timestamp <= ?
+            """,
+            (self.name, ts_start, ts_end)
+        )
         for row in cur.fetchall():
 
-            rev_id, site_key, parent_id, article_title, ts, size, parentsize, parsedcomment = row
+            rev_id, site_key, parent_id, article_title, ts, size, parentsize, parsedcomment, rev_text, parent_rev_txt = row
             article_key = site_key + ':' + article_title
 
             ts = unix_time(pytz.utc.localize(ts))
@@ -669,23 +688,20 @@ class User(object):
                 nrevs += 1
                 article.add_revision(rev_id, timestamp=ts, parentid=parent_id, size=size, parentsize=parentsize, username=self.name, parsedcomment=parsedcomment)
             rev = self.revisions[rev_id]
+            rev.saved = True
 
             # Add revision text
-            cur2.execute(u"""SELECT revtxt FROM fulltexts WHERE revid=? AND site=?""", [rev_id, site_key])
-            for row2 in cur2.fetchall():
-                rev.text = row2[0].decode('utf-8')
-            if rev.text == '':
+            if rev_text == '':
                 logger.debug('Article: %s, text missing %s, backfilling', article.name, rev_id)
                 self.backfill_text(sql, sites[site_key], rev)
+                rev.dirty = True
 
             # Add parent revision text
             if not rev.new:
-                cur2.execute(u"""SELECT revtxt FROM fulltexts WHERE revid=? AND site=?""", [parent_id, site_key])
-                for row2 in cur2.fetchall():
-                    rev.parenttext = row2[0].decode('utf-8')
-                if rev.parenttext == '':
+                if parent_rev_txt == '':
                     logger.debug('Article: %s, parent text missing: %s,  backfilling', article.name, parent_id)
                     self.backfill_text(sql, sites[site_key], rev)
+                    rev.dirty = True
 
         cur.close()
         cur2.close()

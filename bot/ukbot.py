@@ -391,8 +391,17 @@ class User(object):
         #new_articles = []
         new_revisions = []
         t0 = time.time()
+        t1 = time.time()
         n_articles = len(self.articles)
         for c in site.usercontributions(self.name, ts_start, ts_end, 'newer', prop='ids|title|timestamp|comment', **args):
+
+            dt1 = time.time() - t1
+            if dt1 > 10:
+                dt0 = time.time() - t0
+                t1 = time.time()
+                logger.info('Found %d new revisions, %d new articles from API so far (%.0f secs elapsed)',
+                            len(new_revisions), new_articles, dt0)
+
             #pageid = c['pageid']
             if 'comment' in c:
                 article_comment = c['comment']

@@ -17,5 +17,5 @@ rollbar
 flup
 flask
 requests[security]
-oursql
+mysql-connector==2.1.4
 psutil

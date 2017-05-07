@@ -17,7 +17,7 @@ import unicodedata
 import re
 import json
 import os
-import oursql
+import mysql.connector
 import yaml
 from odict import odict
 import urllib
@@ -540,10 +540,9 @@ class User(object):
         """ Save self.articles to DB so it can be read by add_contribs_from_db """
 
         cur = sql.cursor()
-        nrevs = 0
-        ntexts = 0
 
-        logger.info('Saving user contributions to database')
+        contribs_query_params = []
+        fulltexts_query_params = []
 
         for article_key, article in self.articles.iteritems():
             site_key = article.site.key
@@ -553,30 +552,43 @@ class User(object):
 
                 # Save revision if not already saved
                 if not rev.saved:
-                # cur.execute(u'SELECT revid FROM contribs WHERE revid=? AND site=?', [revid, site_key])
-                # if len(cur.fetchall()) == 0:
-                    cur.execute(u'INSERT INTO contribs (revid, site, parentid, user, page, timestamp, size, parentsize, parsedcomment) VALUES (?,?,?,?,?,?,?,?,?)',
-                                (revid, site_key, rev.parentid, self.name, article.name, ts, rev.size, rev.parentsize, rev.parsedcomment))
-                    nrevs += 1
+                    contribs_query_params.append((revid, site_key, rev.parentid, self.name, article.name, ts, rev.size, rev.parentsize, rev.parsedcomment))
                     rev.saved = True
 
                 if rev.dirty:
                     # Save revision text if we have it and if not already saved
-                    cur.execute(u'SELECT revid FROM fulltexts WHERE revid=? AND site=?', [revid, site_key])
-                    if len(rev.text) > 0 and len(cur.fetchall()) == 0:
-                        cur.execute(u'INSERT INTO fulltexts (revid, site, revtxt) VALUES (?,?,?)', (revid, site_key, rev.text))
-                        ntexts += 1
+                    fulltexts_query_params.append((revid, site_key, rev.text))
+                    fulltexts_query_params.append((rev.parentid, site_key, rev.parenttext))
 
-                    # Save parent revision text if we have it and if not already saved
-                    cur.execute(u'SELECT revid FROM fulltexts WHERE revid=? AND site=?', [rev.parentid, site_key])
-                    if len(rev.parenttext) > 0 and len(cur.fetchall()) == 0:
-                        cur.execute(u'INSERT INTO fulltexts (revid, site, revtxt) VALUES (?,?,?)', (rev.parentid, site_key, rev.parenttext))
-                        ntexts += 1
+        # Insert all revisions
+        if len(contribs_query_params) > 0:
+            logger.info('Adding %d contributions to database', len(contribs_query_params))
+            t0 = time.time()
+
+            cur.executemany("""
+                insert into contribs (revid, site, parentid, user, page, timestamp, size, parentsize, parsedcomment)
+                values (%s,%s,%s,%s,%s,%s,%s,%s,%s)
+                """, contribs_query_params
+            )
+
+            dt = time.time() - t0
+            logger.info('Added %d contributions to database in %.2f secs', len(contribs_query_params), dt)
+
+        if len(fulltexts_query_params) > 0:
+            logger.info('Adding %d fulltexts to database', len(fulltexts_query_params))
+            t0 = time.time()
+
+            cur.executemany("""
+                insert ignore into fulltexts (revid, site, revtxt)
+                values (%s,%s,%s)
+                """, fulltexts_query_params
+            )
+
+            dt = time.time() - t0
+            logger.info('Added %d fulltexts to database in %.2f secs', len(fulltexts_query_params), dt)
 
         sql.commit()
         cur.close()
-        if nrevs > 0 or ntexts > 0:
-            logger.info('Wrote %d revisions and %d fulltexts to database', nrevs, ntexts)
 
 
     def backfill_text(self, sql, site, rev):
@@ -603,16 +615,16 @@ class User(object):
         cur = sql.cursor()
 
         # Save revision text if we have it and if not already saved
-        cur.execute(u'SELECT revid FROM fulltexts WHERE revid=? AND site=?', [rev.revid, site.key])
+        cur.execute(u'SELECT revid FROM fulltexts WHERE revid=%s AND site=%s', [rev.revid, site.key])
         if len(rev.text) > 0 and len(cur.fetchall()) == 0:
-            cur.execute(u'INSERT INTO fulltexts (revid, site, revtxt) VALUES (?,?,?)', (rev.revid, site.key, rev.text))
+            cur.execute(u'INSERT INTO fulltexts (revid, site, revtxt) VALUES (%s,%s,%s)', (rev.revid, site.key, rev.text))
 
         # Save parent revision text if we have it and if not already saved
         if parentid is not None:
             logger.debug('Storing parenttext %d , revid %s ', len(rev.parenttext), rev.parentid)
-            cur.execute(u'SELECT revid FROM fulltexts WHERE revid=? AND site=?', [rev.parentid, site.key])
+            cur.execute(u'SELECT revid FROM fulltexts WHERE revid=%s AND site=%s', [rev.parentid, site.key])
             if len(rev.parenttext) > 0 and len(cur.fetchall()) == 0:
-                cur.execute(u'INSERT INTO fulltexts (revid, site, revtxt) VALUES (?,?,?)', (rev.parentid, site.key, rev.parenttext))
+                cur.execute(u'INSERT INTO fulltexts (revid, site, revtxt) VALUES (%s,%s,%s)', (rev.parentid, site.key, rev.parenttext))
 
         sql.commit()
         cur.close()
@@ -642,8 +654,8 @@ class User(object):
             FROM contribs AS c
             LEFT JOIN fulltexts AS ft ON ft.revid = c.revid AND ft.site = c.site
             LEFT JOIN fulltexts AS ft2 ON ft2.revid = c.parentid AND ft2.site = c.site
-            WHERE c.user = ?
-            AND c.timestamp >= ? AND c.timestamp <= ?
+            WHERE c.user = %s
+            AND c.timestamp >= %s AND c.timestamp <= %s
             """,
             (self.name, ts_start, ts_end)
         )
@@ -1265,10 +1277,10 @@ class UK(object):
         ####################### Check if contest is in DB yet ##################
 
         cur = self.sql.cursor()
-        cur.execute(u'SELECT contest_id FROM contests WHERE site=? AND name=?', [self.config['default_prefix'], self.name])
+        cur.execute(u'SELECT contest_id FROM contests WHERE site=%s AND name=%s', [self.config['default_prefix'], self.name])
         rows = cur.fetchall()
         if len(rows) == 0:
-            cur.execute(u'INSERT INTO contests (site, name, start_date, end_date) VALUES (?,?,?,?)', [self.config['default_prefix'], self.name, self.start.strftime('%F %T'), self.end.strftime('%F %T')])
+            cur.execute(u'INSERT INTO contests (site, name, start_date, end_date) VALUES (%s,%s,%s,%s)', [self.config['default_prefix'], self.name, self.start.strftime('%F %T'), self.end.strftime('%F %T')])
             self.sql.commit()
         cur.close()
 
@@ -1529,7 +1541,7 @@ class UK(object):
         heading = self.format_heading()
 
         cur = sql.cursor()
-        cur.execute(u'SELECT contest_id FROM contests WHERE site=? AND name=?', [config['default_prefix'], ktitle])
+        cur.execute(u'SELECT contest_id FROM contests WHERE site=%s AND name=%s', [config['default_prefix'], ktitle])
         contest_id = cur.fetchall()[0][0]
 
         logger.info('Delivering prices for contest %d' % (contest_id,))
@@ -1580,11 +1592,11 @@ class UK(object):
             if prizefound:
 
                 if not simulate:
-                    cur.execute(u'SELECT prize_id FROM prizes WHERE contest_id=? AND site=? AND user=?', [contest_id, siteprefix, u.name])
+                    cur.execute(u'SELECT prize_id FROM prizes WHERE contest_id=%s AND site=%s AND user=%s', [contest_id, siteprefix, u.name])
                     rows = cur.fetchall()
                     if len(rows) == 0:
                         self.deliver_message(u.name, heading, mld, sig)
-                        cur.execute(u'INSERT INTO prizes (contest_id, site, user, timestamp) VALUES (?, ?, ?, NOW())', [contest_id, siteprefix, u.name])
+                        cur.execute(u'INSERT INTO prizes (contest_id, site, user, timestamp) VALUES (%s,%s,%s, NOW())', [contest_id, siteprefix, u.name])
                         sql.commit()
             else:
                 logger.warning('No price found for %s', u.name)
@@ -1662,18 +1674,18 @@ class UK(object):
         ts_start = self.start.astimezone(pytz.utc).strftime('%F %T')
         ts_end = self.end.astimezone(pytz.utc).strftime('%F %T')
         ndel = 0
-        cur.execute(u"SELECT site,revid,parentid FROM contribs WHERE timestamp >= ? AND timestamp <= ?", (ts_start, ts_end))
+        cur.execute(u"SELECT site,revid,parentid FROM contribs WHERE timestamp >= %s AND timestamp <= %s", (ts_start, ts_end))
         for row in cur.fetchall():
-            cur2.execute(u"DELETE FROM fulltexts WHERE site=? AND revid=?", [row[0], row[1]])
+            cur2.execute(u"DELETE FROM fulltexts WHERE site=%s AND revid=%s", [row[0], row[1]])
             ndel += cur2.rowcount
-            cur2.execute(u"DELETE FROM fulltexts WHERE site=? AND revid=?", [row[0], row[2]])
+            cur2.execute(u"DELETE FROM fulltexts WHERE site=%s AND revid=%s", [row[0], row[2]])
             ndel += cur2.rowcount
 
         cur.execute('SELECT COUNT(*) FROM fulltexts')
         nremain = cur.fetchone()[0]
         logger.info('Cleaned %d rows from fulltexts-table. %d rows remain', ndel, nremain)
 
-        cur.execute(u"""DELETE FROM contribs WHERE timestamp >= ? AND timestamp <= ?""", (ts_start, ts_end))
+        cur.execute(u"""DELETE FROM contribs WHERE timestamp >= %s AND timestamp <= %s""", (ts_start, ts_end))
         ndel = cur.rowcount
         cur.execute('SELECT COUNT(*) FROM contribs')
         nremain = cur.fetchone()[0]
@@ -1693,20 +1705,20 @@ class UK(object):
             msgs = []
             if u.suspended_since is not None:
                 d = [self.config['default_prefix'], self.name, u.name, 'suspension', '']
-                cur.execute(u'SELECT id FROM notifications WHERE site=? AND contest=? AND user=? AND class=? AND args=?', d)
+                cur.execute(u'SELECT id FROM notifications WHERE site=%s AND contest=%s AND user=%s AND class=%s AND args=%s', d)
                 if len(cur.fetchall()) == 0:
                     msgs.append('Du er inntil videre suspendert fra konkurransen med virkning fra %s. Dette innebærer at dine bidrag gjort etter dette tidspunkt ikke teller i konkurransen, men alle bidrag blir registrert og skulle suspenderingen oppheves i løpet av konkurranseperioden vil også bidrag gjort i suspenderingsperioden telle med. Vi oppfordrer deg derfor til å arbeide med problemene som førte til suspenderingen slik at den kan oppheves.' % u.suspended_since.strftime(_('%e. %B %Y, %H:%M')).decode('utf-8'))
                     if not simulate:
-                        cur.execute(u'INSERT INTO notifications (site, contest, user, class, args) VALUES (?,?,?,?,?)', d)
+                        cur.execute(u'INSERT INTO notifications (site, contest, user, class, args) VALUES (%s,%s,%s,%s,%s)', d)
             discs = []
             for article_key, article in u.articles.iteritems():
                 if article.disqualified:
                     d = [self.config['default_prefix'], self.name, u.name, 'disqualified', article_key]
-                    cur.execute(u'SELECT id FROM notifications WHERE site=? AND contest=? AND user=? AND class=? AND args=?', d)
+                    cur.execute(u'SELECT id FROM notifications WHERE site=%s AND contest=%s AND user=%s AND class=%s AND args=%s', d)
                     if len(cur.fetchall()) == 0:
                         discs.append('[[:%s|%s]]' % (article_key, article.name))
                         if not simulate:
-                            cur.execute(u'INSERT INTO notifications (site, contest, user, class, args) VALUES (?,?,?,?,?)', d)
+                            cur.execute(u'INSERT INTO notifications (site, contest, user, class, args) VALUES (%s,%s,%s,%s,%s)', d)
             if len(discs) > 0:
                 if len(discs) == 1:
                     s = discs[0]
@@ -1741,7 +1753,8 @@ class UK(object):
 def get_contest_page_title(cursor, homesite, config):
 
     # 1) Check if there are contests to close
-    cursor.execute(u'SELECT name FROM contests WHERE site=? AND ended=1 AND closed=0 LIMIT 1', [config['default_prefix']])
+
+    cursor.execute(u'SELECT name FROM contests WHERE site=%s AND ended=1 AND closed=0 LIMIT 1', [config['default_prefix']])
     rows = cursor.fetchall()
     if len(rows) != 0:
         page_title = rows[0][0]
@@ -1757,7 +1770,7 @@ def get_contest_page_title(cursor, homesite, config):
     # 2) Check if there are contests to end
     now = server_tz.localize(datetime.now())
     now_s = now.astimezone(wiki_tz).strftime('%F %T')
-    cursor.execute(u'SELECT name FROM contests WHERE site=? AND ended=0 AND closed=0 AND end_date < ? LIMIT 1', [config['default_prefix'], now_s])
+    cursor.execute(u'SELECT name FROM contests WHERE site=%s AND ended=0 AND closed=0 AND end_date < %s LIMIT 1', [config['default_prefix'], now_s])
     rows = cursor.fetchall()
     if len(rows) != 0:
         page_title = rows[0][0]
@@ -1801,6 +1814,20 @@ def get_contest_page(sql, homesite, config, page_title=None):
     #     trans = gettext.NullTranslations()
     # trans.install(unicode = True)
 
+
+class MyConverter(mysql.connector.conversion.MySQLConverter):
+
+    def row_to_python(self, row, fields):
+        row = super(MyConverter, self).row_to_python(row, fields)
+
+        def to_unicode(col):
+            if type(col) == bytearray:
+                return col.decode('utf-8')
+            return col
+
+        return[to_unicode(col) for col in row]
+
+
 def main():
 
     host = config['homesite']
@@ -1814,12 +1841,7 @@ def main():
             sites[prefix] = Site(host, **config['account'])
 
     cpage = config['pages']['catignore']
-    sql = oursql.connect(host=config['db']['host'], db=config['db']['db'],
-                         charset='utf8'.encode('utf8'), use_unicode=True,
-                         read_default_file=os.path.expanduser('~/replica.my.cnf'),
-                         port=config['db'].get('port', 3306),
-                         autoreconnect=True)
-
+    sql = mysql.connector.connect(converter_class=MyConverter, **config['db'])
     logger.debug('Connected to database')
 
     # Determine what to work with
@@ -2052,7 +2074,7 @@ def main():
             page.save(text=aws['wait'], summary=aws['wait'], bot=True)
 
             cur = sql.cursor()
-            cur.execute(u'UPDATE contests SET ended=1 WHERE site=? AND name=?', [config['default_prefix'], kpage.name])
+            cur.execute(u'UPDATE contests SET ended=1 WHERE site=%s AND name=%s', [config['default_prefix'], kpage.name])
             sql.commit()
             cur.close()
 
@@ -2069,10 +2091,10 @@ def main():
                 arg[-1] = int(uk.endweek)
             #print arg
             if not args.simulate:
-                cur.execute(u"INSERT INTO users (site, contest, user, week, points, bytes, newpages, week2) VALUES (?,?,?,?,?,?,?,?)", arg)
+                cur.execute(u"INSERT INTO users (site, contest, user, week, points, bytes, newpages, week2) VALUES (%s,%s,%s,%s,%s,%s,%s,%s)", arg)
 
         if not args.simulate:
-            cur.execute(u'UPDATE contests SET closed=1 WHERE site=? AND name=?', [config['default_prefix'], kpage.name])
+            cur.execute(u'UPDATE contests SET closed=1 WHERE site=%s AND name=%s', [config['default_prefix'], kpage.name])
             sql.commit()
 
         cur.close()

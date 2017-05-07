@@ -402,19 +402,19 @@ class User(object):
                 logger.info('Found %d new revisions, %d new articles from API so far (%.0f secs elapsed)',
                             len(new_revisions), new_articles, dt0)
 
+
             #pageid = c['pageid']
             if 'comment' in c:
                 article_comment = c['comment']
 
                 ignore = False
-                if 'ignore' in self.contest.config:
-                    for ign in self.contest.config['ignore']:
-                        if re.search(ign, article_comment):
-                            ignore = True
+                for pattern in self.contest.config.get('ignore', []):
+                    if re.search(pattern, article_comment):
+                        ignore = True
+                        logger.debug('Ignoring revision %d of %s because it matched %s', c['revid'], c['title'], pattern)
+                        break
 
-                if ignore:
-                    logger.debug('Revision %d of %s ignored as rollback', c['revid'], c['title'])
-                else:
+                if not ignore:
                     rev_id = c['revid']
                     article_title = c['title']
                     article_key = site_key + ':' + article_title

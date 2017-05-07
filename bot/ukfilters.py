@@ -6,8 +6,13 @@ from copy import copy
 from odict import odict
 from ukcommon import log
 from ukcommon import init_localization
+import logging
+
+logger = logging.getLogger(__name__)
+logger.setLevel(logging.DEBUG)
 
 t, _ = init_localization()
+
 
 class CategoryLoopError(Exception):
     """Raised when a category loop is found.
@@ -118,16 +123,17 @@ class TemplateFilter(Filter):
                 t = self.has_template(firstrev.parenttext)
                 if t:
                     if self.verbose:
-                        log('      Found template {{%s}} in [[%s]] @ %d' % (t, article_key, firstrevid))
+                        logger.info('      Found template {{%s}} in [[%s]] @ %d',
+                                    t, article_key, firstrevid)
                     out[article_key] = article
 
             except DanmicholoParseError as e:
-                log(" >> DanmicholoParser failed to parse " + article_key)
+                logger.info(" >> DanmicholoParser failed to parse %s", article_key)
                 parentid = firstrev.parentid
                 args = {'article': article_key, 'prevrev': firstrev.parentid, 'rev': lastrev.revid, 'error': e.msg}
                 article.site.errors.append(_('Could not analyze the article %(article)s because one of the revisions %(prevrev)d or %(rev)d could not be parsed: %(error)s') % args)
 
-        log("  [+] Applying template filter: %d -> %d" % (len(articles), len(out)))
+        logger.info("  [+] Applying template filter: %d -> %d", len(articles), len(out))
 
         return out
 
@@ -150,7 +156,8 @@ class CatFilter(Filter):
         self.include = catnames
         self.maxdepth = int(maxdepth)
         if self.verbose:
-            log("  CatFilter: %s, maxdepth=%d" % (" OR ".join(self.include), maxdepth))
+            logger.info("  CatFilter: %s, maxdepth=%d",
+                        " OR ".join(self.include), maxdepth)
 
     def extend(self, catfilter):
         self.include.extend(catfilter.include)
@@ -197,7 +204,7 @@ class CatFilter(Filter):
             # Titles of articles that belong to this site
             titles = [article.name for article in articles.itervalues() if article.site.key == site_key]
 
-            log(' ['+site_key+':'+str(len(titles))+']', newline=False)
+            # logger.debug(' ['+site_key+':'+str(len(titles))+']')
             #.flush()
             if len(titles) > 0:
 
@@ -238,7 +245,7 @@ class CatFilter(Filter):
                                         for d in self.ignore:
                                             if re.search(d, cat_short):
                                                 if self.verbose:
-                                                    log(' - Ignore: "%s" matched "%s"' % (cat_title, d))
+                                                    logger.debug(' - Ignore: "%s" matched "%s"', cat_title, d)
                                                 follow = False
                                         if follow:
                                             nc += 1
@@ -269,7 +276,7 @@ class CatFilter(Filter):
                     #if level == 0:
                     #    cattree = [p for p in titles]
                     #if self.verbose:
-                    log(' %d' % (len(titles)), newline=False)
+                    logger.debug(' %d', len(titles))
                     #.stdout.flush()
                     #print "Found %d unique categories (%d total) at level %d (skipped %d categories)" % (len(titles), nc, level, nnc)
         
@@ -287,7 +294,7 @@ class CatFilter(Filter):
     def filter(self, articles, debug=False):
 
         #if self.verbose:
-        log("  [+] Applying category filter", newline=False)
+        logger.debug("  [+] Applying category filter")
 
         cats, parents = self.fetchcats(articles, debug=debug)
 
@@ -300,9 +307,9 @@ class CatFilter(Filter):
             article = articles[article_key]
             lang = article_key.split(':')[0]
             if debug:
-                log(">>> %s" % article.name, newline=False)
+                logger.debug(">>> %s", article.name)
                 for l, ca in enumerate(article_cats):
-                    log('[%d] %s' % (l, ', '.join(ca)), newline=False)
+                    logger.debug('[%d] %s', l, ', '.join(ca))
 
             #print
             #print article_key
@@ -333,7 +340,7 @@ class CatFilter(Filter):
                 out[article_key] = article
 
         #if self.verbose:
-        log(": %d -> %d" % (len(articles), len(out)))
+        logger.info(": %d -> %d", len(articles), len(out))
         return out
 
 
@@ -349,7 +356,8 @@ class ByteFilter(Filter):
         for article_key, article in articles.iteritems():
             if article.bytes >= self.bytelimit:
                 out[article_key] = article
-        log("  [+] Applying byte filter (%d bytes): %d -> %d" % (self.bytelimit, len(articles), len(out)))
+        logger.info("  [+] Applying byte filter (%d bytes): %d -> %d",
+                    self.bytelimit, len(articles), len(out))
         return out
 
 
@@ -361,14 +369,14 @@ class NewPageFilter(Filter):
         self.redirects = redirects
 
     def filter(self, articles):
-        log("  [+] Applying new page filter")
+        logger.info("  [+] Applying new page filter")
         out = odict()
         for a, aa in articles.iteritems():
             if not self.redirects and aa.new_non_redirect:
                 out[a] = aa
             elif self.redirects and aa.new:
                 out[a] = aa
-        log("  [+] Applying new page filter: %d -> %d" % (len(articles), len(out)))
+        logger.info("  [+] Applying new page filter: %d -> %d", len(articles), len(out))
         return out
 
 
@@ -379,12 +387,12 @@ class ExistingPageFilter(Filter):
         Filter.__init__(self, verbose)
 
     def filter(self, articles):
-        log("  [+] Applying existing page filter")
+        logger.info("  [+] Applying existing page filter")
         out = odict()
         for aname, article in articles.iteritems():
             if not article.new:
                 out[aname] = article
-        log("  [+] Applying existing page filter: %d -> %d" % (len(articles), len(out)))
+        logger.info("  [+] Applying existing page filter: %d -> %d", len(articles), len(out))
         return out
 
 
@@ -401,7 +409,8 @@ class BackLinkFilter(Filter):
         self.sites = sites
         self.articles = articles
         self.links = []
-        log("  [+] Initializing backlink filter: " + ','.join(self.articles))
+        logger.info('  [+] Initializing backlink filter: %s',
+                    ','.join(self.articles))
         #print sites
 
         for site_key, site in self.sites.iteritems():
@@ -434,7 +443,8 @@ class BackLinkFilter(Filter):
         for article_key, article in articles.iteritems():
             if article_key in self.links:
                 out[article_key] = article
-        log("  [+] Applying backlink filter (%s): %d -> %d" % (','.join(self.articles), len(articles), len(out)))
+        logger.info("  [+] Applying backlink filter (%s): %d -> %d",
+                    ','.join(self.articles), len(articles), len(out))
         return out
 
 
@@ -470,7 +480,8 @@ class ForwardLinkFilter(Filter):
         for article_key, article in articles.iteritems():
             if article_key in self.links:
                 out[article_key] = article
-        log("  [+] Applying forward link filter (%s): %d -> %d" % (','.join(self.articles), len(articles), len(out)))
+        logger.info("  [+] Applying forward link filter (%s): %d -> %d",
+                    ','.join(self.articles), len(articles), len(out))
         return out
 
 
@@ -495,7 +506,8 @@ class PageFilter(Filter):
         for article_key, article in articles.iteritems():
             if article_key in self.pages:
                 out[article_key] = article
-        log("  [+] Applying page filter (%s): %d -> %d" % (','.join(self.pages), len(articles), len(out)))
+        logger.info('  [+] Applying page filter (%s): %d -> %d',
+                    ','.join(self.pages), len(articles), len(out))
         return out
 
 

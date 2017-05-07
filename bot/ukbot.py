@@ -24,21 +24,39 @@ import urllib
 import argparse
 import codecs
 
+import logging
+logger = logging.getLogger()
+logger.setLevel(logging.DEBUG)     # DEBUG if verbose
+syslog = logging.StreamHandler()
+# formatter = logging.Formatter('%(asctime)s [%(mem_usage)s MB] %(name)s %(levelname)s : %(message)s')
+formatter = logging.Formatter('%(asctime)s [%(mem_usage)s MB] %(levelname)s : %(message)s')
+syslog.setFormatter(formatter)
+logger.addHandler(syslog)
+syslog.setLevel(logging.INFO)
+
+logging.getLogger('requests').setLevel(logging.WARNING)
+logging.getLogger('urllib3').setLevel(logging.WARNING)
+logging.getLogger('requests_oauthlib').setLevel(logging.WARNING)
+logging.getLogger('oauthlib').setLevel(logging.WARNING)
+
+
 import mwclient
 from mwtemplates import TemplateEditor
 from mwtextextractor import get_body_text
 import ukcommon
-from ukcommon import log, init_localization
+
+
+from ukcommon import log, init_localization, get_mem_usage
 
 import locale
 
-import logging
-logger = logging.getLogger(__name__)
-logger.setLevel(logging.WARN)
 
-ch = logging.StreamHandler()
-ch.setLevel(logging.WARN)
-logger.addHandler(ch)
+class AppFilter(logging.Filter):
+    def filter(self, record):
+        record.mem_usage = '%.0f' % (get_mem_usage(),)
+        return True
+
+syslog.addFilter(AppFilter())
 
 import rollbar
 import platform
@@ -78,9 +96,11 @@ server_tz = pytz.timezone(config['server_timezone'])
 t, _ = init_localization(config['locale'])
 
 runstart = server_tz.localize(datetime.now())
-log('-----------------------------------------------------------------')
-log('UKBot starting at %s (server time), %s (wiki time)' % (runstart.strftime('%F %T'), runstart.astimezone(wiki_tz).strftime('%F %T')))
-log('Running on %s %s %s' % platform.linux_distribution())
+
+logger.info('UKBot starting at %s (server time), %s (wiki time)',
+            runstart.strftime('%F %T'),
+            runstart.astimezone(wiki_tz).strftime('%F %T'))
+logger.info('Running on %s %s %s', *platform.linux_distribution())
 
 from ukrules import *
 from ukfilters import *
@@ -129,7 +149,7 @@ class Site(mwclient.Site):
         self.errors = []
         self.name = host
         self.key = host.split('.')[0]
-        log('@ Initializing site: %s' % host)
+        logger.debug('Initializing site: %s', host)
         ua = 'UKBot. Run by User:Danmichaelo. Using mwclient/' + mwclient.__ver__
         mwclient.Site.__init__(self, host, clients_useragent=ua, **kwargs)
 
@@ -198,7 +218,7 @@ class Article(object):
                     p += rev.get_points(ptype, ignore_max, ignore_point_deductions)
                 else:
                     if self.user.contest.verbose:
-                        log('!! Skipping revision %d in suspension period' % revid)
+                        logger.info('!! Skipping revision %d in suspension period', revid)
 
         return p
         #return np.sum([a.points for a in self.articles.values()])
@@ -265,21 +285,17 @@ class Revision(object):
         except:
             mt1 = get_body_text(self.text)
             mt2 = get_body_text(self.parenttext)
-            log(u"Body size: %d -> %d, wordcount: %d -> %d (%s)" % ( len(self.parenttext), len(self.text), len(mt2.split()), len(mt1.split()), self.article.name ))
+            logger.debug(u'Body size: %d -> %d, wordcount: %d -> %d (%s)', len(self.parenttext), len(self.text), len(mt2.split()), len(mt1.split()), self.article.name)
             self._wordcount = len(mt1.split()) - len(mt2.split())
             if not self.new and len(mt2.split()) == 0 and self._wordcount > 1:
                 w = _('Revision [//%(host)s/w/index.php?diff=prev&oldid=%(revid)s %(revid)s]: The word count difference might be wrong, because no words were found in the parent revision (%(parentid)s) of size %(size)d, possibly due to unclosed tags or templates in that revision.') % { 'host': self.article.site.host, 'revid': self.revid, 'parentid': self.parentid, 'size': len(self.parenttext) }
-                log('-------------------------------------------------------------------')
-                log('[WARN] ' + w)
+                logger.warning(w)
                 #log(self.parenttext)
-                log('-------------------------------------------------------------------')
                 self.errors.append(w)
             elif self._wordcount > 10 and self._wordcount > self.bytes:
                 w = _('Revision [//%(host)s/w/index.php?diff=prev&oldid=%(revid)s %(revid)s]: The word count difference might be wrong, because the word count increase (%(words)d) is larger than the byte increase (%(bytes)d). Wrong word counts may occur for invalid wiki text.') % { 'host': self.article.site.host, 'revid': self.revid, 'words': self._wordcount, 'bytes': self.bytes }
-                log('-------------------------------------------------------------------')
-                log('[WARN] ' + w)
+                logger.warning(w)
                 #log(self.parenttext)
-                log('-------------------------------------------------------------------')
                 self.errors.append(w)
 
             #s = _('A problem encountered with revision %(revid)d may have influenced the word count for this revision: <nowiki>%(problems)s</nowiki> ')
@@ -332,7 +348,7 @@ class Revision(object):
         return p
 
     def add_point_deduction(self, points, reason):
-        log('Revision %s: Removing %d points for reason: %s' % (self.revid, points, reason))
+        logger.info('Revision %s: Removing %d points for reason: %s', self.revid, points, reason)
         self.point_deductions.append([points, reason])
 
 
@@ -382,6 +398,9 @@ class User(object):
             end       : datetime object with timezone Europe/Oslo
             fulltext  : get revision fulltexts
         """
+
+        logger.info('Reading contributions from %s', site.host)
+
         apilim = 50
         if 'bot' in site.rights:
             apilim = site.api_limit         # API limit, should be 500
@@ -396,10 +415,11 @@ class User(object):
         args = {}
         if 'namespace' in kwargs:
             args['namespace'] = kwargs['namespace']
-            log(' -> Limiting to namespaces: %s' % args['namespace'])
+            logger.debug('Limiting to namespaces: %s', args['namespace'])
 
         #new_articles = []
         new_revisions = []
+        t0 = time.time()
         n_articles = len(self.articles)
         for c in site.usercontributions(self.name, ts_start, ts_end, 'newer', prop='ids|title|timestamp|comment', **args):
             #pageid = c['pageid']
@@ -413,7 +433,7 @@ class User(object):
                             ignore = True
 
                 if ignore:
-                    log(' Revision %d of %s ignored as rollback' % (c['revid'], c['title']))
+                    logger.debug('Revision %d of %s ignored as rollback', c['revid'], c['title'])
                 else:
                     rev_id = c['revid']
                     article_title = c['title']
@@ -425,7 +445,7 @@ class User(object):
 
                         if self.revisions[rev_id].article.name != article_title:
                             rev = self.revisions[rev_id]
-                            log(' -> Moving revision %d from "%s" to "%s"' % (rev_id, rev.article.name, article_title))
+                            logger.info('Moving revision %d from "%s" to "%s"', rev_id, rev.article.name, article_title)
                             article = self.add_article_if_necessary(site, article_title)
                             rev.article.revisions.pop(rev_id)  # remove from old article
                             article.revisions[rev_id] = rev    # add to new article
@@ -441,14 +461,17 @@ class User(object):
         # some articles may now have zero revisions. We should drop them
         for article_key, article in self.articles.iteritems():
             if len(article.revisions) == 0:
-                log('--> Dropping article "%s" due to zero remaining revisions' % (article.name))
+                logger.info('Dropping article "%s" due to zero remaining revisions', article.name)
                 del self.articles[article_key]
 
         # Always sort after we've added contribs
         new_articles = len(self.articles) - n_articles
         self.sort_contribs()
-        if len(new_revisions) > 0 or new_articles > 0:
-            log(" -> [%s] Added %d new revisions, %d new articles from API" % (site_key, len(new_revisions), new_articles))
+        # if len(new_revisions) > 0 or new_articles > 0:
+        dt = time.time() - t0
+        t0 = time.time()
+        logger.info('Found %d new revisions, %d new articles from API in %.2f secs',
+                    len(new_revisions), new_articles, dt)
 
         # 2) Check if pages are redirects (this information can not be cached, because other users may make the page a redirect)
         #    If we fail to notice a redirect, the contributions to the page will be double-counted, so lets check
@@ -483,8 +506,12 @@ class User(object):
                         rev.text = apirev['*']
                     if not rev.new:
                         parentids.append(rev.parentid)
+
+        dt = time.time() - t0
+        t0 = time.time()
         if nr > 0:
-            log(" -> [%s] Checked %d of %d revisions, found %d parent revisions" % (site_key, nr, len(new_revisions), len(parentids)))
+            logger.info(' - Checked %d of %d revisions, found %d parent revisions in %.2f secs',
+                        nr, len(new_revisions), len(parentids), dt)
 
         if nr != len(new_revisions):
             raise StandardError("Did not get all revisions")
@@ -500,7 +527,7 @@ class User(object):
             ids = '|'.join(parentids[s0:s0 + apilim])
             for page in site.api('query', prop='revisions', rvprop=props, revids=ids)['query']['pages'].itervalues():
                 article_key = site_key + ':' + page['title']
-                
+
                 # In the case of a merge, the new title (article_key) might not be part of the user's 
                 # contribution list (self.articles), so we need to check:
                 if article_key in self.articles:
@@ -517,13 +544,14 @@ class User(object):
                             rev.parentsize = apirev['size']
                             if '*' in apirev.keys():
                                 rev.parenttext = apirev['*']
-                                log(u'[ %s: %d ]' % (article.name, len(rev.parenttext)))
+                                logger.debug(u'Got revision text for %s: %d bytes', article.name, len(rev.parenttext))
                             else:
-                                log(u'[ %s: Err: did not get rev text for ]' % (article.name))
+                                logger.warning(u'Did not get revision text for %s', article.name)
                         else:
                             rev.parenttext = ''  # New page
         if nr > 0:
-            log(" -> [%s] Checked %d parent revisions" % (site_key, nr))
+            dt = time.time() - t0
+            logger.info(" - Checked %d parent revisions in %.2f secs", nr, dt)
 
     def save_contribs_to_db(self, sql):
         """ Save self.articles to DB so it can be read by add_contribs_from_db """
@@ -531,6 +559,8 @@ class User(object):
         cur = sql.cursor()
         nrevs = 0
         ntexts = 0
+
+        logger.info('Saving user contributions to database')
 
         for article_key, article in self.articles.iteritems():
             site_key = article.site.key
@@ -560,7 +590,7 @@ class User(object):
         sql.commit()
         cur.close()
         if nrevs > 0 or ntexts > 0:
-            log(" -> Wrote %d revisions and %d fulltexts to DB" % (nrevs, ntexts))
+            logger.info('Wrote %d revisions and %d fulltexts to database', nrevs, ntexts)
 
 
     def backfill_text(self, sql, site, rev):
@@ -568,21 +598,21 @@ class User(object):
         props = 'ids|size|content'
         res = site.api('query', prop='revisions', rvprop=props, revids='{}|{}'.format(rev.revid, rev.parentid))['query']
         if res.get('pages') is None:
-            log(': Failed, revision deleted? ')
+            logger.info('Failed to get revision %d, revision deleted?', rev.revid)
             return
-        
+
         for page in res['pages'].itervalues():
             for apirev in page['revisions']:
                 if apirev['revid'] == rev.revid:
                     if '*' in apirev.keys():
                         rev.text = apirev['*']
                     else:
-                        log(' WARN: no revision text avail ')
+                        logger.warning('No revision text available!')
                 elif apirev['revid'] == rev.parentid:
                     if '*' in apirev.keys():
                         rev.parenttext = apirev['*']
                     else:
-                        log(' WARN: No parent revision text avail ')
+                        logger.warning('No parent revision text available!')
 
         cur = sql.cursor()
 
@@ -593,7 +623,7 @@ class User(object):
 
         # Save parent revision text if we have it and if not already saved
         if parentid is not None:
-            log(' store parenttext %d , revid %s ' % (len(rev.parenttext), rev.parentid))
+            logger.debug('Storing parenttext %d , revid %s ', len(rev.parenttext), rev.parentid)
             cur.execute(u'SELECT revid FROM fulltexts WHERE revid=? AND site=?', [rev.parentid, site.key])
             if len(rev.parenttext) > 0 and len(cur.fetchall()) == 0:
                 cur.execute(u'INSERT INTO fulltexts (revid, site, revtxt) VALUES (?,?,?)', (rev.parentid, site.key, rev.parenttext))
@@ -609,6 +639,8 @@ class User(object):
             start : datetime object
             end   : datetime object
         """
+        logger.info('Reading user contributions from database')
+
         cur = sql.cursor()
         cur2 = sql.cursor()
         ts_start = start.astimezone(pytz.utc).strftime('%F %T')
@@ -643,7 +675,7 @@ class User(object):
             for row2 in cur2.fetchall():
                 rev.text = row2[0].decode('utf-8')
             if rev.text == '':
-                log('Article: %s, text missing %s, backfilling' % (article.name, rev_id))
+                logger.debug('Article: %s, text missing %s, backfilling', article.name, rev_id)
                 self.backfill_text(sql, sites[site_key], rev)
 
             # Add parent revision text
@@ -652,7 +684,7 @@ class User(object):
                 for row2 in cur2.fetchall():
                     rev.parenttext = row2[0].decode('utf-8')
                 if rev.parenttext == '':
-                    log('Article: %s, parent text missing: %s,  backfilling' % (article.name, parent_id))
+                    logger.debug('Article: %s, parent text missing: %s,  backfilling', article.name, parent_id)
                     self.backfill_text(sql, sites[site_key], rev)
 
         cur.close()
@@ -662,7 +694,8 @@ class User(object):
         self.sort_contribs()
 
         if nrevs > 0 or narts > 0:
-            log(" -> Added %d revisions, %d articles from DB" % (nrevs, narts))
+            dt = time.time() - t0
+            logger.info('Read %d revisions, %d pages from database in %.2f secs', nrevs, narts, dt)
 
     def filter(self, filters, serial=False):
 
@@ -673,34 +706,43 @@ class User(object):
             if serial:
                 for filter in filters:
                     if self.contest.verbose:
-                        log('>> Before %s (%d) : %s' % (type(filter).__name__, len(self.articles), ', '.join(self.articles.keys())))
+                        logger.info('>> Before %s (%d) : %s',
+                                    type(filter).__name__,
+                                    len(self.articles),
+                                    ', '.join(self.articles.keys()))
 
                     self.articles = filter.filter(self.articles)
 
                     if self.contest.verbose:
-                        log('>> After %s (%d) : %s' % (type(filter).__name__, len(self.articles), ', '.join(self.articles.keys())))
+                        logger.info('>> After %s (%d) : %s',
+                                    type(filter).__name__,
+                                    len(self.articles),
+                                    ', '.join(self.articles.keys()))
             else:
                 articles = odict([])
                 if self.contest.verbose:
-                    log('>> Before filtering (%d) : %s' % (len(self.articles), ', '.join(self.articles.keys())))
+                    logger.info('>> Before filtering (%d) : %s',
+                                len(self.articles),
+                                ', '.join(self.articles.keys()))
                 for filter in filters:
                     for a in filter.filter(self.articles):
                         if a not in articles:
                             #print a
                             articles[a] = self.articles[a]
                     if self.contest.verbose:
-                        log('>> After %s (%d) : %s' % (type(filter).__name__, len(articles), ', '.join(articles.keys())))
+                        logger.info('>> After %s (%d) : %s',
+                                    type(filter).__name__,
+                                    len(articles),
+                                    ', '.join(articles.keys()))
                 self.articles = articles
 
         # We should re-sort afterwards since not all filters preserve the order (notably the CatFilter)
         self.sort_contribs()
 
-        log(" -> %d articles remain after filtering" % len(self.articles))
+        logger.info('%d pages remain after filtering', len(self.articles))
         if self.contest.verbose:
-            log('----')
             for a in self.articles.iterkeys():
-                log('%s' % a)
-            log('----')
+                logger.info(' - %s', a)
 
     @property
     def bytes(self):
@@ -731,10 +773,10 @@ class User(object):
 
         # loop over articles
         for article_key, article in self.articles.iteritems():
-            if self.contest.verbose:
-                log(article_key)
-            else:
-                log('.', newline=False)
+            # if self.contest.verbose:
+            #     logger.info(article_key)
+            # else:
+            #     logger.info('.', newline=False)
             #log(article_key)
 
             # loop over revisions
@@ -759,7 +801,7 @@ class User(object):
                             y.append(float(rev.get_points()))
                             
                             if self.contest.verbose:
-                                log('    %d : %d ' % (revid, rev.get_points()))
+                                logger.debug('    %d : %d ', revid, rev.get_points())
 
         x = np.array(x)
         y = np.array(y)
@@ -781,7 +823,7 @@ class User(object):
         utc = pytz.utc
 
         if self.contest.verbose:
-            log('Formatting results for user %s' % self.name)
+            logger.info('Formatting results for user %s', self.name)
         # loop over articles
         for article_key, article in self.articles.iteritems():
 
@@ -791,7 +833,7 @@ class User(object):
             if brutto == 0.0:
 
                 if self.contest.verbose:
-                    log('    %s: skipped (0 points)' % article_key)
+                    logger.info('    %s: skipped (0 points)', article_key)
 
             else:
 
@@ -853,7 +895,7 @@ class User(object):
 
                 entries.append(out)
                 if self.contest.verbose:
-                    log('    %s: %.f / %.f points' % (article_key, netto, brutto), newline=False)
+                    logger.debug('    %s: %.f / %.f points', article_key, netto, brutto)
 
         ros = ''
         if closing:
@@ -914,10 +956,10 @@ class UK(object):
         self.users = [User(n, self) for n in self.extract_userlist(txt)]
         self.rules, self.filters = self.extract_rules(txt, catignore)
 
-        if self.startweek == self.endweek:
-            log('@ Week %d' % self.startweek)
-        else:
-            log('@ Week %d–%d' % (self.startweek, self.endweek))
+        # if self.startweek == self.endweek:
+        #     logger.info(' - Week %d', self.startweek)
+        # else:
+        #     logger.info(' - Week %d–%d', self.startweek, self.endweek)
 
     def extract_userlist(self, txt):
         lst = []
@@ -933,7 +975,7 @@ class UK(object):
             q = re.search(r'\[\[([^:]+):([^|\]]+)', d)
             if q:
                 lst.append(q.group(2))
-        log("@ Found %d participants" % (len(lst)))
+        logger.info(" - %d participants", len(lst))
         return lst
 
     def extract_rules(self, txt, catignore_txt):
@@ -948,7 +990,7 @@ class UK(object):
         dp = TemplateEditor(txt)
         if catignore_txt == '':
             catignore = []
-            log('Note: Empty catignore page')
+            logger.info('Note: Empty catignore page')
         else:
 
             if not config['templates']['rule']['name'] in dp.templates:
@@ -1160,7 +1202,7 @@ class UK(object):
             else:
                 raise ParseError(_('Unkown argument given to {{tl|%(template)s}}: %(argument)s') % {'template': rulecfg['name'], 'argument': key})
 
-        log("@ Found %d filters and %d rules" % (nfilters, nrules))
+        logger.info(" - %d filter(s) and %d rule(s)", nfilters, nrules)
 
         ######################## Read infobox ########################
 
@@ -1205,7 +1247,7 @@ class UK(object):
         userprefix = self.homesite.namespaces[2]
         self.ledere = re.findall(r'\[\[(?:User|%s):([^\|\]]+)' % userprefix, unicode(infoboks.parameters[ibcfg['organizer']]), flags=re.I)
         if len(self.ledere) == 0:
-            log('Did not find any organizers in {{tl|%(template)s}}.' % {'template': ibcfg['name']})
+            logger.info('Did not find any organizers in {{tl|%s}}.', ibcfg['name'])
 
         awards = config['awards']
         self.prices = []
@@ -1227,7 +1269,7 @@ class UK(object):
         if not 'winner' in [r[1] for r in self.prices]:
             winnerawards = ', '.join(['{{para|%s|vinner}}' % k for k, v in awards.items() if 'winner' in v])
             #raise ParseError(_('Found no winner award in {{tl|%(template)s}}. Winner award is set by one of the following: %(awards)s.') % {'template': ibcfg['name'], 'awards': winnerawards})
-            log('Found no winner award in {{tl|%(template)s}}. Winner award is set by one of the following: %(awards)s.' % {'template': ibcfg['name'], 'awards': winnerawards})
+            logger.info('Found no winner award in {{tl|%s}}. Winner award is set by one of the following: %s.', ibcfg['name'], winnerawards)
 
         self.prices.sort(key=lambda x: x[2], reverse=True)
 
@@ -1294,7 +1336,7 @@ class UK(object):
                 points = float(templ.parameters[3].value.replace(',', '.'))
                 reason = templ.parameters[4].value
                 ufound = False
-                log('poengtrekk: USER: %s REVISION: %s POINTS: %d REASON: %s' % (uname, revid, points, reason))
+                logger.info('poengtrekk: USER: %s REVISION: %s POINTS: %d REASON: %s', uname, revid, points, reason)
                 for u in self.users:
                     if u.name == uname:
                         u.point_deductions.append([revid, points, reason])
@@ -1314,7 +1356,7 @@ class UK(object):
                 points = float(templ.parameters[3].value.replace(',', '.'))
                 reason = templ.parameters[4].value
                 ufound = False
-                log('poeng: USER: %s REVISION: %s POINTS: %d REASON: %s' % (uname, revid, points, reason))
+                logger.info('poeng: USER: %s REVISION: %s POINTS: %d REASON: %s', uname, revid, points, reason)
                 for u in self.users:
                     if u.name == uname:
                         u.point_deductions.append([revid, -points, reason])
@@ -1467,7 +1509,7 @@ class UK(object):
             return _('Weekly contest for week %(startweek)d–%(endweek)d') % {'startweek': self.startweek, 'endweek': self.endweek}
 
     def deliver_message(self, username, topic, body, sig='~~~~'):
-        log(' -> Delivering message to %s' % username)
+        logger.info('Delivering message to %s', username)
 
         prefix = self.homesite.namespaces[3]
         prefixed = prefix + ':' + username
@@ -1501,7 +1543,7 @@ class UK(object):
         cur.execute(u'SELECT contest_id FROM contests WHERE site=? AND name=?', [config['default_prefix'], ktitle])
         contest_id = cur.fetchall()[0][0]
 
-        print 'Delivering prices for contest', contest_id
+        logger.info('Delivering prices for contest %d' % (contest_id,))
 
         # sql.commit()
         # cur.close()
@@ -1556,7 +1598,7 @@ class UK(object):
                         cur.execute(u'INSERT INTO prizes (contest_id, site, user, timestamp) VALUES (?, ?, ?, NOW())', [contest_id, siteprefix, u.name])
                         sql.commit()
             else:
-                log(' -> No price found for %s' % u.name)
+                logger.warning('No price found for %s', u.name)
 
     def deliver_leader_notification(self, pagename):
         heading = self.format_heading()
@@ -1597,7 +1639,7 @@ class UK(object):
             mld += _('Now you must check if the results look ok. If there are error messages at the bottom of the [[%(page)s|contest page]], you should check that the related contributions have been awarded the correct number of points. Also check if there are comments or complaints on the discussion page. If everything looks fine, [%(link)s click here] (and save) to indicate that I can send out the awards at first occasion.') % {'page': pagename, 'link': link}
             sig = _('Thanks, ~~~~')
 
-            log(' -> Leverer arrangørmelding til %s' % pagename)
+            logger.info('Leverer arrangørmelding til %s', pagename)
             self.deliver_message(u, heading, mld, sig)
 
 
@@ -1610,7 +1652,7 @@ class UK(object):
         mld = '\n:' + _('Awards have been [%(link)s sent out].') % {'link': link}
         for u in self.ledere:
             page = self.homesite.pages['%s:%s' % (usertalkprefix, u)]
-            log(' -> Leverer kvittering til %s' % page.name)
+            logger.info('Leverer kvittering til %s', page.name)
 
             # Find section number
             txt = page.text()
@@ -1618,7 +1660,7 @@ class UK(object):
             try:
                 csection = sections.index(heading) + 1
             except ValueError:
-                log('[ERROR] Fant ikke "%s" i "%s' % (heading, page.name))
+                logger.error('Fant ikke "%s" i "%s', heading, page.name)
                 return
 
             # Append text to section
@@ -1640,13 +1682,13 @@ class UK(object):
 
         cur.execute('SELECT COUNT(*) FROM fulltexts')
         nremain = cur.fetchone()[0]
-        log('> Cleaned %d rows from fulltexts-table. %d rows remain' % (ndel, nremain))
+        logger.info('> Cleaned %d rows from fulltexts-table. %d rows remain', ndel, nremain)
 
         cur.execute(u"""DELETE FROM contribs WHERE timestamp >= ? AND timestamp <= ?""", (ts_start, ts_end))
         ndel = cur.rowcount
         cur.execute('SELECT COUNT(*) FROM contribs')
         nremain = cur.fetchone()[0]
-        log('> Cleaned %d rows from contribs-table. %d rows remain' % (ndel, nremain))
+        logger.info('> Cleaned %d rows from contribs-table. %d rows remain', ndel, nremain)
 
         cur.close()
         cur2.close()
@@ -1699,9 +1741,9 @@ class UK(object):
                 #print '------------------------------'
 
                 page = self.homesite.pages['%s:%s' % (usertalkprefix, u.name)]
-                log(' -> Leverer advarsel til %s' % page.name)
+                logger.info('Leverer advarsel til %s', page.name)
                 if simulate:
-                    log(msg)
+                    logger.info(msg)
                 else:
                     page.save(text=msg, bot=False, section='new', summary=heading)
             self.sql.commit()
@@ -1714,14 +1756,13 @@ def get_contest_page_title(cursor, homesite, config):
     rows = cursor.fetchall()
     if len(rows) != 0:
         page_title = rows[0][0]
-        log(" -> Contest %s is to be closed" % rows[0])
         lastrev = homesite.pages[config['awardstatus']['pagename']].revisions(prop='user|comment').next()
         closeuser = lastrev['user']
         revc = lastrev['comment']
         if revc.find('/* ' + config['awardstatus']['send'] + ' */') == -1:
-            log('>> Award delivery has not been confirmed yet')
+            logger.info('Contest [[%s]] is to be closed, but award delivery has not been confirmed yet', page_title)
         else:
-            log('>> Award delivery has been confirmed')
+            logger.info('Will close contest [[%s]], award delivery has been confirmed', page_title)
             return 'closing', page_title
 
     # 2) Check if there are contests to end
@@ -1731,7 +1772,7 @@ def get_contest_page_title(cursor, homesite, config):
     rows = cursor.fetchall()
     if len(rows) != 0:
         page_title = rows[0][0]
-        log(" -> Contest %s just ended" % rows[0])
+        logger.info('Contest %s just ended', rows[0])
         return 'ending', page_title
 
     # 3) Get contest page from current date
@@ -1784,18 +1825,25 @@ def main():
             sites[prefix] = Site(host, **config['account'])
 
     cpage = config['pages']['catignore']
-    sql = oursql.connect(host=config['db']['host'], db=config['db']['db'], charset='utf8'.encode('utf8'), use_unicode=True,
-        read_default_file=os.path.expanduser('~/replica.my.cnf'), autoreconnect=True)
+    sql = oursql.connect(host=config['db']['host'], db=config['db']['db'],
+                         charset='utf8'.encode('utf8'), use_unicode=True,
+                         read_default_file=os.path.expanduser('~/replica.my.cnf'),
+                         port=config['db'].get('port', 3306),
+                         autoreconnect=True)
+
+    logger.debug('Connected to database')
 
     # Determine what to work with
 
     # Check if there are contests to be closed
     kstatus, kpage = get_contest_page(sql, homesite, config, args.page)
     if not kpage.exists:
-        log('  !! contest page does not exist! Exiting')
+        logger.error('Contest page does not exist! Exiting')
         return
 
     # Initialize the contest
+
+    logger.info('Current contest: [[%s]]', kpage.page_title)
 
     try:
         uk = UK(kpage, homesite.pages[cpage].text(), sites=sites, homesite=homesite, sql=sql, verbose=args.verbose, config=config)
@@ -1803,7 +1851,7 @@ def main():
         err = "\n* '''%s'''" % e.msg
         out = '\n{{%s | error | %s }}' % (config['templates']['botinfo'], err)
         if args.simulate:
-            print out.encode('utf-8')
+            logger.info(out)
         else:
             kpage.save('dummy', summary=_('UKBot encountered a problem'), appendtext=out)
         raise
@@ -1813,7 +1861,9 @@ def main():
     #     #log('!! Konkurransen ble forsøkt avsluttet av andre enn konkurranseleder')
     #     #return
 
-    log('@ Contest open from %s to %s' % (uk.start.strftime('%F %T'), uk.end.strftime('%F %T')))
+    logger.info(' - Open from %s to %s',
+                uk.start.strftime('%F %T'),
+                uk.end.strftime('%F %T'))
 
     # Loop over users
 
@@ -1831,7 +1881,8 @@ def main():
             host_filter = f.site
 
     for u in uk.users:
-        log("=== %s ===" % u.name)
+
+        logger.info('=== User:%s ===', u.name)
 
         # First read contributions from db
         u.add_contribs_from_db(sql, uk.start, uk.end, sites)
@@ -1845,15 +1896,16 @@ def main():
         # And update db
         u.save_contribs_to_db(sql)
 
+        logger.info('Filtering user contributions')
         try:
 
             # Filter out relevant articles
             u.filter(uk.filters)
 
             # And calculate points
-            log(' -> Analyzing ', newline=False)
+            # log(' -> Analyzing ', newline=False)
             u.analyze(uk.rules)
-            log('OK (%.f points)' % u.points)
+            logger.info('%s: %.f points', u.name, u.points)
 
             narticles += len(u.articles)
             nbytes += u.bytes
@@ -1870,6 +1922,8 @@ def main():
             raise
 
     # Sort users by points
+
+    logger.info('Sorting contributions and preparing contest page')
 
     uk.users.sort(key=lambda x: x.points, reverse=True)
 
@@ -1989,7 +2043,7 @@ def main():
             else:
                 txt = txt[:secstart] + out + txt[secend:]
 
-            log(" -> Updating wiki, section = %d " % (uk.results_section))
+            logger.info('Updating wiki, section = %d', uk.results_section)
             if kstatus == 'ending':
                 kpage.save(txt, summary=_('Updating with final results, the contest is now closed.'))
             elif kstatus == 'closing':
@@ -2004,7 +2058,7 @@ def main():
         f.close()
 
     if kstatus == 'ending':
-        log(" -> Ending contest")
+        logger.info('Ending contest')
         if not args.simulate:
             uk.deliver_leader_notification(kpage.name)
 
@@ -2018,7 +2072,7 @@ def main():
             cur.close()
 
     if kstatus == 'closing':
-        log(" -> Delivering prices")
+        logger.info('Delivering prices')
 
         uk.deliver_prices(sql, config['default_prefix'], kpage.name, args.simulate)
 
@@ -2047,7 +2101,7 @@ def main():
         # Skip for now: not Flow compatible
         #     uk.deliver_receipt_to_leaders()
 
-        log(' -> Cleaning DB')
+        logger.info('Cleaning database')
         if not args.simulate:
             uk.delete_contribs_from_db()
 
@@ -2082,7 +2136,7 @@ def main():
         tpl = dp.templates[tplname][0]
         now2 = now.astimezone(wiki_tz)
         if int(tpl.parameters['uke']) != int(now2.strftime('%V')):
-            log('-> Updating %s' % boardname)
+            logger.info('Updating noticeboard: %s', boardname)
             tpllist = config['templates']['contestlist']
             commonargs = config['templates']['commonargs']
             tema = homesite.api('parse', text='{{subst:%s|%s=%s}}' % (tpllist['name'], commonargs['week'], now2.strftime('%Y-%V')), pst=1, onlypst=1)['parse']['text']['*']
@@ -2100,7 +2154,9 @@ def main():
 
     runend = server_tz.localize(datetime.now())
     runtime = (runend - runstart).total_seconds()
-    log('UKBot finishing at %s. Runtime was %.f seconds.' % (runend.strftime('%F %T'), runtime))
+    logger.info('UKBot finishing at %s. Runtime was %.f seconds.',
+                runend.strftime('%F %T'),
+                runtime)
 
 if __name__ == '__main__':
     main()

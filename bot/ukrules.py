@@ -8,6 +8,10 @@ from mwtextextractor import condition_for_lxml
 from ukcommon import init_localization
 from ukcommon import log
 import urllib
+import logging
+
+logger = logging.getLogger(__name__)
+logger.setLevel(logging.DEBUG)
 
 t, _ = init_localization()
 
@@ -253,10 +257,12 @@ class ImageRule(Rule):
                 try:
                     uploader = imageinfo['user']
                 except KeyError:
-                    log("ERR: Could not locate user for file '%s' in rev. %s " % (filename, rev.revid))
+                    logger.error("Could not locate user for file '%s' in rev. %s ",
+                                 filename, rev.revid)
                     continue
 
-                log("- File '%s' uploaded by '%s', revision made by '%s'" % (filename, uploader, rev.username))
+                logger.info("- File '%s' uploaded by '%s', revision made by '%s'",
+                            filename, uploader, rev.username)
                 if uploader == rev.username:
                     #print "own image!"
                     #own_imgs_added.append(filename)
@@ -274,7 +280,7 @@ class ImageRule(Rule):
                 else:
                     counters['other'].append(filename)
             else:
-                log("- File '%s' does not exist" % (filename))
+                logger.info("- File '%s' does not exist", filename)
 
 
         # If maxinitialcount is 0, only the first image counts.

@@ -18,3 +18,4 @@ flup
 flask
 requests[security]
 oursql
+psutil

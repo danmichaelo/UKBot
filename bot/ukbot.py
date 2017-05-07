@@ -190,8 +190,7 @@ class Article(object):
                 if ignore_suspension_period is True or self.user.suspended_since is None or dt < self.user.suspended_since:
                     p += rev.get_points(ptype, ignore_max, ignore_point_deductions)
                 else:
-                    if self.user.contest.verbose:
-                        logger.info('!! Skipping revision %d in suspension period', revid)
+                    logger.debug('!! Skipping revision %d in suspension period', revid)
 
         return p
         #return np.sum([a.points for a in self.articles.values()])
@@ -392,8 +391,10 @@ class User(object):
         new_revisions = []
         t0 = time.time()
         t1 = time.time()
+        tnr = 0
         n_articles = len(self.articles)
         for c in site.usercontributions(self.name, ts_start, ts_end, 'newer', prop='ids|title|timestamp|comment', **args):
+            tnr += 1
 
             dt1 = time.time() - t1
             if dt1 > 10:
@@ -451,8 +452,8 @@ class User(object):
         # if len(new_revisions) > 0 or new_articles > 0:
         dt = time.time() - t0
         t0 = time.time()
-        logger.info('Found %d new revisions, %d new articles from API in %.2f secs',
-                    len(new_revisions), new_articles, dt)
+        logger.info('Checked %d contributions, found %d new revisions and %d new articles from API in %.2f secs',
+                    tnr, len(new_revisions), new_articles, dt)
 
         # 2) Check if pages are redirects (this information can not be cached, because other users may make the page a redirect)
         #    If we fail to notice a redirect, the contributions to the page will be double-counted, so lets check
@@ -492,8 +493,8 @@ class User(object):
         dt = time.time() - t0
         t0 = time.time()
         if nr > 0:
-            logger.info(' - Checked %d of %d revisions, found %d parent revisions in %.2f secs',
-                        nr, len(new_revisions), len(parentids), dt)
+            logger.info('Checked %d revisions, found %d parent revisions in %.2f secs',
+                        nr, len(parentids), dt)
 
         if nr != len(new_revisions):
             raise StandardError("Did not get all revisions")
@@ -533,7 +534,7 @@ class User(object):
                             rev.parenttext = ''  # New page
         if nr > 0:
             dt = time.time() - t0
-            logger.info(" - Checked %d parent revisions in %.2f secs", nr, dt)
+            logger.info('Checked %d parent revisions in %.2f secs', nr, dt)
 
     def save_contribs_to_db(self, sql):
         """ Save self.articles to DB so it can be read by add_contribs_from_db """
@@ -687,11 +688,15 @@ class User(object):
         # Always sort after we've added contribs
         self.sort_contribs()
 
-        if nrevs > 0 or narts > 0:
-            dt = time.time() - t0
-            logger.info('Read %d revisions, %d pages from database in %.2f secs', nrevs, narts, dt)
+        # if nrevs > 0 or narts > 0:
+        dt = time.time() - t0
+        logger.info('Read %d revisions, %d pages from database in %.2f secs', nrevs, narts, dt)
 
     def filter(self, filters, serial=False):
+
+        logger.info('Filtering user contributions')
+        n0 = len(self.articles)
+        t0 = time.time()
 
         if len(filters) == 1 and type(filters[0]) == NamespaceFilter:
             pass
@@ -699,44 +704,40 @@ class User(object):
         else:
             if serial:
                 for filter in filters:
-                    if self.contest.verbose:
-                        logger.info('>> Before %s (%d) : %s',
-                                    type(filter).__name__,
-                                    len(self.articles),
-                                    ', '.join(self.articles.keys()))
+                    logger.debug('>> Before %s (%d) : %s',
+                                type(filter).__name__,
+                                len(self.articles),
+                                ', '.join(self.articles.keys()))
 
                     self.articles = filter.filter(self.articles)
 
-                    if self.contest.verbose:
-                        logger.info('>> After %s (%d) : %s',
-                                    type(filter).__name__,
-                                    len(self.articles),
-                                    ', '.join(self.articles.keys()))
-            else:
-                articles = odict([])
-                if self.contest.verbose:
-                    logger.info('>> Before filtering (%d) : %s',
+                    logger.debug('>> After %s (%d) : %s',
+                                type(filter).__name__,
                                 len(self.articles),
                                 ', '.join(self.articles.keys()))
+            else:
+                articles = odict([])
+                logger.debug('>> Before filtering (%d) : %s',
+                            len(self.articles),
+                            ', '.join(self.articles.keys()))
                 for filter in filters:
                     for a in filter.filter(self.articles):
                         if a not in articles:
                             #print a
                             articles[a] = self.articles[a]
-                    if self.contest.verbose:
-                        logger.info('>> After %s (%d) : %s',
-                                    type(filter).__name__,
-                                    len(articles),
-                                    ', '.join(articles.keys()))
+                    logger.debug('>> After %s (%d) : %s',
+                                type(filter).__name__,
+                                len(articles),
+                                ', '.join(articles.keys()))
                 self.articles = articles
 
         # We should re-sort afterwards since not all filters preserve the order (notably the CatFilter)
         self.sort_contribs()
 
-        logger.info('%d pages remain after filtering', len(self.articles))
-        if self.contest.verbose:
-            for a in self.articles.iterkeys():
-                logger.info(' - %s', a)
+        dt = time.time() - t0
+        logger.info('%d of %d pages remain after filtering. Filtering took %.2f secs', len(self.articles), n0, dt)
+        for a in self.articles.iterkeys():
+            logger.debug(' - %s', a)
 
     @property
     def bytes(self):
@@ -793,9 +794,8 @@ class User(object):
                             ts = float(unix_time(utc.localize(datetime.fromtimestamp(rev.timestamp)).astimezone(wiki_tz)))
                             x.append(ts)
                             y.append(float(rev.get_points()))
-                            
-                            if self.contest.verbose:
-                                logger.debug('    %d : %d ', revid, rev.get_points())
+
+                            logger.debug('    %d : %d ', revid, rev.get_points())
 
         x = np.array(x)
         y = np.array(y)
@@ -816,8 +816,7 @@ class User(object):
 
         utc = pytz.utc
 
-        if self.contest.verbose:
-            logger.info('Formatting results for user %s', self.name)
+        logger.debug('Formatting results for user %s', self.name)
         # loop over articles
         for article_key, article in self.articles.iteritems():
 
@@ -826,8 +825,7 @@ class User(object):
 
             if brutto == 0.0:
 
-                if self.contest.verbose:
-                    logger.info('    %s: skipped (0 points)', article_key)
+                logger.debug('    %s: skipped (0 points)', article_key)
 
             else:
 
@@ -888,8 +886,7 @@ class User(object):
                 out += '<div class="uk-ap-title" style="font-size: smaller; color:#888; line-height:100%;">' + titletxt + '</div>'
 
                 entries.append(out)
-                if self.contest.verbose:
-                    logger.debug('    %s: %.f / %.f points', article_key, netto, brutto)
+                logger.debug('    %s: %.f / %.f points', article_key, netto, brutto)
 
         ros = ''
         if closing:
@@ -921,13 +918,12 @@ class User(object):
 
 class UK(object):
 
-    def __init__(self, page, catignore, sites, homesite, sql, config, verbose=False):
+    def __init__(self, page, catignore, sites, homesite, sql, config):
         """
             page: mwclient.Page object
             catignore: string
             sites: list
             sql: mysql Connection object
-            verbose: boolean
         """
         self.page = page
         self.name = self.page.name
@@ -941,7 +937,6 @@ class UK(object):
 
         txt = txt[:m.end()]
 
-        self.verbose = verbose
         self.sql = sql
         sections = [s.strip() for s in re.findall('^[\s]*==([^=]+)==', txt, flags=re.M)]
         self.results_section = sections.index(resultsSection) + 1
@@ -1019,7 +1014,7 @@ class UK(object):
                 anon = [remove_control_chars(v) if v is not None else None for v in anon]
 
                 key = anon[1].lower()
-                params = {'verbose': self.verbose}
+                params = {}
                 if key == filtercfg['new']:
                     if templ.has_param(filtercfg['redirects']):
                         params['redirects'] = True
@@ -1676,13 +1671,13 @@ class UK(object):
 
         cur.execute('SELECT COUNT(*) FROM fulltexts')
         nremain = cur.fetchone()[0]
-        logger.info('> Cleaned %d rows from fulltexts-table. %d rows remain', ndel, nremain)
+        logger.info('Cleaned %d rows from fulltexts-table. %d rows remain', ndel, nremain)
 
         cur.execute(u"""DELETE FROM contribs WHERE timestamp >= ? AND timestamp <= ?""", (ts_start, ts_end))
         ndel = cur.rowcount
         cur.execute('SELECT COUNT(*) FROM contribs')
         nremain = cur.fetchone()[0]
-        logger.info('> Cleaned %d rows from contribs-table. %d rows remain', ndel, nremain)
+        logger.info('Cleaned %d rows from contribs-table. %d rows remain', ndel, nremain)
 
         cur.close()
         cur2.close()
@@ -1828,19 +1823,16 @@ def main():
     logger.debug('Connected to database')
 
     # Determine what to work with
-
-    # Check if there are contests to be closed
     kstatus, kpage = get_contest_page(sql, homesite, config, args.page)
+    logger.info('Current contest: %s', kpage.page_title)
+
     if not kpage.exists:
-        logger.error('Contest page does not exist! Exiting')
+        logger.error('Contest page [[%s]] does not exist! Exiting', kpage.page_title)
         return
 
     # Initialize the contest
-
-    logger.info('Current contest: [[%s]]', kpage.page_title)
-
     try:
-        uk = UK(kpage, homesite.pages[cpage].text(), sites=sites, homesite=homesite, sql=sql, verbose=args.verbose, config=config)
+        uk = UK(kpage, homesite.pages[cpage].text(), sites=sites, homesite=homesite, sql=sql, config=config)
     except ParseError as e:
         err = "\n* '''%s'''" % e.msg
         out = '\n{{%s | error | %s }}' % (config['templates']['botinfo'], err)
@@ -1890,7 +1882,6 @@ def main():
         # And update db
         u.save_contribs_to_db(sql)
 
-        logger.info('Filtering user contributions')
         try:
 
             # Filter out relevant articles
@@ -1910,7 +1901,7 @@ def main():
             err = "\n* '''%s'''" % e.msg
             out = '\n{{%s | error | %s }}' % (config['templates']['botinfo'], err)
             if args.simulate:
-                print out
+                logger.error(out)
             else:
                 kpage.save('dummy', summary=_('UKBot encountered a problem'), appendtext=out)
             raise
@@ -2046,7 +2037,7 @@ def main():
                 kpage.save(txt, summary=_('Updating'))
 
     if args.output != '':
-        print "Writing output to file"
+        logger.info("Writing output to file")
         f = codecs.open(args.output, 'w', 'utf-8')
         f.write(out)
         f.close()
@@ -2163,6 +2154,11 @@ if __name__ == '__main__':
     parser.add_argument('--close', action='store_true', help='Close contest')
     parser.add_argument('--config', nargs='?', default='config.yml', help='Config file')
     args = parser.parse_args()
+
+    if args.verbose:
+        logger.setLevel(logging.DEBUG)
+    else:
+        logger.setLevel(logging.INFO)
 
     if args.log != '':
         ukcommon.logfile = open(args.log, 'a')

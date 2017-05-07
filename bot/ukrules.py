@@ -261,7 +261,7 @@ class ImageRule(Rule):
                                  filename, rev.revid)
                     continue
 
-                logger.info("- File '%s' uploaded by '%s', revision made by '%s'",
+                logger.debug("File '%s' uploaded by '%s', revision made by '%s'",
                             filename, uploader, rev.username)
                 if uploader == rev.username:
                     #print "own image!"
@@ -280,7 +280,7 @@ class ImageRule(Rule):
                 else:
                     counters['other'].append(filename)
             else:
-                logger.info("- File '%s' does not exist", filename)
+                logger.warning("File '%s' does not exist", filename)
 
 
         # If maxinitialcount is 0, only the first image counts.

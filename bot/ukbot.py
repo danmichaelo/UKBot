@@ -75,35 +75,6 @@ def remove_control_chars(s):
     else:
         return s
 
-parser = argparse.ArgumentParser(description='The UKBot')
-parser.add_argument('--page', required=False, help='Name of the contest page to work with')
-parser.add_argument('--simulate', action='store_true', default=False, help='Do not write results to wiki')
-parser.add_argument('--output', nargs='?', default='', help='Write results to file')
-parser.add_argument('--log', nargs='?', default='', help='Log file')
-parser.add_argument('--verbose', action='store_true', default=False, help='More verbose logging')
-parser.add_argument('--close', action='store_true', help='Close contest')
-parser.add_argument('--config', nargs='?', default='config.yml', help='Config file')
-args = parser.parse_args()
-
-if args.log != '':
-    ukcommon.logfile = open(args.log, 'a')
-
-config = yaml.load(open(args.config, 'r'))
-# rollbar.init(config['rollbar_token'], 'production')
-wiki_tz = pytz.timezone(config['wiki_timezone'])
-server_tz = pytz.timezone(config['server_timezone'])
-
-t, _ = init_localization(config['locale'])
-
-runstart = server_tz.localize(datetime.now())
-
-logger.info('UKBot starting at %s (server time), %s (wiki time)',
-            runstart.strftime('%F %T'),
-            runstart.astimezone(wiki_tz).strftime('%F %T'))
-logger.info('Running on %s %s %s', *platform.linux_distribution())
-
-from ukrules import *
-from ukfilters import *
 
     # Settings
 # Suggested crontab:
@@ -2173,6 +2144,36 @@ def main():
                 runtime)
 
 if __name__ == '__main__':
+
+    parser = argparse.ArgumentParser(description='The UKBot')
+    parser.add_argument('--page', required=False, help='Name of the contest page to work with')
+    parser.add_argument('--simulate', action='store_true', default=False, help='Do not write results to wiki')
+    parser.add_argument('--output', nargs='?', default='', help='Write results to file')
+    parser.add_argument('--log', nargs='?', default='', help='Log file')
+    parser.add_argument('--verbose', action='store_true', default=False, help='More verbose logging')
+    parser.add_argument('--close', action='store_true', help='Close contest')
+    parser.add_argument('--config', nargs='?', default='config.yml', help='Config file')
+    args = parser.parse_args()
+
+    if args.log != '':
+        ukcommon.logfile = open(args.log, 'a')
+
+    config = yaml.load(open(args.config, 'r'))
+    # rollbar.init(config['rollbar_token'], 'production')
+    wiki_tz = pytz.timezone(config['wiki_timezone'])
+    server_tz = pytz.timezone(config['server_timezone'])
+
+    t, _ = init_localization(config['locale'])
+    from ukrules import *
+    from ukfilters import *
+
+    runstart = server_tz.localize(datetime.now())
+
+    logger.info('UKBot starting at %s (server time), %s (wiki time)',
+                runstart.strftime('%F %T'),
+                runstart.astimezone(wiki_tz).strftime('%F %T'))
+    logger.info('Running on %s %s %s', *platform.linux_distribution())
+
     main()
     #try:
     #    main()

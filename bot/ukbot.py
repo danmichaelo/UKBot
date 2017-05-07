@@ -686,14 +686,12 @@ class User(object):
             if rev_text == '':
                 logger.debug('Article: %s, text missing %s, backfilling', article.name, rev_id)
                 self.backfill_text(sql, sites[site_key], rev)
-                rev.dirty = True
 
             # Add parent revision text
             if not rev.new:
                 if parent_rev_txt == '':
                     logger.debug('Article: %s, parent text missing: %s,  backfilling', article.name, parent_id)
                     self.backfill_text(sql, sites[site_key], rev)
-                    rev.dirty = True
 
         cur.close()
         cur2.close()

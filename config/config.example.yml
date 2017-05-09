@@ -131,3 +131,5 @@ noticeboard:
         date: dato
 ignore:
     - Reverted edits by  # MediaWiki:Revertpage/en
+    - clientsitelink-update  # Wikidata: Page moved from .. to ..
+    - clientsitelink-remove  # Wikidata: Removed sitelink

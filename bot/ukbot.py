@@ -237,6 +237,10 @@ class Revision(object):
                 self.username = v[0].upper() + v[1:]
             elif k == 'parsedcomment':
                 self.parsedcomment = v
+            elif k == 'text':
+                self.text = v
+            elif k == 'parenttext':
+                self.parenttext = v
             else:
                 raise StandardError('add_revision got unknown argument %s' % k)
 
@@ -678,7 +682,8 @@ class User(object):
             # Add revision if not present
             if not rev_id in self.revisions:
                 nrevs += 1
-                article.add_revision(rev_id, timestamp=ts, parentid=parent_id, size=size, parentsize=parentsize, username=self.name, parsedcomment=parsedcomment)
+                article.add_revision(rev_id, timestamp=ts, parentid=parent_id, size=size, parentsize=parentsize,
+                    username=self.name, parsedcomment=parsedcomment, text=rev_text, parenttext=parent_rev_txt)
             rev = self.revisions[rev_id]
             rev.saved = True
 

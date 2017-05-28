@@ -38,6 +38,7 @@ logging.getLogger('requests').setLevel(logging.WARNING)
 logging.getLogger('urllib3').setLevel(logging.WARNING)
 logging.getLogger('requests_oauthlib').setLevel(logging.WARNING)
 logging.getLogger('oauthlib').setLevel(logging.WARNING)
+logging.getLogger('mwtemplates').setLevel(logging.INFO)
 
 
 import mwclient
@@ -2207,9 +2208,9 @@ if __name__ == '__main__':
     args = parser.parse_args()
 
     if args.verbose:
-        logger.setLevel(logging.DEBUG)
+        syslog.setLevel(logging.DEBUG)
     else:
-        logger.setLevel(logging.INFO)
+        syslog.setLevel(logging.INFO)
 
     if args.log != '':
         ukcommon.logfile = open(args.log, 'a')

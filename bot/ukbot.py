@@ -618,12 +618,13 @@ class User(object):
                     else:
                         logger.warning('No parent revision text available!')
 
-        cur = sql.cursor()
+        cur = sql.cursor(buffered=True)
 
         # Save revision text if we have it and if not already saved
         cur.execute(u'SELECT revid FROM fulltexts WHERE revid=%s AND site=%s', [rev.revid, site.key])
         if len(rev.text) > 0 and len(cur.fetchall()) == 0:
             cur.execute(u'INSERT INTO fulltexts (revid, site, revtxt) VALUES (%s,%s,%s)', (rev.revid, site.key, rev.text))
+            sql.commit()
 
         # Save parent revision text if we have it and if not already saved
         if parentid is not None:
@@ -631,8 +632,8 @@ class User(object):
             cur.execute(u'SELECT revid FROM fulltexts WHERE revid=%s AND site=%s', [rev.parentid, site.key])
             if len(rev.parenttext) > 0 and len(cur.fetchall()) == 0:
                 cur.execute(u'INSERT INTO fulltexts (revid, site, revtxt) VALUES (%s,%s,%s)', (rev.parentid, site.key, rev.parenttext))
+                sql.commit()
 
-        sql.commit()
         cur.close()
 
     def add_contribs_from_db(self, sql, start, end, sites):

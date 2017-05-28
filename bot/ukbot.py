@@ -1754,14 +1754,16 @@ class UK(object):
             self.sql.commit()
 
 
-def get_contest_page_title(cursor, homesite, config):
+def get_contest_page_titles(sql, homesite, config):
+    cursor = sql.cursor()
+    contests = set()
 
-    # 1) Check if there are contests to close
+    # 1) Check if there is a contest to close
 
     cursor.execute(u'SELECT name FROM contests WHERE site=%s AND ended=1 AND closed=0 LIMIT 1', [config['default_prefix']])
-    rows = cursor.fetchall()
-    if len(rows) != 0:
-        page_title = rows[0][0]
+    closing_contests = cursor.fetchall()
+    if len(closing_contests) != 0:
+        page_title = closing_contests[0][0]
         lastrev = homesite.pages[config['awardstatus']['pagename']].revisions(prop='user|comment').next()
         closeuser = lastrev['user']
         revc = lastrev['comment']
@@ -1769,40 +1771,54 @@ def get_contest_page_title(cursor, homesite, config):
             logger.info('Contest [[%s]] is to be closed, but award delivery has not been confirmed yet', page_title)
         else:
             logger.info('Will close contest [[%s]], award delivery has been confirmed', page_title)
-            return 'closing', page_title
+            contests.add(page_title)
+            yield ('closing', page_title)
 
-    # 2) Check if there are contests to end
+    # 2) Check if there is a contest to end
     now = server_tz.localize(datetime.now())
     now_s = now.astimezone(wiki_tz).strftime('%F %T')
     cursor.execute(u'SELECT name FROM contests WHERE site=%s AND ended=0 AND closed=0 AND end_date < %s LIMIT 1', [config['default_prefix'], now_s])
-    rows = cursor.fetchall()
-    if len(rows) != 0:
-        page_title = rows[0][0]
-        logger.info('Contest %s just ended', rows[0])
-        return 'ending', page_title
+    ending_contests = cursor.fetchall()
+    if len(ending_contests) != 0:
+        page_title = ending_contests[0][0]
+        logger.info('Contest %s just ended', ending_contests[0])
+        contests.add(page_title)
+        yield ('ending', page_title)
 
     # 3) Get contest page from current date
-    page_title = config['pages']['default']
-    # subtract one hour, so we close last week's contest right after midnight
-    # w = Week.withdate((now - timedelta(hours=1)).astimezone(wiki_tz).date())
-    w = Week.withdate(now.astimezone(wiki_tz).date())
-    page_title = page_title % { 'year': w.year, 'week': w.week }
-    #strftime(page_title.encode('utf-8')).decode('utf-8')
-    return 'normal', page_title
+    if config['pages'].get('default') is not None:
+        page_title = config['pages']['default']
+        # subtract one hour, so we close last week's contest right after midnight
+        # w = Week.withdate((now - timedelta(hours=1)).astimezone(wiki_tz).date())
+        w = Week.withdate(now.astimezone(wiki_tz).date())
+        page_title = page_title % { 'year': w.year, 'week': w.week }
+        #strftime(page_title.encode('utf-8')).decode('utf-8')
+        if page_title not in contests:
+            contests.add(page_title)
+            yield ('normal', page_title)
+
+    if config['pages'].get('active_contest_category') is not None:
+        for page in homesite.categories['Artikkelkonkurranser'].members(namespace=4):
+            if page.name not in contests:
+                contests.add(page.name)
+                yield ('normal', page.name)
+
+    cursor.close()
 
 
-def get_contest_page(sql, homesite, config, page_title=None):
+def get_contest_pages(sql, homesite, config, page_title=None):
+
     if page_title is not None:
-        page_title = args.page.decode('utf-8')
+        pages = [('normal', page_title)]
     else:
-        cur = sql.cursor()
-        status, page_title = get_contest_page_title(cur, homesite, config)
-        cur.close()
+        pages = get_contest_page_titles(sql, homesite, config)
 
-    page = homesite.pages[page_title]
-    page = page.resolve_redirect()
 
-    return status, page
+    for p in pages:
+        page = homesite.pages[p[1]]
+        page = page.resolve_redirect()
+
+        yield (p[0], page)
 
 
 ############################################################################################################################
@@ -1834,10 +1850,29 @@ class MyConverter(mysql.connector.conversion.MySQLConverter):
 
 def main():
 
+    # Configure home site (where the contests live)
     host = config['homesite']
     homesite = Site(host, **config['account'])
     assert homesite.logged_in
-    prefix = host.split('.')[0]
+
+    # Connect to DB
+    sql = mysql.connector.connect(converter_class=MyConverter, **config['db'])
+    logger.debug('Connected to database')
+
+    # Determine what to work with
+    active_contests = list(get_contest_pages(sql, homesite, config, args.page))
+
+    logger.info('Number of active contests: %d', len(active_contests))
+    for contest in active_contests:
+        update_contest(contest, config, homesite, sql)
+
+
+def update_contest(contest, config, homesite, sql):
+    kstatus, kpage = contest
+
+    logger.info('Updating contest: %s', kpage.page_title)
+
+    prefix = homesite.host.split('.')[0]
     sites = {prefix: homesite}
     if 'othersites' in config:
         for host in config['othersites']:
@@ -1845,12 +1880,6 @@ def main():
             sites[prefix] = Site(host, **config['account'])
 
     cpage = config['pages']['catignore']
-    sql = mysql.connector.connect(converter_class=MyConverter, **config['db'])
-    logger.debug('Connected to database')
-
-    # Determine what to work with
-    kstatus, kpage = get_contest_page(sql, homesite, config, args.page)
-    logger.info('Current contest: %s', kpage.page_title)
 
     if not kpage.exists:
         logger.error('Contest page [[%s]] does not exist! Exiting', kpage.page_title)
@@ -2164,11 +2193,6 @@ def main():
     if 'plot' in config:
         uk.plot()
 
-    runend = server_tz.localize(datetime.now())
-    runtime = (runend - runstart).total_seconds()
-    logger.info('UKBot finishing at %s. Runtime was %.f seconds.',
-                runend.strftime('%F %T'),
-                runtime)
 
 if __name__ == '__main__':
 
@@ -2207,6 +2231,13 @@ if __name__ == '__main__':
     logger.info('Running on %s %s %s', *platform.linux_distribution())
 
     main()
+
+    runend = server_tz.localize(datetime.now())
+    runtime = (runend - runstart).total_seconds()
+    logger.info('UKBot finishing at %s. Runtime was %.f seconds.',
+                runend.strftime('%F %T'),
+                runtime)
+
     #try:
     #    main()
     #except IOError:

@@ -2161,7 +2161,8 @@ def main():
 
     # Make a nice plot
 
-    uk.plot()
+    if 'plot' in config:
+        uk.plot()
 
     runend = server_tz.localize(datetime.now())
     runtime = (runend - runstart).total_seconds()

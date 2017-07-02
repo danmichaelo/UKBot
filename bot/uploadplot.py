@@ -73,7 +73,7 @@ if not kpage.exists:
 ibcfg = config['templates']['infobox']
 commonargs = config['templates']['commonargs']
 
-dp = TemplateEditor(kpage.edit())
+dp = TemplateEditor(kpage.text())
 try:
     infoboks = dp.templates[ibcfg['name']][0]
 except:
@@ -125,8 +125,7 @@ if startweek != endweek:
     weeks += "-%s" % endweek
 pagetext = config['plot']['description'] % { 'pagename': ktitle, 'week': weeks, 'year': year, 'start': start.strftime('%F') }
 
-commons = mwclient.Site('commons.wikimedia.org')
-commons.login(config['account']['user'], config['account']['pass'])
+commons = mwclient.Site('commons.wikimedia.org', **config['account'])
 
 p = commons.pages['File:' + remote_filename]
 f = open(filename.encode('utf-8'), 'rb')

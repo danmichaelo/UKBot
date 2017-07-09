@@ -19,3 +19,4 @@ flask
 requests[security]
 mysql-connector==2.1.4
 psutil
+future

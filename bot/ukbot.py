@@ -3,6 +3,7 @@ from __future__ import unicode_literals
 import matplotlib
 matplotlib.use('svg')
 
+from future.utils import python_2_unicode_compatible
 import numpy as np
 import time
 import calendar
@@ -126,6 +127,7 @@ class Site(mwclient.Site):
         mwclient.Site.__init__(self, host, clients_useragent=ua, **kwargs)
 
 
+@python_2_unicode_compatible
 class Article(object):
 
     def __init__(self, site, user, name):
@@ -148,8 +150,11 @@ class Article(object):
         else:
             return False
 
+    def __str__(self):
+        return "<Article %s:%s for user %s>" % (self.site.key, self.name, self.user.name)
+
     def __repr__(self):
-        return ("<Article %s:%s for user %s>" % (self.site.key, self.name, self.user.name)).encode('utf-8')
+        return __str__(self)
 
     @property
     def new(self):
@@ -197,6 +202,7 @@ class Article(object):
         #return np.sum([a.points for a in self.articles.values()])
 
 
+@python_2_unicode_compatible
 class Revision(object):
 
     def __init__(self, article, revid, **kwargs):
@@ -252,8 +258,11 @@ class Revision(object):
                 self.add_point_deduction(pd[1], pd[2])
 
 
+    def __str__(self):
+        return ("<Revision %d for %s:%s>" % (self.revid, self.article.site.key, self.article.name))
+
     def __repr__(self):
-        return ("<Revision %d for %s:%s>" % (self.revid, self.article.site.key, self.article.name)).encode('utf-8')
+        return __str__(self)
 
     @property
     def bytes(self):

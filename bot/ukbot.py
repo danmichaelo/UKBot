@@ -178,7 +178,12 @@ class Article(object):
 
     @property
     def words(self):
-        return np.sum([rev.words for rev in self.revisions.itervalues()])
+        """
+        Returns the total number of words added to this Article. The number
+        will never be negative, but words removed in one revision will
+        contribute negatively to the sum.
+        """
+        return np.max([0, np.sum([rev.words for rev in self.revisions.itervalues()])])
 
     @property
     def points(self):

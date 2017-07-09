@@ -239,9 +239,11 @@ class Revision(object):
             elif k == 'parsedcomment':
                 self.parsedcomment = v
             elif k == 'text':
-                self.text = v
+                if v is not None:
+                    self.text = v
             elif k == 'parenttext':
-                self.parenttext = v
+                if v is not None:
+                    self.parenttext = v
             else:
                 raise StandardError('add_revision got unknown argument %s' % k)
 
@@ -690,13 +692,13 @@ class User(object):
             rev.saved = True
 
             # Add revision text
-            if rev_text == '':
+            if rev_text is None or rev_text == '':
                 logger.debug('Article: %s, text missing %s, backfilling', article.name, rev_id)
                 self.backfill_text(sql, sites[site_key], rev)
 
             # Add parent revision text
             if not rev.new:
-                if parent_rev_txt == '':
+                if parent_rev_txt is None or parent_rev_txt == '':
                     logger.debug('Article: %s, parent text missing: %s,  backfilling', article.name, parent_id)
                     self.backfill_text(sql, sites[site_key], rev)
 

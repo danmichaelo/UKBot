@@ -273,7 +273,7 @@ class ImageRule(Rule):
                     except KeyError:
                         pass
 
-                    if re.search('int-own-work', credit, re.I):
+                    if 'int-own-work' in credit or 'Itse otettu valokuva' in credit:
                         counters['ownwork'].append(filename)
                     else:
                         counters['own'].append(filename)

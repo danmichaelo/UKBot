@@ -50,10 +50,10 @@ if args.page is not None:
 else:
     log('  No page specified. Using default page')
     ktitle = config['pages']['default']
-    # subtract one hour, so we close last week's contest right after midnight
+    # subtract a few hours, so we close last week's contest right after midnight
     #ktitle = (now - timedelta(hours=1)).astimezone(wiki_tz).strftime(ktitle.encode('utf-8')).decode('utf-8')
     ktitle = config['pages']['default']
-    w = Week.withdate((now - timedelta(hours=1)).astimezone(wiki_tz).date())
+    w = Week.withdate((now - timedelta(hours=3)).astimezone(wiki_tz).date())
     # subtract one hour, so we close last week's contest right after midnight
     ktitle = ktitle % { 'year': w.year, 'week': w.week }
 

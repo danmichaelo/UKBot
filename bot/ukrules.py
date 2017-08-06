@@ -264,18 +264,19 @@ class ImageRule(Rule):
                 logger.debug("File '%s' uploaded by '%s', revision made by '%s'",
                             filename, uploader, rev.username)
                 if uploader == rev.username:
-                    #print "own image!"
-                    #own_imgs_added.append(filename)
                     credit = ''
                     extrainfo = rev.article.site.api('query', prop='imageinfo', titles=u'File:{}'.format(filename), iiprop='extmetadata')
                     try:
-                        credit = extrainfo['query']['pages']['-1']['imageinfo'][0]['extmetadata']['Credit']['value']
+                        for pageid, page  in extrainfo['query']['pages'].items():
+                            credit = page['imageinfo'][0]['extmetadata']['Credit']['value']
                     except KeyError:
-                        pass
+                        logger.debug("Could not read credit info for file '%s'", filename)
 
                     if 'int-own-work' in credit or 'Itse otettu valokuva' in credit:
+                        logger.debug("File '%s' identified as own work.", filename)
                         counters['ownwork'].append(filename)
                     else:
+                        logger.debug("File '%s' identified as own upload, but not own work.", filename)
                         counters['own'].append(filename)
                 else:
                     counters['other'].append(filename)

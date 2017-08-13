@@ -387,7 +387,7 @@ class ExistingPageFilter(Filter):
 
 
 class BackLinkFilter(Filter):
-    """Filters articles with backlinks to <name>"""
+    """Filters articles linked to from <self.links>"""
 
     def __init__(self, sites, articles):
         """
@@ -398,31 +398,35 @@ class BackLinkFilter(Filter):
         Filter.__init__(self)
         self.sites = sites
         self.articles = articles
-        self.links = []
-        logger.info('Initializing backlink filter: %s',
+        self.links = set()
+        logger.info('Initializing BackLink filter: %s',
                     ','.join(self.articles))
-        #print sites
 
-        for site_key, site in self.sites.iteritems():
-            for aname in self.articles:
-                aname2 = aname
-                kv = aname.split(':', 1)
+        for page_param in self.articles:
+            page_found = False
+            for site_key, site in self.sites.iteritems():
+                page_name = page_param
+                kv = page_param.split(':', 1)
                 if len(kv) == 2 and len(kv[0]) == 2:
                     if kv[0] != site_key:
                         continue
                     else:
-                        aname2 = kv[1]
+                        page_name = kv[1]
                 try:
-                    p = site.pages[aname2]
-                    if p.exists:
-                        for link in p.links(redirects=True):
-                            self.links.append(site_key+':'+link.name)
-                        for link in p.iwlinks():
-                            self.links.append(link[0]+':'+link[1].replace('_', ' '))
+                    page = site.pages[page_name]
+                    if page.exists:
+                        page_found = True
+                        for linked_article in page.links(namespace=0, redirects=True):
+                            self.links.add(site_key + ':' + linked_article.name.replace('_', ' '))
+                            for langlink in linked_article.langlinks():
+                                self.links.add(langlink[0] + ':' + langlink[1].replace('_', ' '))
                 except KeyError:
                     pass
+            if not page_found:
+                logger.error('BackLink filter: Page "%s" not found', page_param)
 
-        #print self.links
+        logger.info('BackLink filter includes %d links (after having expanded langlinks)',
+                    len(self.links))
 
     def extend(self, blfilter):
         self.links.extend(blfilter.links)
@@ -439,7 +443,7 @@ class BackLinkFilter(Filter):
 
 
 class ForwardLinkFilter(Filter):
-    """Filters articles with forwardlinks to <name>"""
+    """Filters articles linking to <self.links>"""
 
     def __init__(self, sites, articles):
         """

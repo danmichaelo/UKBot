@@ -509,33 +509,39 @@ class User(object):
         if fulltext:
             props += '|content'
         revids = [str(r.revid) for r in new_revisions]
-        parentids = []
-        nr = 0
-        for s0 in range(0, len(new_revisions), apilim):
-            #print "API limit is ",apilim," getting ",s0
-            ids = '|'.join(revids[s0:s0 + apilim])
-            for page in site.api('query', prop='revisions', rvprop=props, revids=ids, uselang='nb')['query']['pages'].itervalues():
-                article_key = site_key + ':' + page['title']
-                for apirev in page['revisions']:
-                    nr += 1
-                    rev = self.articles[article_key].revisions[apirev['revid']]
-                    rev.parentid = apirev['parentid']
-                    rev.size = apirev['size']
-                    rev.parsedcomment = apirev['parsedcomment']
-                    if '*' in apirev.keys():
-                        rev.text = apirev['*']
-                        rev.dirty = True
-                    if not rev.new:
-                        parentids.append(rev.parentid)
+        parentids = set()
+        revs = set()
+
+        while len(revids) > 0:
+            try:
+                ids = '|'.join(revids[:apilim])
+                logger.info('Checking ids: %s', ids)
+                for page in site.api('query', prop='revisions', rvprop=props, revids=ids, uselang='nb')['query']['pages'].itervalues():
+                    article_key = site_key + ':' + page['title']
+                    for apirev in page['revisions']:
+                        rev = self.articles[article_key].revisions[apirev['revid']]
+                        rev.parentid = apirev['parentid']
+                        rev.size = apirev['size']
+                        rev.parsedcomment = apirev['parsedcomment']
+                        if '*' in apirev.keys():
+                            rev.text = apirev['*']
+                            rev.dirty = True
+                        if not rev.new:
+                            parentids.add(rev.parentid)
+                        revs.add(apirev['revid'])
+                revids = revids[apilim:]
+            except KeyError:
+                # We ran into Manual:$wgAPIMaxResultSize, try reducing
+                apilim = 1
 
         dt = time.time() - t0
         t0 = time.time()
-        if nr > 0:
+        if len(revs) > 0:
             logger.info('Checked %d revisions, found %d parent revisions in %.2f secs',
-                        nr, len(parentids), dt)
+                        len(revs), len(parentids), dt)
 
-        if nr != len(new_revisions):
-            raise StandardError("Did not get all revisions")
+        if len(revs) != len(new_revisions):
+            raise StandardError('Expected %d revisions, but got %d' % (len(new_revisions), len(revs)))
 
         # 4) Fetch info about the parent revisions: diff size, possibly content
 

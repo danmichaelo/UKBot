@@ -1,18 +1,61 @@
+# vim: fenc=utf-8 et sw=4 ts=4 sts=4 ai
 from __future__ import absolute_import
 from __future__ import division
 from __future__ import unicode_literals
-
 from flask import Flask
 from flask import request
 from flask import render_template
+from flask_socketio import SocketIO
 from time import time
 from mwclient import Site
 from requests import ConnectionError
 from mwtextextractor import get_body_text
-
+import mysql.connector
+from contextlib import contextmanager
+import yaml
 import sqlite3
+from copy import copy
+
+configs = [
+    {
+        "id": "no",
+        "name": "Ukens konkurranse",
+    },
+    {
+        "id": "fi",
+        "name": "Viikon kilpailu",
+    },
+    {
+        "id": "fi-100",
+        "name": "Suomi 100",
+    },
+]
+
+
+class MyConverter(mysql.connector.conversion.MySQLConverter):
+
+    def row_to_python(self, row, fields):
+        row = super(MyConverter, self).row_to_python(row, fields)
+
+        def to_unicode(col):
+            if type(col) == bytearray:
+                return col.decode('utf-8')
+            return col
+
+        return[to_unicode(col) for col in row]
+
+@contextmanager
+def db_cursor():
+    config = yaml.load(open('/data/project/ukbot/config/config.no.yml', 'r'))
+    db = mysql.connector.connect(converter_class=MyConverter, **config['db'])
+    cur = db.cursor()
+    yield cur
+    cur.close()
+    db.close()
+
 
 app = Flask(__name__)
+socketio = SocketIO(app)
 
 def error_404():
     return '404'
@@ -21,7 +64,7 @@ def error_404():
     return response
 
 def read_status(fname):
-    stat = open(fname).read()
+    stat = open(fname).read().decode('utf-8')
     statspl = stat.split()
 
     if statspl[0] == 'running':
@@ -34,28 +77,55 @@ def read_status(fname):
 
 @app.route('/')
 def show_index():
+
+    cf = copy(configs)
+    for c in cf:
+        c['status'] = read_status('/data/project/ukbot/logs/%s.status' % c['id'])
+
     return render_template('main.html',
-        status_no=read_status('/data/project/ukbot/logs/no.status'),
-        status_fi=read_status('/data/project/ukbot/logs/fi.status')
+        configs=cf
     )
 
-@app.route('/<lang>/')
-def show_uk_list(lang):
-    if lang not in ['no', 'fi']:
+@app.route('/<conf>/')
+def show_uk_list(conf):
+    if conf not in [c['id'] for c in configs]:
         return error_404()
-    sql = sqlite3.connect('/data/project/ukbot/storage/%s.db' % lang)
-    cur = sql.cursor()
     konk = []
     points = []
-    for row in cur.execute(u'SELECT C.name, U.user, U.points, T.summedPoints FROM (SELECT users.contest, users.user, MAX(users.points) usersPoints, SUM(users.points) summedPoints FROM users GROUP BY users.contest) as T JOIN users as U ON U.points=T.usersPoints JOIN contests as C on C.name=U.contest'):
-        s = row[0].split()[-1]
-        konk.append({'id': s, 'name': row[0], 'winner': {'name': row[1], 'points': row[2]}, 'sum': {'points': row[3]}})
-        points.append('%s' % row[3])
+
+    with db_cursor() as cur:
+        cur.execute(u'SELECT C.name, U.user, U.points, T.summedPoints FROM (SELECT users.contest, users.user, MAX(users.points) usersPoints, SUM(users.points) summedPoints FROM users GROUP BY users.contest) as T JOIN users as U ON U.points=T.usersPoints JOIN contests as C on C.name=U.contest WHERE U.lang = %s', [conf])
+        for row in cur.fetchall():
+            s = row[0].split()[-1]
+            konk.append({'id': s, 'name': row[0], 'winner': {'name': row[1], 'points': row[2]}, 'sum': {'points': row[3]}})
+            points.append('%s' % row[3])
+
     return render_template('uk.html',
-            lang=lang,
+            lang=conf,
             points=','.join(points),
             contests=konk
         )
+
+@sockets.route('/<conf>/status.sock')
+def show_uk_log_sock(ws, conf):
+    if conf not in [c['id'] for c in configs]:
+        return error_404()
+    
+    data = open('/data/project/ukbot/logs/%s.run.log' % conf).read().decode('utf-8')
+    while not ws.closed:
+        # message = ws.receive()
+        ws.send(data)
+
+
+@app.route('/<conf>/status')
+def show_uk_log(conf):
+    if conf not in [c['id'] for c in configs]:
+        return error_404()
+
+    return render_template('status.html',
+            data=''
+        )
+
 
 @app.route('/<lang>/contest/<week>/')
 def show_uk_contest_details(lang, week):
@@ -139,4 +209,5 @@ def show_wordcount():
     )
 
 if __name__ == "__main__":
-    app.run()
+    # app.run()
+    socketio.run(app)

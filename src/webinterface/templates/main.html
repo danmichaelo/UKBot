@@ -8,22 +8,17 @@
     <a href="/ukbot/wordcount">Test it here</a>
 </p>
 
+{% for conf in configs %}
+
 <section style="clear:both;">
-  <img src="/ukbot/plots/no.mem.png" style="width:400px; float:right;">
+  <img src="/ukbot/plots/{{ conf.id }}.mem.png" style="width:400px; float:right;">
   <h2>
-      <a href="./no/">Ukens konkurranse</a>
+      <a href="./{{ conf.id }}/">{{ conf.name }}</a>
   </h2>
-  {{ status_no }}
-</section>
-  
-<section style="clear:both;">
-  <img src="/ukbot/plots/fi.mem.png" style="width:400px; float:right;">
-  <h2>
-      <a href="./fi/">Viikon kilpailu</a>
-  </h2>
-  {{ status_fi }}
+  <a href="./{{ conf.id }}/status">{{ conf.status | safe }}</a>
 </section>
 
+{% endfor %}
 
 <div style="clear:both;"></div>
 

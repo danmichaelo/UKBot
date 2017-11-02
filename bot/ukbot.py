@@ -1,5 +1,19 @@
-#encoding=utf-8
+# encoding=utf-8
+# vim: fenc=utf-8 et sw=4 ts=4 sts=4 ai
 from __future__ import unicode_literals
+
+import time
+runstart_s = time.time()
+
+import logging
+logger = logging.getLogger()
+logger.setLevel(logging.DEBUG)     # DEBUG if verbose
+syslog = logging.StreamHandler()
+# formatter = logging.Formatter('%(asctime)s [%(mem_usage)s MB] %(name)s %(levelname)s : %(message)s')
+logger.addHandler(syslog)
+syslog.setLevel(logging.INFO)
+logger.info('Loading')
+
 import matplotlib
 matplotlib.use('svg')
 
@@ -25,22 +39,12 @@ import urllib
 import argparse
 import codecs
 
-import logging
-logger = logging.getLogger()
-logger.setLevel(logging.DEBUG)     # DEBUG if verbose
-syslog = logging.StreamHandler()
-# formatter = logging.Formatter('%(asctime)s [%(mem_usage)s MB] %(name)s %(levelname)s : %(message)s')
-formatter = logging.Formatter('%(asctime)s [%(mem_usage)s MB] %(levelname)s : %(message)s')
-syslog.setFormatter(formatter)
-logger.addHandler(syslog)
-syslog.setLevel(logging.INFO)
 
 logging.getLogger('requests').setLevel(logging.WARNING)
 logging.getLogger('urllib3').setLevel(logging.WARNING)
 logging.getLogger('requests_oauthlib').setLevel(logging.WARNING)
 logging.getLogger('oauthlib').setLevel(logging.WARNING)
 logging.getLogger('mwtemplates').setLevel(logging.INFO)
-
 
 import mwclient
 from mwtemplates import TemplateEditor
@@ -52,13 +56,24 @@ from ukcommon import log, init_localization, get_mem_usage
 
 import locale
 
-
 class AppFilter(logging.Filter):
+
+    @staticmethod
+    def format_as_mins_and_secs(msecs):
+        secs = msecs / 1000.
+        mins = secs / 60.
+        secs = secs % 60.
+        return '%3.f:%02.f' % (mins, secs)
+
     def filter(self, record):
         record.mem_usage = '%.0f' % (get_mem_usage(),)
+        record.relativeSecs = AppFilter.format_as_mins_and_secs(record.relativeCreated)
         return True
 
+formatter = logging.Formatter('[%(relativeSecs)s] [%(mem_usage)s MB] %(levelname)s : %(message)s')
+syslog.setFormatter(formatter)
 syslog.addFilter(AppFilter())
+logger.info('Logger ready')
 
 import rollbar
 import platform
@@ -67,9 +82,11 @@ import platform
 
 # Read args
 
+# This actually takes about 10 seconds and eats some memory
 all_chars = (unichr(i) for i in xrange(sys.maxunicode))
 control_chars = ''.join(c for c in all_chars if unicodedata.category(c) in set(['Cc','Cf','Cn','Co','Cs']))
 control_char_re = re.compile('[%s]' % re.escape(control_chars))
+logger.info('Gigantic regexp is ready')
 
 def remove_control_chars(s):
     if type(s) == str or type(s) == unicode:
@@ -390,7 +407,7 @@ class User(object):
             fulltext  : get revision fulltexts
         """
 
-        logger.info('Reading contributions from %s', site.host)
+        # logger.info('Reading contributions from %s', site.host)
 
         apilim = 50
         if 'bot' in site.rights:
@@ -473,8 +490,8 @@ class User(object):
         # if len(new_revisions) > 0 or new_articles > 0:
         dt = time.time() - t0
         t0 = time.time()
-        logger.info('Checked %d contributions, found %d new revisions and %d new articles from API in %.2f secs',
-                    tnr, len(new_revisions), new_articles, dt)
+        logger.info('Checked %d contributions, found %d new revisions and %d new articles from %s in %.2f secs',
+                    tnr, len(new_revisions), new_articles, site.host, dt)
 
         # 2) Check if pages are redirects (this information can not be cached, because other users may make the page a redirect)
         #    If we fail to notice a redirect, the contributions to the page will be double-counted, so lets check
@@ -660,7 +677,7 @@ class User(object):
             start : datetime object
             end   : datetime object
         """
-        logger.info('Reading user contributions from database')
+        # logger.info('Reading user contributions from database')
 
         cur = sql.cursor()
         cur2 = sql.cursor()
@@ -979,6 +996,12 @@ class UK(object):
         self.users = [User(n, self) for n in self.extract_userlist(txt)]
         self.rules, self.filters = self.extract_rules(txt, catignore)
 
+        logger.info(" - %d participants", len(self.users))
+        logger.info(" - %d filter(s) and %d rule(s)", len(self.filters), len(self.rules))
+        logger.info(' - Open from %s to %s',
+                    self.start.strftime('%F %T'),
+                    self.end.strftime('%F %T'))
+
         # if self.startweek == self.endweek:
         #     logger.info(' - Week %d', self.startweek)
         # else:
@@ -1013,7 +1036,7 @@ class UK(object):
         dp = TemplateEditor(txt)
         if catignore_txt == '':
             catignore = []
-            logger.info('Note: Empty catignore page')
+            logger.info('Note: catignore page is empty')
         else:
 
             if not config['templates']['rule']['name'] in dp.templates:
@@ -1225,8 +1248,6 @@ class UK(object):
             else:
                 raise ParseError(_('Unkown argument given to {{tl|%(template)s}}: %(argument)s') % {'template': rulecfg['name'], 'argument': key})
 
-        logger.info(" - %d filter(s) and %d rule(s)", nfilters, nrules)
-
         ######################## Read infobox ########################
 
         ibcfg = config['templates']['infobox']
@@ -1270,7 +1291,7 @@ class UK(object):
         userprefix = self.homesite.namespaces[2]
         self.ledere = re.findall(r'\[\[(?:User|%s):([^\|\]]+)' % userprefix, unicode(infoboks.parameters[ibcfg['organizer']]), flags=re.I)
         if len(self.ledere) == 0:
-            logger.info('Did not find any organizers in {{tl|%s}}.', ibcfg['name'])
+            logger.warning('Found no organizers in {{tl|%s}}.', ibcfg['name'])
 
         awards = config['awards']
         self.prices = []
@@ -1292,7 +1313,7 @@ class UK(object):
         if not 'winner' in [r[1] for r in self.prices]:
             winnerawards = ', '.join(['{{para|%s|vinner}}' % k for k, v in awards.items() if 'winner' in v])
             #raise ParseError(_('Found no winner award in {{tl|%(template)s}}. Winner award is set by one of the following: %(awards)s.') % {'template': ibcfg['name'], 'awards': winnerawards})
-            logger.info('Found no winner award in {{tl|%s}}. Winner award is set by one of the following: %s.', ibcfg['name'], winnerawards)
+            logger.warning('Found no winner award in {{tl|%s}}. Winner award is set by one of the following: %s.', ibcfg['name'], winnerawards)
 
         self.prices.sort(key=lambda x: x[2], reverse=True)
 
@@ -1888,7 +1909,7 @@ def main():
 def update_contest(contest, config, homesite, sql):
     kstatus, kpage = contest
 
-    logger.info('Updating contest: %s', kpage.page_title)
+    logger.info('Current contest: [[%s]]', kpage.name)
 
     prefix = homesite.host.split('.')[0]
     sites = {prefix: homesite}
@@ -1920,9 +1941,6 @@ def update_contest(contest, config, homesite, sql):
     #     #log('!! Konkurransen ble forsøkt avsluttet av andre enn konkurranseleder')
     #     #return
 
-    logger.info(' - Open from %s to %s',
-                uk.start.strftime('%F %T'),
-                uk.end.strftime('%F %T'))
 
     # Loop over users
 
@@ -2241,20 +2259,24 @@ if __name__ == '__main__':
     from ukrules import *
     from ukfilters import *
 
-    runstart = server_tz.localize(datetime.now())
+    mainstart = server_tz.localize(datetime.now())
+    mainstart_s = time.time()
 
     logger.info('UKBot starting at %s (server time), %s (wiki time)',
-                runstart.strftime('%F %T'),
-                runstart.astimezone(wiki_tz).strftime('%F %T'))
+                mainstart.strftime('%F %T'),
+                mainstart.astimezone(wiki_tz).strftime('%F %T'))
     logger.info('Running on %s %s %s', *platform.linux_distribution())
 
     main()
 
     runend = server_tz.localize(datetime.now())
-    runtime = (runend - runstart).total_seconds()
-    logger.info('UKBot finishing at %s. Runtime was %.f seconds.',
+    runend_s = time.time()
+
+    runtime = runend_s - runstart_s
+    logger.info('UKBot finishing at %s. Runtime was %.f seconds (total) or %.f seconds (excluding initialization).',
                 runend.strftime('%F %T'),
-                runtime)
+                runend_s - runstart_s,
+                runend_s - mainstart_s)
 
     #try:
     #    main()

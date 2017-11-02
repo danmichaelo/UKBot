@@ -279,6 +279,7 @@ class ImageRule(Rule):
                         logger.debug("File '%s' identified as own upload, but not own work.", filename)
                         counters['own'].append(filename)
                 else:
+                    logger.debug("File '%s' not identified as own upload or own work.", filename)
                     counters['other'].append(filename)
             else:
                 logger.warning("File '%s' does not exist", filename)

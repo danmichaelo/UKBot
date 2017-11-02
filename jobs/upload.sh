@@ -1,19 +1,22 @@
 #!/bin/sh
-cd /data/project/ukbot
+
+export UKCONF=$(echo "$JOB_NAME")  #  | cut -c7-20)
+projectdir=/data/project/ukbot
+logfile=${projectdir}/logs/${UKCONF}.upload.log
+statusfile=${projectdir}/logs/${UKCONF}.status
+configfile=${projectdir}/config/config.${UKCONF}.yml
+
 echo "-----------------------------------------------------------------"
-echo "$(date) : Starting UPLOAD job $JOB_NAME ($JOB_ID) on $HOSTNAME"
-export UKLANG=$(echo "$JOB_NAME" | cut -c7-20)
+cd ${projectdir}
+echo "$(date) : Starting '$UKCONF' job ($JOB_ID) on $HOSTNAME" | tee $logfile
 START=$(date +%s)
-#echo "running $START" >| logs/$UKLANG.status
-#./mem_logger.sh &
-. /data/project/ukbot/ENV/bin/activate
-cd /data/project/ukbot/bot
 
-python uploadplot.py --config ../config/config.$UKLANG.yml
+. ${projectdir}/ENV/bin/activate
+cd ${projectdir}/bot
 
+set -o pipefail
+python uploadplot.py --config "${configfile}" 2>&1 | tee -a $logfile
 status=$?
-cd /data/project/ukbot
-echo "$(date) : Job $JOB_NAME ($JOB_ID) on $HOSTNAME finished with exit code $status"
-END=$(date +%s)
-DIFF=$(( $END - $START ))
-#echo "$status $DIFF $(date)" >| logs/$UKLANG.status
+
+echo "$(date) : Job $JOB_NAME ($JOB_ID) on $HOSTNAME finished with exit code $status" | tee -a $logfile
+

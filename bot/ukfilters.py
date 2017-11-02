@@ -80,7 +80,7 @@ class Filter(object):
             #    log(" >> DanmicholoParser failed to parse " + article_key)
             #    parentid = firstrev.parentid
             #    args = { 'article': article_key, 'prevrev': firstrev.parentid, 'rev': lastrev.revid, 'error': e.msg }
-            #    article.site.errors.append(_('Could not analyze the article %(article)s because one of the revisions %(prevrev)d or %(rev)d could not be parsed: %(error)s') % args)
+            #    article.site().errors.append(_('Could not analyze the article %(article)s because one of the revisions %(prevrev)d or %(rev)d could not be parsed: %(error)s') % args)
 
     #    log("  [+] Applying stub filter: %d -> %d" % (len(articles), len(out)))
 
@@ -130,7 +130,7 @@ class TemplateFilter(Filter):
                 logger.warning(" >> DanmicholoParser failed to parse %s", article_key)
                 parentid = firstrev.parentid
                 args = {'article': article_key, 'prevrev': firstrev.parentid, 'rev': lastrev.revid, 'error': e.msg}
-                article.site.errors.append(_('Could not analyze the article %(article)s because one of the revisions %(prevrev)d or %(rev)d could not be parsed: %(error)s') % args)
+                article.site().errors.append(_('Could not analyze the article %(article)s because one of the revisions %(prevrev)d or %(rev)d could not be parsed: %(error)s') % args)
 
         logger.info(" - TemplateFilter: Articles reduced from %d to %d", len(articles), len(out))
 
@@ -200,7 +200,7 @@ class CatFilter(Filter):
                 returnlimit = 500
 
             # Titles of articles that belong to this site
-            titles = [article.name for article in articles.itervalues() if article.site.key == site_key]
+            titles = [article.name for article in articles.itervalues() if article.site().key == site_key]
 
             # logger.debug(' ['+site_key+':'+str(len(titles))+']')
             #.flush()
@@ -316,7 +316,7 @@ class CatFilter(Filter):
                 # print '[%s]' % (article_key)
                 try:
                     i = 0
-                    aname = article.site.key + ':' + article.name
+                    aname = article.site().key + ':' + article.name
                     while not catname == aname:
                         # print ' [%d] %s' % (i,catname)
                         if not parents[article_key][catname] == aname:

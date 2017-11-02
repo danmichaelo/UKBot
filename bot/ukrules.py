@@ -27,8 +27,8 @@ class Rule(object):
 
     def add_points(self, rev, points, ptype, txt, pmax, include_zero=False):
 
-        ab = rev.article.get_points(ptype)
-        ab_raw = rev.article.get_points(ptype, ignore_max=True)
+        ab = rev.article().get_points(ptype)
+        ab_raw = rev.article().get_points(ptype, ignore_max=True)
         pts = 0.0
 
         if pmax > 0.0 and self.iszero(ab - pmax):
@@ -93,7 +93,7 @@ class RedirectRule(Rule):
 #             if self.is_stub(rev.parenttext) and not self.is_stub(rev.text):
 #                 rev.points.append([self.points, 'stub', 'avstubbing'])
 #         except DanmicholoParseError as e:
-#             rev.article.errors.append(_('Encountered a problem while parsing [%(url)s rev. %(revid)d] : %(error)s' % { 'url': rev.get_link(), 'revid': rev.revid, 'error': e.msg })
+#             rev.article().errors.append(_('Encountered a problem while parsing [%(url)s rev. %(revid)d] : %(error)s' % { 'url': rev.get_link(), 'revid': rev.revid, 'error': e.msg })
 
 
 class TemplateRemovalRule(Rule):
@@ -158,7 +158,7 @@ class QualiRule(Rule):
         self.points = float(points)
 
     def test(self, rev):
-        if self.iszero(rev.article.get_points('quali')):
+        if self.iszero(rev.article().get_points('quali')):
             rev.points.append([self.points, 'quali', _('qualified')])
 
 
@@ -251,7 +251,7 @@ class ImageRule(Rule):
         counters = {'ownwork': [], 'own': [], 'other': []}
         for filename in imgs_added:
             filename = urllib.unquote(filename)
-            image = rev.article.site.images[filename]
+            image = rev.article().site().images[filename]
             imageinfo = image.imageinfo
             if len(imageinfo) > 0:   # seems like image.exists only checks locally
                 try:
@@ -265,7 +265,7 @@ class ImageRule(Rule):
                             filename, uploader, rev.username)
                 if uploader == rev.username:
                     credit = ''
-                    extrainfo = rev.article.site.api('query', prop='imageinfo', titles=u'File:{}'.format(filename), iiprop='extmetadata')
+                    extrainfo = rev.article().site().api('query', prop='imageinfo', titles=u'File:{}'.format(filename), iiprop='extmetadata')
                     try:
                         for pageid, page  in extrainfo['query']['pages'].items():
                             credit = page['imageinfo'][0]['extmetadata']['Credit']['value']
@@ -378,7 +378,7 @@ class RefRule(Rule):
         s1, r1 = self.get_sourcecount(rev.parenttext)
         s2, r2 = self.get_sourcecount(rev.text)
 
-        #print rev.article.name,len(allref1), len(allref2)
+        #print rev.article().name,len(allref1), len(allref2)
 
         sources_added = s2 - s1
         refs_added = r2 - r1
@@ -442,7 +442,7 @@ class ByteBonusRule(Rule):
         abytes = 0
         thisrev = False
         passedlimit = False
-        for r in rev.article.revisions.itervalues():
+        for r in rev.article().revisions.itervalues():
             if r.bytes > 0:
                 abytes += r.bytes
             if passedlimit is False and abytes >= self.limit:
@@ -467,7 +467,7 @@ class WordBonusRule(Rule):
         awords = 0
         thisrev = False
         passedlimit = False
-        for r in rev.article.revisions.itervalues():
+        for r in rev.article().revisions.itervalues():
             if r.words > 0:
                 awords += r.words
 

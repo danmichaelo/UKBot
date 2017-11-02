@@ -18,6 +18,7 @@ import matplotlib
 matplotlib.use('svg')
 
 from future.utils import python_2_unicode_compatible
+import weakref
 import numpy as np
 import time
 import calendar
@@ -151,7 +152,7 @@ class Article(object):
         """
         An article is uniquely identified by its name and its site
         """
-        self.site = site
+        self.site = weakref.ref(site)
         self.user = user
         #self.site_key = site.host.split('.')[0]
         self.name = name
@@ -162,13 +163,13 @@ class Article(object):
         self.errors = []
 
     def __eq__(other):
-        if self.site == other.site and self.name == other.name:
+        if self.site() == other.site() and self.name == other.name:
             return True
         else:
             return False
 
     def __str__(self):
-        return "<Article %s:%s for user %s>" % (self.site.key, self.name, self.user.name)
+        return "<Article %s:%s for user %s>" % (self.site().key, self.name, self.user.name)
 
     def __repr__(self):
         return __str__(self)
@@ -211,7 +212,7 @@ class Article(object):
     def get_points(self, ptype='', ignore_max=False, ignore_suspension_period=False,
                    ignore_disqualification=False, ignore_point_deductions=False):
         p = 0.
-        article_key = self.site.key + ':' + self.name
+        article_key = self.site().key + ':' + self.name
         if ignore_disqualification or not article_key in self.user.disqualified_articles:
             for revid, rev in self.revisions.iteritems():
                 dt = pytz.utc.localize(datetime.fromtimestamp(rev.timestamp))
@@ -235,7 +236,7 @@ class Revision(object):
           - article: (Article) article object reference
           - revid: (int) revision id
         """
-        self.article = article
+        self.article = weakref.ref(article)
         self.errors = []
 
         self.revid = revid
@@ -275,13 +276,13 @@ class Revision(object):
             else:
                 raise StandardError('add_revision got unknown argument %s' % k)
 
-        for pd in self.article.user.point_deductions:
+        for pd in self.article().user.point_deductions:
             if pd[0] == self.revid:
                 self.add_point_deduction(pd[1], pd[2])
 
 
     def __str__(self):
-        return ("<Revision %d for %s:%s>" % (self.revid, self.article.site.key, self.article.name))
+        return ("<Revision %d for %s:%s>" % (self.revid, self.article().site().key, self.article().name))
 
     def __repr__(self):
         return __str__(self)
@@ -297,15 +298,15 @@ class Revision(object):
         except:
             mt1 = get_body_text(self.text)
             mt2 = get_body_text(self.parenttext)
-            logger.debug('Body size: %d -> %d, wordcount: %d -> %d (%s)', len(self.parenttext), len(self.text), len(mt2.split()), len(mt1.split()), self.article.name)
+            logger.debug('Body size: %d -> %d, wordcount: %d -> %d (%s)', len(self.parenttext), len(self.text), len(mt2.split()), len(mt1.split()), self.article().name)
             self._wordcount = len(mt1.split()) - len(mt2.split())
             if not self.new and len(mt2.split()) == 0 and self._wordcount > 1:
-                w = _('Revision [//%(host)s/w/index.php?diff=prev&oldid=%(revid)s %(revid)s]: The word count difference might be wrong, because no words were found in the parent revision (%(parentid)s) of size %(size)d, possibly due to unclosed tags or templates in that revision.') % { 'host': self.article.site.host, 'revid': self.revid, 'parentid': self.parentid, 'size': len(self.parenttext) }
+                w = _('Revision [//%(host)s/w/index.php?diff=prev&oldid=%(revid)s %(revid)s]: The word count difference might be wrong, because no words were found in the parent revision (%(parentid)s) of size %(size)d, possibly due to unclosed tags or templates in that revision.') % { 'host': self.article().site().host, 'revid': self.revid, 'parentid': self.parentid, 'size': len(self.parenttext) }
                 logger.warning(w)
                 #log(self.parenttext)
                 self.errors.append(w)
             elif self._wordcount > 10 and self._wordcount > self.bytes:
-                w = _('Revision [//%(host)s/w/index.php?diff=prev&oldid=%(revid)s %(revid)s]: The word count difference might be wrong, because the word count increase (%(words)d) is larger than the byte increase (%(bytes)d). Wrong word counts may occur for invalid wiki text.') % { 'host': self.article.site.host, 'revid': self.revid, 'words': self._wordcount, 'bytes': self.bytes }
+                w = _('Revision [//%(host)s/w/index.php?diff=prev&oldid=%(revid)s %(revid)s]: The word count difference might be wrong, because the word count increase (%(words)d) is larger than the byte increase (%(bytes)d). Wrong word counts may occur for invalid wiki text.') % { 'host': self.article().site().host, 'revid': self.revid, 'words': self._wordcount, 'bytes': self.bytes }
                 logger.warning(w)
                 #log(self.parenttext)
                 self.errors.append(w)
@@ -315,7 +316,7 @@ class Revision(object):
             del mt1
             del mt2
             # except DanmicholoParseError as e:
-            #     log("!!!>> FAIL: %s @ %d" % (self.article.name, self.revid))
+            #     log("!!!>> FAIL: %s @ %d" % (self.article().name, self.revid))
             #     self._wordcount = 0
             #     #raise
             return self._wordcount
@@ -334,15 +335,15 @@ class Revision(object):
 
     def get_link(self):
         """ returns a link to revision """
-        q = {'title': self.article.name.encode('utf-8'), 'oldid': self.revid}
+        q = {'title': self.article().name.encode('utf-8'), 'oldid': self.revid}
         if not self.new:
             q['diff'] = 'prev'
-        return '//' + self.article.site.host + self.article.site.site['script'] + '?' + urllib.urlencode(q)
+        return '//' + self.article().site().host + self.article().site().site['script'] + '?' + urllib.urlencode(q)
 
     def get_parent_link(self):
         """ returns a link to parent revision """
-        q = {'title': self.article.name.encode('utf-8'), 'oldid': self.parentid}
-        return '//' + self.article.site.host + self.article.site.site['script'] + '?' + urllib.urlencode(q)
+        q = {'title': self.article().name.encode('utf-8'), 'oldid': self.parentid}
+        return '//' + self.article().site().host + self.article().site().site['script'] + '?' + urllib.urlencode(q)
 
     def get_points(self, ptype='', ignore_max=False, ignore_point_deductions=False):
         p = 0.0
@@ -370,7 +371,7 @@ class User(object):
         self.name = username
         self.articles = odict()
         self.revisions = odict()
-        self.contest = contest
+        self.contest = weakref.ref(contest)
         self.suspended_since = None
         self.disqualified_articles = []
         self.point_deductions = []
@@ -447,7 +448,7 @@ class User(object):
                 article_comment = c['comment']
 
                 ignore = False
-                for pattern in self.contest.config.get('ignore', []):
+                for pattern in self.contest().config.get('ignore', []):
                     if re.search(pattern, article_comment):
                         ignore = True
                         logger.debug('Ignoring revision %d of %s because it matched %s', c['revid'], c['title'], pattern)
@@ -462,13 +463,13 @@ class User(object):
                         # We check self.revisions instead of article.revisions, because the revision may
                         # already belong to "another article" (another title) if the article has been moved
 
-                        if self.revisions[rev_id].article.name != article_title:
+                        if self.revisions[rev_id].article().name != article_title:
                             rev = self.revisions[rev_id]
-                            logger.info('Moving revision %d from "%s" to "%s"', rev_id, rev.article.name, article_title)
+                            logger.info('Moving revision %d from "%s" to "%s"', rev_id, rev.article().name, article_title)
                             article = self.add_article_if_necessary(site, article_title)
-                            rev.article.revisions.pop(rev_id)  # remove from old article
+                            rev.article().revisions.pop(rev_id)  # remove from old article
                             article.revisions[rev_id] = rev    # add to new article
-                            rev.article = article              # and update reference
+                            rev.article = weakref.ref(article)              # and update reference
 
                     else:
 
@@ -589,7 +590,7 @@ class User(object):
         fulltexts_query_params = []
 
         for article_key, article in self.articles.iteritems():
-            site_key = article.site.key
+            site_key = article.site().key
 
             for revid, rev in article.revisions.iteritems():
                 ts = datetime.fromtimestamp(rev.timestamp).strftime('%F %T')
@@ -634,7 +635,6 @@ class User(object):
 
         sql.commit()
         cur.close()
-
 
     def backfill_text(self, sql, site, rev):
         parentid = None
@@ -829,7 +829,7 @@ class User(object):
 
         # loop over articles
         for article_key, article in self.articles.iteritems():
-            # if self.contest.verbose:
+            # if self.contest().verbose:
             #     logger.info(article_key)
             # else:
             #     logger.info('.', newline=False)
@@ -870,10 +870,10 @@ class User(object):
         self.plotdata = np.column_stack((x, y2))
         #np.savetxt('user-%s'%self.name, np.column_stack((x,y,y2)))
 
-    def format_result(self, pos=-1, closing=False, prices=[]):
+    def format_result(self):
 
         entries = []
-        config = self.contest.config
+        config = self.contest().config
 
         utc = pytz.utc
 
@@ -949,21 +949,12 @@ class User(object):
                 entries.append(out)
                 logger.debug('    %s: %.f / %.f points', article_key, netto, brutto)
 
-        ros = ''
-        if closing:
-            if pos == 0:
-                for r in prices:
-                    if r[1] == 'winner':
-                        ros += '[[File:%s|20px]] ' % config['awards'][r[0]]['file']
-                        break
-            for r in prices:
-                if r[1] == 'pointlimit' and self.points >= r[2]:
-                    ros += '[[File:%s|20px]] ' % config['awards'][r[0]]['file']
-                    break
+        ros = '{awards}'
+
         suspended = ''
         if self.suspended_since is not None:
             suspended = ', ' + _('suspended since') + ' %s' % self.suspended_since.strftime(_('%A, %H:%M')).decode('utf-8')
-        userprefix = self.contest.homesite.namespaces[2]
+        userprefix = self.contest().homesite.namespaces[2]
         out = '=== %s [[%s:%s|%s]] (%.f p%s) ===\n' % (ros, userprefix, self.name, self.name, self.points, suspended)
         if len(entries) == 0:
             out += "''" + _('No qualifying contributions registered yet') + "''"
@@ -1424,7 +1415,7 @@ class UK(object):
 
         return rules, filters
 
-    def plot(self):
+    def plot(self, results):
         import matplotlib.pyplot as plt
 
         w = 20 / 2.54
@@ -1451,14 +1442,14 @@ class UK(object):
 
         alldata = {}
 
-        for u in self.users:
-            alldata[u.name] = []
-            for point in u.plotdata:
-                alldata[u.name].append({'x': point[0], 'y': point[1]})
-            if u.plotdata.shape[0] > 0:
+        for u in results:
+            alldata[u['name']] = []
+            for point in u['plotdata']:
+                alldata[u['name']].append({'x': point[0], 'y': point[1]})
+            if u['plotdata'].shape[0] > 0:
                 cnt += 1
-                x = list(u.plotdata[:, 0])
-                y = list(u.plotdata[:, 1])
+                x = list(u['plotdata'][:, 0])
+                y = list(u['plotdata'][:, 1])
                 yall.extend(y)
                 x.insert(0, xt[0])
                 y.insert(0, 0)
@@ -1468,9 +1459,9 @@ class UK(object):
                 else:
                     x.append(xt[-1])
                     y.append(y[-1])
-                l = ax.plot(x, y, linewidth=1.2, label=u.name)  # markerfacecolor='#FF8C00', markeredgecolor='#888888', label = u.name)
+                l = ax.plot(x, y, linewidth=1.2, label=u['name'])  # markerfacecolor='#FF8C00', markeredgecolor='#888888', label = u['name'])
                 c = l[0].get_color()
-                #ax.plot(x[1:-1], y[1:-1], marker='.', markersize=4, markerfacecolor=c, markeredgecolor=c, linewidth=0., alpha=0.5)  # markerfacecolor='#FF8C00', markeredgecolor='#888888', label = u.name)
+                #ax.plot(x[1:-1], y[1:-1], marker='.', markersize=4, markerfacecolor=c, markeredgecolor=c, linewidth=0., alpha=0.5)  # markerfacecolor='#FF8C00', markeredgecolor='#888888', label = u['name'])
                 if cnt >= 15:
                     break
 
@@ -1587,7 +1578,7 @@ class UK(object):
             page.save(text=body + ' ' + sig, bot=False, section='new', summary=topic)
 
 
-    def deliver_prices(self, sql, siteprefix, ktitle, simulate):
+    def deliver_prices(self, sql, siteprefix, ktitle, simulate, results):
 
         config = self.config
         heading = self.format_heading()
@@ -1601,7 +1592,7 @@ class UK(object):
         # sql.commit()
         # cur.close()
 
-        for i, u in enumerate(self.users):
+        for i, u in enumerate(results):
 
             prizefound = False
             if i == 0:
@@ -1612,7 +1603,7 @@ class UK(object):
                         mld = self.format_msg('winner_template', r[0])
                         break
                 for r in self.prices:
-                    if r[1] == 'pointlimit' and u.points >= r[2]:
+                    if r[1] == 'pointlimit' and u['points'] >= r[2]:
                         if prizefound:
                             mld += '|%s=%s' % (r[0], self.config['templates']['commonargs'][True])
                         else:
@@ -1623,7 +1614,7 @@ class UK(object):
             else:
                 mld = ''
                 for r in self.prices:
-                    if r[1] == 'pointlimit' and u.points >= r[2]:
+                    if r[1] == 'pointlimit' and u['points'] >= r[2]:
                         prizefound = True
                         mld = self.format_msg('participant_template', r[0])
                         break
@@ -1896,7 +1887,7 @@ class MyConverter(mysql.connector.conversion.MySQLConverter):
         return[to_unicode(col) for col in row]
 
 
-def main():
+def main(config, page=None, simulate=False, output=''):
 
     # Configure home site (where the contests live)
     host = config['homesite']
@@ -1908,14 +1899,14 @@ def main():
     logger.debug('Connected to database')
 
     # Determine what to work with
-    active_contests = list(get_contest_pages(sql, homesite, config, args.page))
+    active_contests = list(get_contest_pages(sql, homesite, config, page))
 
     logger.info('Number of active contests: %d', len(active_contests))
     for contest in active_contests:
-        update_contest(contest, config, homesite, sql)
+        update_contest(contest, config, homesite, sql, simulate, output)
 
 
-def update_contest(contest, config, homesite, sql):
+def update_contest(contest, config, homesite, sql, simulate, output):
     kstatus, kpage = contest
 
     logger.info('Current contest: [[%s]]', kpage.name)
@@ -1939,7 +1930,7 @@ def update_contest(contest, config, homesite, sql):
     except ParseError as e:
         err = "\n* '''%s'''" % e.msg
         out = '\n{{%s | error | %s }}' % (config['templates']['botinfo'], err)
-        if args.simulate:
+        if simulate:
             logger.info(out)
         else:
             kpage.save('dummy', summary=_('UKBot encountered a problem'), appendtext=out)
@@ -1966,7 +1957,13 @@ def update_contest(contest, config, homesite, sql):
             extraargs['namespace'] = '|'.join(f.namespaces)
             host_filter = f.site
 
-    for u in uk.users:
+    article_errors = {}
+    results = []
+
+    while True:
+        if len(uk.users) == 0:
+            break
+        u = uk.users.pop()
 
         logger.info('=== User:%s ===', u.name)
 
@@ -1988,7 +1985,7 @@ def update_contest(contest, config, homesite, sql):
             u.filter(uk.filters)
 
             # And calculate points
-            # log(' -> Analyzing ', newline=False)
+            logger.info('Calculating points')
             u.analyze(uk.rules)
             logger.info('%s: %.f points', u.name, u.points)
 
@@ -1997,20 +1994,42 @@ def update_contest(contest, config, homesite, sql):
             nwords += u.words
             nnewpages += u.newpages
 
+            for article in u.articles.itervalues():
+                k = article.site().key + ':' + article.name
+                if len(article.errors) > 0:
+                    article_errors[k] = article.errors
+                for rev in article.revisions.itervalues():
+                    if len(rev.errors) > 0:
+                        if k in article_errors:
+                            article_errors[k].extend(rev.errors)
+                        else:
+                            article_errors[k] = rev.errors
+
+            results.append({
+                'name': u.name,
+                'points': u.points,
+                'bytes': int(u.bytes),
+                'newpages': int(u.newpages),
+                'result': u.format_result(),
+                'plotdata': u.plotdata,
+            })
+
         except ParseError as e:
             err = "\n* '''%s'''" % e.msg
             out = '\n{{%s | error | %s }}' % (config['templates']['botinfo'], err)
-            if args.simulate:
+            if simulate:
                 logger.error(out)
             else:
                 kpage.save('dummy', summary=_('UKBot encountered a problem'), appendtext=out)
             raise
+        
+        del u
 
     # Sort users by points
 
     logger.info('Sorting contributions and preparing contest page')
 
-    uk.users.sort(key=lambda x: x.points, reverse=True)
+    results.sort(key=lambda x: x['points'], reverse=True)
 
     # Make outpage
 
@@ -2067,21 +2086,19 @@ def update_contest(contest, config, homesite, sql):
         }
         out += "''" + _('Last updated %(lastupdate)s. The contest is open from %(startdate)s to %(enddate)s.') % oargs + "''\n\n"
 
-    for i, u in enumerate(uk.users):
-        out += u.format_result(pos=i, closing=(kstatus == 'closing'), prices=uk.prices)
-
-    article_errors = {}
-    for u in uk.users:
-        for article in u.articles.itervalues():
-            k = article.site.key + ':' + article.name
-            if len(article.errors) > 0:
-                article_errors[k] = article.errors
-            for rev in article.revisions.itervalues():
-                if len(rev.errors) > 0:
-                    if k in article_errors:
-                        article_errors[k].extend(rev.errors)
-                    else:
-                        article_errors[k] = rev.errors
+    for i, u in enumerate(results):
+        awards = ''
+        if kstatus == 'closing':
+            if i == 0:
+                for r in uk.prices:
+                    if r[1] == 'winner':
+                        awards += '[[File:%s|20px]] ' % config['awards'][r[0]]['file']
+                        break
+            for r in uk.prices:
+                if r[1] == 'pointlimit' and result['points'] >= r[2]:
+                    awards += '[[File:%s|20px]] ' % config['awards'][r[0]]['file']
+                    break
+        out += u['result'].replace('{awards}', awards)
 
     errors = []
     for art, err in article_errors.iteritems():
@@ -2103,7 +2120,7 @@ def update_contest(contest, config, homesite, sql):
 
     ib = config['templates']['infobox']
 
-    if not args.simulate:
+    if not simulate:
         txt = kpage.text()
         tp = TemplateEditor(txt)
         #print "---"
@@ -2145,15 +2162,15 @@ def update_contest(contest, config, homesite, sql):
             else:
                 kpage.save(txt, summary=_('Updating'))
 
-    if args.output != '':
+    if output != '':
         logger.info("Writing output to file")
-        f = codecs.open(args.output, 'w', 'utf-8')
+        f = codecs.open(output, 'w', 'utf-8')
         f.write(out)
         f.close()
 
     if kstatus == 'ending':
         logger.info('Ending contest')
-        if not args.simulate:
+        if not simulate:
             uk.deliver_leader_notification(kpage.name)
 
             aws = config['awardstatus']
@@ -2168,19 +2185,19 @@ def update_contest(contest, config, homesite, sql):
     if kstatus == 'closing':
         logger.info('Delivering prices')
 
-        uk.deliver_prices(sql, config['default_prefix'], kpage.name, args.simulate)
+        uk.deliver_prices(sql, config['default_prefix'], kpage.name, simulate, results)
 
         cur = sql.cursor()
 
-        for u in uk.users:
-            arg = [config['default_prefix'], kpage.name, u.name, int(uk.startweek), u.points, int(u.bytes), int(u.newpages), 0]
+        for result in results:
+            arg = [config['default_prefix'], kpage.name, result['name'], int(uk.startweek), result['points'], result['bytes'], result['newpages'], 0]
             if uk.startweek != uk.endweek:
                 arg[-1] = int(uk.endweek)
             #print arg
-            if not args.simulate:
+            if not simulate:
                 cur.execute(u"INSERT INTO users (site, contest, user, week, points, bytes, newpages, week2) VALUES (%s,%s,%s,%s,%s,%s,%s,%s)", arg)
 
-        if not args.simulate:
+        if not simulate:
             cur.execute('UPDATE contests SET closed=1 WHERE site=%s AND name=%s', [config['default_prefix'], kpage.name])
             sql.commit()
 
@@ -2190,23 +2207,23 @@ def update_contest(contest, config, homesite, sql):
         page = homesite.pages[aws['pagename']]
         page.save(text=aws['sent'], summary=aws['sent'], bot=True)
 
-        # if not args.simulate:
+        # if not simulate:
         #
         # Skip for now: not Flow compatible
         #     uk.deliver_receipt_to_leaders()
 
         logger.info('Cleaning database')
-        if not args.simulate:
+        if not simulate:
             uk.delete_contribs_from_db()
 
     # Notify users about issues
 
-    # uk.deliver_warnings(simulate=args.simulate)
+    # uk.deliver_warnings(simulate=simulate)
 
     # Update WP:UK
 
     if 'redirect' in config['pages']:
-        if re.match('^' + config['pages']['base'], kpage.name) and not args.simulate and kstatus == 'normal':
+        if re.match('^' + config['pages']['base'], kpage.name) and not simulate and kstatus == 'normal':
             page = homesite.pages[config['pages']['redirect']]
             txt = _('#REDIRECT [[%s]]') % kpage.name
             if page.text() != txt:
@@ -2245,7 +2262,7 @@ def update_contest(contest, config, homesite, sql):
     # Make a nice plot
 
     if 'plot' in config:
-        uk.plot()
+        uk.plot(results)
 
 
 if __name__ == '__main__':
@@ -2285,7 +2302,7 @@ if __name__ == '__main__':
                 mainstart.astimezone(wiki_tz).strftime('%F %T'))
     logger.info('Running on %s %s %s', *platform.linux_distribution())
 
-    main()
+    main(config, page=args.page, simulate=args.simulate, output=args.output)
 
     runend = server_tz.localize(datetime.now())
     runend_s = time.time()

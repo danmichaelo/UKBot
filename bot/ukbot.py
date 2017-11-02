@@ -712,6 +712,10 @@ class User(object):
 
             ts = unix_time(pytz.utc.localize(ts))
 
+            if site_key not in sites:
+                # Contribution from a wiki which is not part of this contest config
+                continue
+
             # Add article if not present
             if not article_key in self.articles:
                 narts += 1

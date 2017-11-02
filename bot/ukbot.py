@@ -2114,12 +2114,21 @@ def update_contest(contest, config, homesite, sql):
         txt = tp.wikitext()
         secstart = -1
         secend = -1
-        for s in re.finditer(r'^[\s]*==([^=]+)==[\s]*\n', txt, flags=re.M):
-            if s.group(1).strip() == config['contestPages']['resultsSection']:
-                secstart = s.end()
-            elif secstart != -1:
-                secend = s.start()
-                break
+
+        # Check if <!-- Begin:ResultsSection --> exists first
+        try:
+            trs1 = next(re.finditer('<!--\s*Begin:ResultsSection\s*-->', txt, re.I))
+            trs2 = next(re.finditer('<!--\s*End:ResultsSection\s*-->', txt, re.I))
+            secstart = trs1.end()
+            secend = trs2.start()
+
+        except StopIteration:
+            for s in re.finditer(r'^[\s]*==([^=]+)==[\s]*\n', txt, flags=re.M):
+                if s.group(1).strip() == config['contestPages']['resultsSection']:
+                    secstart = s.end()
+                elif secstart != -1:
+                    secend = s.start()
+                    break
         if secstart == -1:
             raise StandardError("Error: secstart=%d,secend=%d" % (secstart, secend))
         else:

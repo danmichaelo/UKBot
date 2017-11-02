@@ -1028,10 +1028,9 @@ class UK(object):
             raise ParseError('Fant ingen overskrift etter deltakerlisten!')
         deltakerliste = deltakerliste[:m.start()]
         for d in deltakerliste.split('\n'):
-            q = re.search(r'\[\[([^:]+):([^|\]]+)', d)
+            q = re.search(r'\[\[(?:[^|\]]+):([^|\]]+)', d)
             if q:
-                lst.append(q.group(2))
-        logger.info(" - %d participants", len(lst))
+                lst.append(q.group(1))
         return lst
 
     def extract_rules(self, txt, catignore_txt):

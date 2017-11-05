@@ -5,15 +5,12 @@ import re
 from lxml.html import fromstring
 import lxml
 from mwtextextractor import condition_for_lxml
-from ukcommon import init_localization
-from ukcommon import log
+from ukcommon import t, _
 import urllib
 import logging
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.DEBUG)
-
-t, _ = init_localization()
 
 
 class Rule(object):

@@ -5,14 +5,11 @@ import sys
 import re
 from copy import copy
 from odict import odict
-from ukcommon import log
-from ukcommon import init_localization
+from ukcommon import t, _
 import logging
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.DEBUG)
-
-t, _ = init_localization()
 
 
 class CategoryLoopError(Exception):

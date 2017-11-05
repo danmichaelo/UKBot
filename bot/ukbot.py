@@ -48,14 +48,17 @@ logging.getLogger('oauthlib').setLevel(logging.WARNING)
 logging.getLogger('mwtemplates').setLevel(logging.INFO)
 
 import mwclient
+import mwtemplates
 from mwtemplates import TemplateEditor
 from mwtextextractor import get_body_text
 import ukcommon
 
 
-from ukcommon import log, init_localization, get_mem_usage
-
+from ukcommon import get_mem_usage, Localization, t, _
 import locale
+from ukrules import *
+from ukfilters import *
+
 
 class AppFilter(logging.Filter):
 
@@ -307,30 +310,40 @@ class Revision(object):
         try:
             return self._wordcount
         except:
+            pass
+        try:
             mt1 = get_body_text(self.text)
             mt2 = get_body_text(self.parenttext)
-            logger.debug('Body size: %d -> %d, wordcount: %d -> %d (%s)', len(self.parenttext), len(self.text), len(mt2.split()), len(mt1.split()), self.article().name)
-            self._wordcount = len(mt1.split()) - len(mt2.split())
-            if not self.new and len(mt2.split()) == 0 and self._wordcount > 1:
-                w = _('Revision [//%(host)s/w/index.php?diff=prev&oldid=%(revid)s %(revid)s]: The word count difference might be wrong, because no words were found in the parent revision (%(parentid)s) of size %(size)d, possibly due to unclosed tags or templates in that revision.') % { 'host': self.article().site().host, 'revid': self.revid, 'parentid': self.parentid, 'size': len(self.parenttext) }
-                logger.warning(w)
-                #log(self.parenttext)
-                self.errors.append(w)
-            elif self._wordcount > 10 and self._wordcount > self.bytes:
-                w = _('Revision [//%(host)s/w/index.php?diff=prev&oldid=%(revid)s %(revid)s]: The word count difference might be wrong, because the word count increase (%(words)d) is larger than the byte increase (%(bytes)d). Wrong word counts may occur for invalid wiki text.') % { 'host': self.article().site().host, 'revid': self.revid, 'words': self._wordcount, 'bytes': self.bytes }
-                logger.warning(w)
-                #log(self.parenttext)
-                self.errors.append(w)
+        except mwtemplates.preprocessor.NowikiError:
+            w = _('Revision [//%(host)s/w/index.php?diff=prev&oldid=%(revid)s %(revid)s]: Could not count words because the revision contains a <nowiki/> tag') % { 'host': self.article().site().host, 'revid': self.revid }
+            logger.warning(w)
+            #log(self.parenttext)
+            self.errors.append(w)
+            return 0
 
-            #s = _('A problem encountered with revision %(revid)d may have influenced the word count for this revision: <nowiki>%(problems)s</nowiki> ')
-            #s = _('Et problem med revisjon %d kan ha påvirket ordtellingen for denne: <nowiki>%s</nowiki> ')
-            del mt1
-            del mt2
-            # except DanmicholoParseError as e:
-            #     log("!!!>> FAIL: %s @ %d" % (self.article().name, self.revid))
-            #     self._wordcount = 0
-            #     #raise
-            return self._wordcount
+
+        logger.debug('Body size: %d -> %d, wordcount: %d -> %d (%s)', len(self.parenttext), len(self.text), len(mt2.split()), len(mt1.split()), self.article().name)
+        self._wordcount = len(mt1.split()) - len(mt2.split())
+        if not self.new and len(mt2.split()) == 0 and self._wordcount > 1:
+            w = _('Revision [//%(host)s/w/index.php?diff=prev&oldid=%(revid)s %(revid)s]: The word count difference might be wrong, because no words were found in the parent revision (%(parentid)s) of size %(size)d, possibly due to unclosed tags or templates in that revision.') % { 'host': self.article().site().host, 'revid': self.revid, 'parentid': self.parentid, 'size': len(self.parenttext) }
+            logger.warning(w)
+            #log(self.parenttext)
+            self.errors.append(w)
+        elif self._wordcount > 10 and self._wordcount > self.bytes:
+            w = _('Revision [//%(host)s/w/index.php?diff=prev&oldid=%(revid)s %(revid)s]: The word count difference might be wrong, because the word count increase (%(words)d) is larger than the byte increase (%(bytes)d). Wrong word counts may occur for invalid wiki text.') % { 'host': self.article().site().host, 'revid': self.revid, 'words': self._wordcount, 'bytes': self.bytes }
+            logger.warning(w)
+            #log(self.parenttext)
+            self.errors.append(w)
+
+        #s = _('A problem encountered with revision %(revid)d may have influenced the word count for this revision: <nowiki>%(problems)s</nowiki> ')
+        #s = _('Et problem med revisjon %d kan ha påvirket ordtellingen for denne: <nowiki>%s</nowiki> ')
+        del mt1
+        del mt2
+        # except DanmicholoParseError as e:
+        #     log("!!!>> FAIL: %s @ %d" % (self.article().name, self.revid))
+        #     self._wordcount = 0
+        #     #raise
+        return self._wordcount
 
     @property
     def new(self):
@@ -864,7 +877,7 @@ class User(object):
 
                         if rev.get_points() > 0:
                             #print self.name, rev.timestamp, rev.get_points()
-                            ts = float(unix_time(utc.localize(datetime.fromtimestamp(rev.timestamp)).astimezone(wiki_tz)))
+                            ts = float(unix_time(utc.localize(datetime.fromtimestamp(rev.timestamp)).astimezone(self.contest().wiki_tz)))
                             x.append(ts)
                             y.append(float(rev.get_points()))
 
@@ -915,7 +928,7 @@ class User(object):
                                 descr += ' <span style="color:green">+ %.1f p (%s)</span>' % (-p[0], p[1])
 
                         dt = utc.localize(datetime.fromtimestamp(rev.timestamp))
-                        dt_str = dt.astimezone(wiki_tz).strftime(_('%A, %H:%M')).decode('utf-8')
+                        dt_str = dt.astimezone(self.contest().wiki_tz).strftime(_('%A, %H:%M')).decode('utf-8')
                         out = '[%s %s]: %s' % (rev.get_link(), dt_str, descr)
                         if self.suspended_since is not None and dt > self.suspended_since:
                             out = '<s>' + out + '</s>'
@@ -982,7 +995,7 @@ class User(object):
 
 class UK(object):
 
-    def __init__(self, page, catignore, sites, homesite, sql, config):
+    def __init__(self, page, catignore, sites, homesite, sql, config, wiki_tz, server_tz):
         """
             page: mwclient.Page object
             catignore: string
@@ -1004,6 +1017,9 @@ class UK(object):
         self.sql = sql
         sections = [s.strip() for s in re.findall('^[\s]*==([^=]+)==', txt, flags=re.M)]
         self.results_section = sections.index(resultsSection) + 1
+
+        self.wiki_tz = wiki_tz
+        self.server_tz = server_tz
 
         self.sites = sites
         self.users = [User(n, self) for n in self.extract_userlist(txt)]
@@ -1285,13 +1301,13 @@ class UK(object):
 
             startweek = Week(year, startweek)
             endweek = Week(year, endweek)
-            self.start = wiki_tz.localize(datetime.combine(startweek.monday(), dt_time(0, 0, 0)))
-            self.end = wiki_tz.localize(datetime.combine(endweek.sunday(), dt_time(23, 59, 59)))
+            self.start = self.wiki_tz.localize(datetime.combine(startweek.monday(), dt_time(0, 0, 0)))
+            self.end = self.wiki_tz.localize(datetime.combine(endweek.sunday(), dt_time(23, 59, 59)))
         elif infoboks.has_param(ibcfg['start']) and infoboks.has_param(ibcfg['end']):
             startdt = infoboks.parameters[ibcfg['start']].value
             enddt = infoboks.parameters[ibcfg['end']].value
-            self.start = wiki_tz.localize(datetime.strptime(startdt + ' 00 00 00', '%Y-%m-%d %H %M %S'))
-            self.end = wiki_tz.localize(datetime.strptime(enddt + ' 23 59 59', '%Y-%m-%d %H %M %S'))
+            self.start = self.wiki_tz.localize(datetime.strptime(startdt + ' 00 00 00', '%Y-%m-%d %H %M %S'))
+            self.end = self.wiki_tz.localize(datetime.strptime(enddt + ' 23 59 59', '%Y-%m-%d %H %M %S'))
         else:
             args = {'week': commonargs['week'], 'year': commonargs['year'], 'start': ibcfg['start'], 'end': ibcfg['end'], 'template': ibcfg['name']}
             raise ParseError(_('Did not find %(week)s+%(year)s or %(start)s+%(end)s in {{tl|%(templates)s}}.') % args)
@@ -1341,12 +1357,12 @@ class UK(object):
 
         ######################## Read disqualifications ########################
 
-        sucfg = config['templates']['suspended']
+        sucfg = self.config['templates']['suspended']
         if sucfg['name'] in dp.templates:
             for templ in dp.templates[sucfg['name']]:
                 uname = templ.parameters[1].value
                 try:
-                    sdate = wiki_tz.localize(datetime.strptime(templ.parameters[2].value, '%Y-%m-%d %H:%M'))
+                    sdate = self.wiki_tz.localize(datetime.strptime(templ.parameters[2].value, '%Y-%m-%d %H:%M'))
                 except ValueError:
                     raise ParseError(_("Couldn't parse the date given to the {{tl|%(template)s}} template.") % sucfg['name'])
 
@@ -1362,7 +1378,7 @@ class UK(object):
                     # TODO: logging.warning
                     #raise ParseError('Fant ikke brukeren %s gitt til {{tl|UK bruker suspendert}}-malen.' % uname)
 
-        dicfg = config['templates']['disqualified']
+        dicfg = self.config['templates']['disqualified']
         if dicfg['name'] in dp.templates:
             for templ in dp.templates[dicfg['name']]:
                 uname = templ.parameters[1].value
@@ -1380,7 +1396,7 @@ class UK(object):
                         if not ufound:
                             raise ParseError(_('Could not find the user %(user)s given to the {{tl|%(template)s}} template.') % {'user': uname, 'template': dicfg['name']})
 
-        pocfg = config['templates']['penalty']
+        pocfg = self.config['templates']['penalty']
         if pocfg['name'] in dp.templates:
             for templ in dp.templates[pocfg['name']]:
                 uname = templ.parameters[1].value
@@ -1400,7 +1416,7 @@ class UK(object):
                 if not ufound:
                     raise ParseError(_("Couldn't find the user %(user)s given to the {{tl|%(template)s}} template.") % {'user': uname, 'template': dicfg['name']})
 
-        pocfg = config['templates']['bonus']
+        pocfg = self.config['templates']['bonus']
         if pocfg['name'] in dp.templates:
             for templ in dp.templates[pocfg['name']]:
                 uname = templ.parameters[1].value
@@ -1447,7 +1463,7 @@ class UK(object):
         xt = t0 + np.arange(ndays + 1) * 86400
         xt_mid = t0 + 43200 + np.arange(ndays) * 86400
 
-        now = float(unix_time(server_tz.localize(datetime.now()).astimezone(pytz.utc)))
+        now = float(unix_time(self.server_tz.localize(datetime.now()).astimezone(pytz.utc)))
 
         yall = []
         cnt = 0
@@ -1477,8 +1493,8 @@ class UK(object):
                 if cnt >= 15:
                     break
 
-        if 'datafile' in config['plot']:
-            datafile = open(config['plot']['datafile'], 'w')
+        if 'datafile' in self.config['plot']:
+            datafile = open(self.config['plot']['datafile'], 'w')
             json.dump(alldata, datafile)
 
         if now < xt[-1]:   # showing vertical line telling day when plot was updated
@@ -1520,8 +1536,8 @@ class UK(object):
             ax.set_xlabel(_('Day'))
             ax.set_ylabel(_('Points'))
 
-            now = server_tz.localize(datetime.now())
-            now2 = now.astimezone(wiki_tz).strftime(_('%e. %B %Y, %H:%M')).decode('utf-8')
+            now = self.server_tz.localize(datetime.now())
+            now2 = now.astimezone(self.wiki_tz).strftime(_('%e. %B %Y, %H:%M')).decode('utf-8')
             ax_title = _('Updated %(date)s')
 
             #print ax_title.encode('utf-8')
@@ -1632,8 +1648,8 @@ class UK(object):
                         break
                 mld += '}}\n'
 
-            now = server_tz.localize(datetime.now())
-            yearweek = now.astimezone(wiki_tz).strftime('%Y-%V')
+            now = self.server_tz.localize(datetime.now())
+            yearweek = now.astimezone(self.wiki_tz).strftime('%Y-%V')
             userprefix = self.homesite.namespaces[2]
 
             mld += _("Note that the contest this week is [[%(url)s|{{%(template)s|%(weekarg)s=%(week)s}}]]. Join in!") % {
@@ -1658,7 +1674,11 @@ class UK(object):
 
     def deliver_leader_notification(self, pagename):
         heading = self.format_heading()
-        args = {'prefix': self.homesite.site['server'] + self.homesite.site['script'], 'page': config['awardstatus']['pagename'], 'title': urllib.quote(config['awardstatus']['send'])}
+        args = {
+            'prefix': self.homesite.site['server'] + self.homesite.site['script'],
+            'page': self.config['awardstatus']['pagename'],
+            'title': urllib.quote(self.config['awardstatus']['send'])
+        }
         link = '%(prefix)s?title=%(page)s&action=edit&section=new&preload=%(page)s/Preload&preloadtitle=%(title)s' % args
         usertalkprefix = self.homesite.namespaces[3]
         oaward = ''
@@ -1805,7 +1825,7 @@ class UK(object):
             self.sql.commit()
 
 
-def get_contest_page_titles(sql, homesite, config):
+def get_contest_page_titles(sql, homesite, config, wiki_tz, server_tz):
     cursor = sql.cursor()
     contests = set()
 
@@ -1857,12 +1877,12 @@ def get_contest_page_titles(sql, homesite, config):
     cursor.close()
 
 
-def get_contest_pages(sql, homesite, config, page_title=None):
+def get_contest_pages(sql, homesite, config, wiki_tz, server_tz, page_title=None):
 
     if page_title is not None:
         pages = [('normal', page_title)]
     else:
-        pages = get_contest_page_titles(sql, homesite, config)
+        pages = get_contest_page_titles(sql, homesite, config, wiki_tz, server_tz)
 
 
     for p in pages:
@@ -1923,7 +1943,7 @@ class SQL(object):
         self.conn.close()
 
 
-def main(config, page=None, simulate=False, output=''):
+def main(config, wiki_tz, server_tz, page=None, simulate=False, output=''):
 
     # Configure home site (where the contests live)
     host = config['homesite']
@@ -1935,14 +1955,14 @@ def main(config, page=None, simulate=False, output=''):
     logger.debug('Connected to database')
 
     # Determine what to work with
-    active_contests = list(get_contest_pages(sql, homesite, config, page))
+    active_contests = list(get_contest_pages(sql, homesite, config, wiki_tz, server_tz, page))
 
     logger.info('Number of active contests: %d', len(active_contests))
     for contest in active_contests:
-        update_contest(contest, config, homesite, sql, simulate, output)
+        update_contest(contest, config, homesite, sql, simulate, output, server_tz, wiki_tz)
 
 
-def update_contest(contest, config, homesite, sql, simulate, output):
+def update_contest(contest, config, homesite, sql, simulate, output, server_tz, wiki_tz):
     kstatus, kpage = contest
 
     logger.info('Current contest: [[%s]]', kpage.name)
@@ -1962,7 +1982,7 @@ def update_contest(contest, config, homesite, sql, simulate, output):
 
     # Initialize the contest
     try:
-        uk = UK(kpage, homesite.pages[cpage].text(), sites=sites, homesite=homesite, sql=sql, config=config)
+        uk = UK(kpage, homesite.pages[cpage].text(), sites=sites, homesite=homesite, sql=sql, config=config, wiki_tz=wiki_tz, server_tz=server_tz)
     except ParseError as e:
         err = "\n* '''%s'''" % e.msg
         out = '\n{{%s | error | %s }}' % (config['templates']['botinfo'], err)
@@ -2225,7 +2245,7 @@ def update_contest(contest, config, homesite, sql, simulate, output):
     if kstatus == 'closing':
         logger.info('Delivering prices')
 
-        uk.deliver_prices(sql, config['default_prefix'], kpage.name, simulate, results)
+        uk.deliver_prices(sql, config['default_prefix'], kpage.name, simulate, results, server_tz)
 
         cur = sql.cursor()
 
@@ -2330,9 +2350,7 @@ if __name__ == '__main__':
     wiki_tz = pytz.timezone(config['wiki_timezone'])
     server_tz = pytz.timezone(config['server_timezone'])
 
-    t, _ = init_localization(config['locale'])
-    from ukrules import *
-    from ukfilters import *
+    Localization().init(config['locale'])
 
     mainstart = server_tz.localize(datetime.now())
     mainstart_s = time.time()
@@ -2342,7 +2360,7 @@ if __name__ == '__main__':
                 mainstart.astimezone(wiki_tz).strftime('%F %T'))
     logger.info('Running on %s %s %s', *platform.linux_distribution())
 
-    main(config, page=args.page, simulate=args.simulate, output=args.output)
+    main(config, wiki_tz, server_tz, page=args.page, simulate=args.simulate, output=args.output)
 
     runend = server_tz.localize(datetime.now())
     runend_s = time.time()

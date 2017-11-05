@@ -296,12 +296,12 @@ class Revision(object):
 
     def te_text(self):
         if self._te_text is None:
-            self._te_text = TemplateEditor(self.text)
+            self._te_text = TemplateEditor(re.sub('<nowiki ?/>', '', self.text))
         return self._te_text
 
     def te_parenttext(self):
         if self._te_parenttext is None:
-            self._te_parenttext = TemplateEditor(self.parenttext)
+            self._te_parenttext = TemplateEditor(re.sub('<nowiki ?/>', '', self.parenttext))
         return self._te_parenttext
 
     def __str__(self):
@@ -320,16 +320,9 @@ class Revision(object):
             return self._wordcount
         except:
             pass
-        try:
-            mt1 = get_body_text(self.text)
-            mt2 = get_body_text(self.parenttext)
-        except:  #  mwtemplates.preprocessor.NowikiError:
-            w = _('Revision [//%(host)s/w/index.php?diff=prev&oldid=%(revid)s %(revid)s]: Could not count words because the revision contains a <nowiki><nowiki/></nowiki> tag') % { 'host': self.article().site().host, 'revid': self.revid }
-            logger.warning(w)
-            #log(self.parenttext)
-            self.errors.append(w)
-            return 0
 
+        mt1 = get_body_text(re.sub('<nowiki ?/>', '', self.text))
+        mt2 = get_body_text(re.sub('<nowiki ?/>', '', self.parenttext))
 
         logger.debug('Body size: %d -> %d, wordcount: %d -> %d (%s)', len(self.parenttext), len(self.text), len(mt2.split()), len(mt1.split()), self.article().name)
         self._wordcount = len(mt1.split()) - len(mt2.split())

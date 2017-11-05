@@ -62,6 +62,9 @@ class NewPageRule(Rule):
         if rev.new and not rev.redirect:
             rev.points.append([self.points, 'newpage', _('new page')])
 
+        if rev.parentredirect and not rev.redirect:
+            rev.points.append([self.points, 'newpage', _('new page')])
+
 
 class RedirectRule(Rule):
 

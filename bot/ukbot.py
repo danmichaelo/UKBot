@@ -334,7 +334,7 @@ class Revision(object):
 
     @property
     def new(self):
-        return (self.parentid == 0)
+        return self.parentid == 0 or (self.parentredirect and not self.redirect)
 
     @property
     def redirect(self):

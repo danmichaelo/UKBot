@@ -146,6 +146,10 @@ class Site(mwclient.Site):
         logger.debug('Initializing site: %s', host)
         ua = 'UKBot. Run by User:Danmichaelo. Using mwclient/' + mwclient.__ver__
         mwclient.Site.__init__(self, host, clients_useragent=ua, **kwargs)
+        magicwords = self.api('query', meta='siteinfo', siprop='magicwords')['query']['magicwords']
+        redirect_words = [x['aliases'] for x in magicwords if x['name'] == 'redirect'][0]
+        logger.debug('Redirect words: %s', '|'.join(redirect_words))
+        self.redirect_regexp = re.compile(u'(?:%s)' % u'|'.join(redirect_words), re.I)
 
 
 @python_2_unicode_compatible
@@ -351,11 +355,11 @@ class Revision(object):
 
     @property
     def redirect(self):
-        return bool(re.match(r'#(OMDIRIGER|OMDIRIGERING|REDIRECT|OHJAUS|UUDELLEENOHJAUS|STIVREN)', self.text, re.IGNORECASE))
+        return bool(self.article().site().redirect_regexp.match(self.text))
 
     @property
     def parentredirect(self):
-        return bool(re.match(r'#(OMDIRIGER|OMDIRIGERING|REDIRECT|OHJAUS|UUDELLEENOHJAUS|STIVREN)', self.parenttext, re.IGNORECASE))
+        return bool(self.article().site().redirect_regexp.match(self.parenttext))
 
     def get_link(self):
         """ returns a link to revision """

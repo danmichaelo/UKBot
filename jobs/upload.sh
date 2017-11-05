@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/bash
 
 export UKCONF=$(echo "$JOB_NAME")  #  | cut -c7-20)
 projectdir=/data/project/ukbot
@@ -14,9 +14,9 @@ START=$(date +%s)
 . ${projectdir}/ENV/bin/activate
 cd ${projectdir}/bot
 
-set -o pipefail
+# set -o pipefail  # doesn't work when run through the task schedueler
 python uploadplot.py --config "${configfile}" 2>&1 | tee -a $logfile
-status=$?
+status="${PIPESTATUS[0]}"
 
 echo "$(date) : Job $JOB_NAME ($JOB_ID) on $HOSTNAME finished with exit code $status" | tee -a $logfile
 

@@ -1887,6 +1887,30 @@ class MyConverter(mysql.connector.conversion.MySQLConverter):
         return[to_unicode(col) for col in row]
 
 
+class SQL(object):
+
+    def __init__(self, config):
+        self.config = config
+        self.open_conn()
+
+    def open_conn(self):
+        self.conn = mysql.connector.connect(converter_class=MyConverter, **self.config)
+
+    def cursor(self, **kwargs):
+        try:
+            return self.conn.cursor(**kwargs)
+        except mysql.connector.errors.OperationalError:
+            # Seems like this can happen if the db connection times out
+            self.open_conn()
+            return self.conn.cursor(**kwargs)
+
+    def commit(self):
+        self.conn.commit()
+
+    def close(self):
+        self.conn.close()
+
+
 def main(config, page=None, simulate=False, output=''):
 
     # Configure home site (where the contests live)
@@ -1895,7 +1919,7 @@ def main(config, page=None, simulate=False, output=''):
     assert homesite.logged_in
 
     # Connect to DB
-    sql = mysql.connector.connect(converter_class=MyConverter, **config['db'])
+    sql = SQL(config['db'])
     logger.debug('Connected to database')
 
     # Determine what to work with

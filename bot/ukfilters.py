@@ -1,4 +1,5 @@
-#encoding=utf-8
+# encoding=utf-8
+# vim: fenc=utf-8 et sw=4 ts=4 sts=4 ai
 from __future__ import unicode_literals
 import sys
 import re

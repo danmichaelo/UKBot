@@ -324,7 +324,7 @@ class Revision(object):
             mt1 = get_body_text(self.text)
             mt2 = get_body_text(self.parenttext)
         except:  #  mwtemplates.preprocessor.NowikiError:
-            w = _('Revision [//%(host)s/w/index.php?diff=prev&oldid=%(revid)s %(revid)s]: Could not count words because the revision contains a <nowiki/> tag') % { 'host': self.article().site().host, 'revid': self.revid }
+            w = _('Revision [//%(host)s/w/index.php?diff=prev&oldid=%(revid)s %(revid)s]: Could not count words because the revision contains a <nowiki><nowiki/></nowiki> tag') % { 'host': self.article().site().host, 'revid': self.revid }
             logger.warning(w)
             #log(self.parenttext)
             self.errors.append(w)
@@ -712,9 +712,10 @@ class User(object):
         """
         Populates self.articles with entries from MySQL DB
 
-            sql   : oursql.Connection object
+            sql       : SQL Connection object
             start : datetime object
             end   : datetime object
+            sites : list of sites
         """
         # logger.info('Reading user contributions from database')
 
@@ -1002,15 +1003,15 @@ class User(object):
         return out
 
 
-class UK(object):
+class Contest(object):
 
-    def __init__(self, page, catignore, sites, homesite, sql, config, wiki_tz, server_tz):
+    def __init__(self, page, sites, homesite, sql, config, wiki_tz, server_tz):
         """
             page: mwclient.Page object
-            catignore: string
             sites: list
             sql: mysql Connection object
         """
+        logger.info('Initializing contest [[%s]]', page.name)
         self.page = page
         self.name = self.page.name
         self.config = config
@@ -1032,7 +1033,7 @@ class UK(object):
 
         self.sites = sites
         self.users = [User(n, self) for n in self.extract_userlist(txt)]
-        self.rules, self.filters = self.extract_rules(txt, catignore)
+        self.rules, self.filters = self.extract_rules(txt, self.config.get('catignore', ''))
 
         logger.info(" - %d participants", len(self.users))
         logger.info(" - %d filter(s) and %d rule(s)", len(self.filters), len(self.rules))
@@ -1061,7 +1062,7 @@ class UK(object):
                 lst.append(q.group(1))
         return lst
 
-    def extract_rules(self, txt, catignore_txt):
+    def extract_rules(self, txt, catignore_page=''):
         rules = []
         filters = []
         config = self.config
@@ -1071,9 +1072,14 @@ class UK(object):
         site_param = rulecfg['site']
 
         dp = TemplateEditor(txt)
+
+        catignore_txt = ''
+        if catignore_page != '':
+            catignore_txt = self.homesite.pages[catignore_page].text()
+
         if catignore_txt == '':
             catignore = []
-            logger.info('Note: catignore page is empty')
+            logger.info('Note: catignore page is empty or does not exist')
         else:
 
             if not config['templates']['rule']['name'] in dp.templates:
@@ -1615,21 +1621,20 @@ class UK(object):
             page.save(text=body + ' ' + sig, bot=False, section='new', summary=topic)
 
 
-    def deliver_prices(self, sql, siteprefix, ktitle, simulate, results):
-
+    def deliver_prices(self, results, simulate=False):
         config = self.config
         heading = self.format_heading()
 
-        cur = sql.cursor()
-        cur.execute('SELECT contest_id FROM contests WHERE site=%s AND name=%s', [config['default_prefix'], ktitle])
+        cur = self.sql.cursor()
+        cur.execute('SELECT contest_id FROM contests WHERE site=%s AND name=%s', [config['default_prefix'], self.name])
         contest_id = cur.fetchall()[0][0]
 
         logger.info('Delivering prices for contest %d' % (contest_id,))
 
-        # sql.commit()
+        # self.sql.commit()
         # cur.close()
 
-        for i, u in enumerate(results):
+        for i, result in enumerate(results):
 
             prizefound = False
             if i == 0:
@@ -1640,7 +1645,7 @@ class UK(object):
                         mld = self.format_msg('winner_template', r[0])
                         break
                 for r in self.prices:
-                    if r[1] == 'pointlimit' and u['points'] >= r[2]:
+                    if r[1] == 'pointlimit' and result['points'] >= r[2]:
                         if prizefound:
                             mld += '|%s=%s' % (r[0], self.config['templates']['commonargs'][True])
                         else:
@@ -1651,7 +1656,7 @@ class UK(object):
             else:
                 mld = ''
                 for r in self.prices:
-                    if r[1] == 'pointlimit' and u['points'] >= r[2]:
+                    if r[1] == 'pointlimit' and result['points'] >= r[2]:
                         prizefound = True
                         mld = self.format_msg('participant_template', r[0])
                         break
@@ -1672,16 +1677,16 @@ class UK(object):
             if prizefound:
 
                 if not simulate:
-                    cur.execute('SELECT prize_id FROM prizes WHERE contest_id=%s AND site=%s AND user=%s', [contest_id, siteprefix, u.name])
+                    cur.execute('SELECT prize_id FROM prizes WHERE contest_id=%s AND site=%s AND user=%s', [contest_id, self.homesite.key, result['name']])
                     rows = cur.fetchall()
                     if len(rows) == 0:
-                        self.deliver_message(u.name, heading, mld, sig)
-                        cur.execute('INSERT INTO prizes (contest_id, site, user, timestamp) VALUES (%s,%s,%s, NOW())', [contest_id, siteprefix, u.name])
-                        sql.commit()
+                        self.deliver_message(result['name'], heading, mld, sig)
+                        cur.execute('INSERT INTO prizes (contest_id, site, user, timestamp) VALUES (%s,%s,%s, NOW())', [contest_id, self.homesite.key, result['name']])
+                        self.sql.commit()
             else:
-                logger.warning('No price found for %s', u.name)
+                logger.info('No price for %s', result['name'])
 
-    def deliver_leader_notification(self, pagename):
+    def deliver_leader_notification(self):
         heading = self.format_heading()
         args = {
             'prefix': self.homesite.site['server'] + self.homesite.site['script'],
@@ -1721,10 +1726,10 @@ class UK(object):
                     'organizeraward': oaward,
                     'yes': self.config['templates']['commonargs'][True]
                 }
-            mld += _('Now you must check if the results look ok. If there are error messages at the bottom of the [[%(page)s|contest page]], you should check that the related contributions have been awarded the correct number of points. Also check if there are comments or complaints on the discussion page. If everything looks fine, [%(link)s click here] (and save) to indicate that I can send out the awards at first occasion.') % {'page': pagename, 'link': link}
+            mld += _('Now you must check if the results look ok. If there are error messages at the bottom of the [[%(page)s|contest page]], you should check that the related contributions have been awarded the correct number of points. Also check if there are comments or complaints on the discussion page. If everything looks fine, [%(link)s click here] (and save) to indicate that I can send out the awards at first occasion.') % {'page': self.name, 'link': link}
             sig = _('Thanks, ~~~~')
 
-            logger.info('Leverer arrangørmelding til %s', pagename)
+            logger.info('Leverer arrangørmelding for %s', self.name )
             self.deliver_message(u, heading, mld, sig)
 
 
@@ -1833,6 +1838,341 @@ class UK(object):
                     page.save(text=msg, bot=False, section='new', summary=heading)
             self.sql.commit()
 
+    def run(self, simulate=False, output=''):
+        config = self.config
+
+        if not self.page.exists:
+            logger.error('Contest page [[%s]] does not exist! Exiting', self.page.name)
+            return
+
+        # Loop over users
+
+        narticles = 0
+        nbytes = 0
+        nwords = 0
+        nnewpages = 0
+
+        # extraargs = {'namespace': 0}
+        extraargs = {}
+        host_filter = None
+        for f in self.filters:
+            if isinstance(f, NamespaceFilter):
+                extraargs['namespace'] = '|'.join(f.namespaces)
+                host_filter = f.site
+
+        article_errors = {}
+        results = []
+
+        while True:
+            if len(self.users) == 0:
+                break
+            user = self.users.pop()
+
+            logger.info('=== User:%s ===', user.name)
+
+            # First read contributions from db
+            user.add_contribs_from_db(self.sql, self.start, self.end, self.sites)
+
+            # Then fill in new contributions from wiki
+            for site in self.sites.itervalues():
+
+                if host_filter is None or site.host == host_filter:
+                    user.add_contribs_from_wiki(site, self.start, self.end, fulltext=True, **extraargs)
+
+            # And update db
+            user.save_contribs_to_db(self.sql)
+
+            try:
+
+                # Filter out relevant articles
+                user.filter(self.filters)
+
+                # And calculate points
+                logger.info('Calculating points')
+                tp0 = time.time()
+                user.analyze(self.rules)
+                tp1 = time.time()
+                logger.info('%s: %.f points (calculated in %.1f secs)', user.name, user.points, tp1 - tp0)
+
+                narticles += len(user.articles)
+                nbytes += user.bytes
+                nwords += user.words
+                nnewpages += user.newpages
+                tp2 = time.time()
+                logger.info('Wordcount done in %.1f secs', tp2 - tp1)
+
+                for article in user.articles.itervalues():
+                    k = article.site().key + ':' + article.name
+                    if len(article.errors) > 0:
+                        article_errors[k] = article.errors
+                    for rev in article.revisions.itervalues():
+                        if len(rev.errors) > 0:
+                            if k in article_errors:
+                                article_errors[k].extend(rev.errors)
+                            else:
+                                article_errors[k] = rev.errors
+
+                results.append({
+                    'name': user.name,
+                    'points': user.points,
+                    'bytes': int(user.bytes),
+                    'newpages': int(user.newpages),
+                    'result': user.format_result(),
+                    'plotdata': user.plotdata,
+                })
+
+            except ParseError as e:
+                err = "\n* '''%s'''" % e.msg
+                out = '\n{{%s | error | %s }}' % (config['templates']['botinfo'], err)
+                if simulate:
+                    logger.error(out)
+                else:
+                    self.page.save('dummy', summary=_('UKBot encountered a problem'), appendtext=out)
+                raise
+
+            del user
+
+        # Sort users by points
+
+        logger.info('Sorting contributions and preparing contest page')
+
+        results.sort(key=lambda x: x['points'], reverse=True)
+
+        # Make outpage
+
+        out = ''
+        #out += '[[File:Nowp Ukens konkurranse %s.svg|thumb|400px|Resultater (oppdateres normalt hver natt i halv ett-tiden, viser kun de ti med høyest poengsum)]]\n' % self.start.strftime('%Y-%W')
+
+        sammen = ''
+        if 'status' in config['templates']:
+            sammen = '{{%s' % config['templates']['status']
+
+            ft = [type(f) for f in self.filters]
+            rt = [type(r) for r in self.rules]
+
+            #if StubFilter in ft:
+            #    sammen += '|avstubbet=%d' % narticles
+
+            trn = 0
+            for f in self.rules:
+                if type(f) == NewPageRule:
+                    sammen += '|%s=%d' % (f.key, nnewpages)
+                elif type(f) == ByteRule:
+                    if nbytes >= 10000:
+                        sammen += '|kilo%s=%.f' % (f.key, nbytes / 1000.)
+                    else:
+                        sammen += '|%s=%d' % (f.key, nbytes)
+                elif type(f) == WordRule:
+                    sammen += '|%s=%d' % (f.key, nwords)
+                elif type(f) == RefRule:
+                    sammen += '|%s=%d' % (f.key, f.totalsources)
+                elif type(f) == RefSectionFiRule:
+                    sammen += '|%s=%d' % (f.key, f.totalrefsectionsadded)
+                elif type(f) == ImageRule:
+                    sammen += '|%s=%d' % (f.key, f.totalimages)
+                elif type(f) == TemplateRemovalRule:
+                    trn += 1
+                    sammen += '|%(key)s%(idx)d=%(tpl)s|%(key)s%(idx)dn=%(cnt)d' % {
+                        'key': f.key, 'idx': trn, 'tpl': f.template, 'cnt': f.total}
+
+            sammen += '}}'
+
+        #out += sammen + '\n'
+
+        now = self.server_tz.localize(datetime.now())
+        if kstatus == 'ending':
+            # Konkurransen er nå avsluttet – takk til alle som deltok! Rosetter vil bli delt ut så snart konkurransearrangøren(e) har sjekket resultatene.
+            out += "''" + _('This contest is closed – thanks to everyone who participated! Awards will be sent out as soon as the contest organizer has checked the results.') + "''\n\n"
+        elif kstatus == 'closing':
+            out += "''" + _('This contest is closed – thanks to everyone who participated!') + "''\n\n"
+        else:
+            oargs = {
+                'lastupdate': now.astimezone(self.wiki_tz).strftime(_('%e. %B %Y, %H:%M')).decode('utf-8'),
+                'startdate': self.start.strftime(_('%e. %B %Y, %H:%M')).decode('utf-8'),
+                'enddate': self.end.strftime(_('%e. %B %Y, %H:%M')).decode('utf-8')
+            }
+            out += "''" + _('Last updated %(lastupdate)s. The contest is open from %(startdate)s to %(enddate)s.') % oargs + "''\n\n"
+
+        for i, result in enumerate(results):
+            awards = ''
+            if kstatus == 'closing':
+                if i == 0:
+                    for price in self.prices:
+                        if price[1] == 'winner':
+                            awards += '[[File:%s|20px]] ' % config['awards'][price[0]]['file']
+                            break
+                for price in self.prices:
+                    if price[1] == 'pointlimit' and result['points'] >= price[2]:
+                        awards += '[[File:%s|20px]] ' % config['awards'][price[0]]['file']
+                        break
+            out += result['result'].replace('{awards}', awards)
+
+        errors = []
+        for art, err in article_errors.iteritems():
+            if len(err) > 8:
+                err = err[:8]
+                err.append('(...)')
+            errors.append('\n* ' + _('UKBot encountered the following problems with the article [[:%s]]') % art + ''.join(['\n** %s' % e for e in err]))
+
+        for site in self.sites.itervalues():
+            for error in site.errors:
+                errors.append('\n* %s' % error)
+
+        if len(errors) == 0:
+            out += '{{%s | ok | %s }}' % (config['templates']['botinfo'], now.astimezone(self.wiki_tz).strftime('%F %T'))
+        else:
+            out += '{{%s | 1=note | 2=%s | 3=%s }}' % (config['templates']['botinfo'], now.astimezone(self.wiki_tz).strftime('%F %T'), ''.join(errors))
+
+        out += '\n' + config['contestPages']['footer'] % {'year': self.year} + '\n'
+
+        ib = config['templates']['infobox']
+
+        if not simulate:
+            txt = self.page.text()
+            tp = TemplateEditor(txt)
+            #print "---"
+            #print sammen
+            #print "---"
+            if sammen != '':
+                tp.templates[ib['name']][0].parameters[ib['status']] = sammen
+            txt = tp.wikitext()
+            secstart = -1
+            secend = -1
+
+            # Check if <!-- Begin:ResultsSection --> exists first
+            try:
+                trs1 = next(re.finditer('<!--\s*Begin:ResultsSection\s*-->', txt, re.I))
+                trs2 = next(re.finditer('<!--\s*End:ResultsSection\s*-->', txt, re.I))
+                secstart = trs1.end()
+                secend = trs2.start()
+
+            except StopIteration:
+                for s in re.finditer(r'^[\s]*==([^=]+)==[\s]*\n', txt, flags=re.M):
+                    if s.group(1).strip() == config['contestPages']['resultsSection']:
+                        secstart = s.end()
+                    elif secstart != -1:
+                        secend = s.start()
+                        break
+            if secstart == -1:
+                raise StandardError("Error: secstart=%d,secend=%d" % (secstart, secend))
+            else:
+                if secend == -1:
+                    txt = txt[:secstart] + out
+                else:
+                    txt = txt[:secstart] + out + txt[secend:]
+
+                logger.info('Updating wiki, section = %d', self.results_section)
+                if kstatus == 'ending':
+                    self.page.save(txt, summary=_('Updating with final results, the contest is now closed.'))
+                elif kstatus == 'closing':
+                    self.page.save(txt, summary=_('Checking results and handing out awards'))
+                else:
+                    self.page.save(txt, summary=_('Updating'))
+
+        if output != '':
+            logger.info("Writing output to file")
+            f = codecs.open(output, 'w', 'utf-8')
+            f.write(out)
+            f.close()
+
+        if kstatus == 'ending':
+            logger.info('Ending contest')
+            if not simulate:
+                self.deliver_leader_notification()
+
+                aws = config['awardstatus']
+                page = self.homesite.pages[aws['pagename']]
+                page.save(text=aws['wait'], summary=aws['wait'], bot=True)
+
+                cur = self.sql.cursor()
+                cur.execute('UPDATE contests SET ended=1 WHERE site=%s AND name=%s', [config['default_prefix'], self.name])
+                self.sql.commit()
+                cur.close()
+
+        if kstatus == 'closing':
+            logger.info('Delivering prices')
+
+            self.deliver_prices(results, simulate)
+
+            cur = self.sql.cursor()
+
+            for result in results:
+                arg = [config['default_prefix'], self.name, result['name'], int(self.startweek), result['points'], result['bytes'], result['newpages'], 0]
+                if self.startweek != self.endweek:
+                    arg[-1] = int(self.endweek)
+                #print arg
+                if not simulate:
+                    cur.execute(u"INSERT INTO users (site, contest, user, week, points, bytes, newpages, week2) VALUES (%s,%s,%s,%s,%s,%s,%s,%s)", arg)
+
+            if not simulate:
+                cur.execute('UPDATE contests SET closed=1 WHERE site=%s AND name=%s', [config['default_prefix'], self.name])
+                self.sql.commit()
+
+            cur.close()
+
+            aws = config['awardstatus']
+            page = self.homesite.pages[aws['pagename']]
+            page.save(text=aws['sent'], summary=aws['sent'], bot=True)
+
+            # if not simulate:
+            #
+            # Skip for now: not Flow compatible
+            #     self.deliver_receipt_to_leaders()
+
+            logger.info('Cleaning database')
+            if not simulate:
+                self.delete_contribs_from_db()
+
+        # Notify users about issues
+
+        # self.deliver_warnings(simulate=simulate)
+
+        # Update WP:UK
+
+        if 'redirect' in config['pages']:
+            if re.match('^' + config['pages']['base'], self.name) and not simulate and kstatus == 'normal':
+                page = self.homesite.pages[config['pages']['redirect']]
+                txt = _('#REDIRECT [[%s]]') % self.name
+                if page.text() != txt:
+                    if not simulate:
+                        page.save(txt, summary=_('Redirecting to %s') % self.name)
+
+        # Update Wikipedia:Portal/Oppslagstavle
+
+        if 'noticeboard' in config:
+            boardname = config['noticeboard']['name']
+            boardtpl = config['noticeboard']['template']
+            commonargs = config['templates']['commonargs']
+            tplname = boardtpl['name']
+            oppslagstavle = self.homesite.pages[boardname]
+            txt = oppslagstavle.text()
+
+            dp = TemplateEditor(txt)
+            ntempl = len(dp.templates[tplname])
+            if ntempl != 1:
+                raise StandardError('Feil: Fant %d %s-maler i %s' % (ntempl, tplname, boardname))
+
+            tpl = dp.templates[tplname][0]
+            now2 = now.astimezone(self.wiki_tz)
+            if int(tpl.parameters['uke']) != int(now2.strftime('%V')):
+                logger.info('Updating noticeboard: %s', boardname)
+                tpllist = config['templates']['contestlist']
+                commonargs = config['templates']['commonargs']
+                tema = self.homesite.api('parse', text='{{subst:%s|%s=%s}}' % (tpllist['name'], commonargs['week'], now2.strftime('%Y-%V')), pst=1, onlypst=1)['parse']['text']['*']
+                tpl.parameters[1] = tema
+                tpl.parameters[boardtpl['date']] = now2.strftime('%e. %h')
+                tpl.parameters[commonargs['year']] = now2.isocalendar()[0]
+                tpl.parameters[commonargs['week']] = now2.isocalendar()[1]
+                txt2 = dp.wikitext()
+                if txt != txt2:
+                    if not simulate:
+                        oppslagstavle.save(txt2, summary=_('The weekly contest is: %(link)s') % {'link': tema})
+
+        # Make a nice plot
+
+        if 'plot' in config:
+            self.plot(results)
+
 
 def get_contest_page_titles(sql, homesite, config, wiki_tz, server_tz):
     cursor = sql.cursor()
@@ -1840,7 +2180,10 @@ def get_contest_page_titles(sql, homesite, config, wiki_tz, server_tz):
 
     # 1) Check if there is a contest to close
 
-    cursor.execute('SELECT name FROM contests WHERE site=%s AND ended=1 AND closed=0 LIMIT 1', [config['default_prefix']])
+    cursor.execute('SELECT name FROM contests WHERE site=%s AND name LIKE %s AND ended=1 AND closed=0 LIMIT 1', [
+        config['default_prefix'],
+        config['pages']['base'] + '%',
+    ])
     closing_contests = cursor.fetchall()
     if len(closing_contests) != 0:
         page_title = closing_contests[0][0]
@@ -1857,11 +2200,15 @@ def get_contest_page_titles(sql, homesite, config, wiki_tz, server_tz):
     # 2) Check if there is a contest to end
     now = server_tz.localize(datetime.now())
     now_s = now.astimezone(wiki_tz).strftime('%F %T')
-    cursor.execute('SELECT name FROM contests WHERE site=%s AND ended=0 AND closed=0 AND end_date < %s LIMIT 1', [config['default_prefix'], now_s])
+    cursor.execute('SELECT name FROM contests WHERE site=%s AND name LIKE %s AND ended=0 AND closed=0 AND end_date < %s LIMIT 1', [
+        config['default_prefix'],
+        config['pages']['base'] + '%',
+        now_s,
+    ])
     ending_contests = cursor.fetchall()
     if len(ending_contests) != 0:
         page_title = ending_contests[0][0]
-        logger.info('Contest %s just ended', ending_contests[0])
+        logger.info('Contest [[%s]] just ended', page_title)
         contests.add(page_title)
         yield ('ending', page_title)
 
@@ -1952,7 +2299,7 @@ class SQL(object):
         self.conn.close()
 
 
-def main(config, wiki_tz, server_tz, page=None, simulate=False, output=''):
+def init_sites(config):
 
     if 'ignore' not in config:
         config['ignore'] = []
@@ -1967,19 +2314,6 @@ def main(config, wiki_tz, server_tz, page=None, simulate=False, output=''):
     sql = SQL(config['db'])
     logger.debug('Connected to database')
 
-    # Determine what to work with
-    active_contests = list(get_contest_pages(sql, homesite, config, wiki_tz, server_tz, page))
-
-    logger.info('Number of active contests: %d', len(active_contests))
-    for contest in active_contests:
-        update_contest(contest, config, homesite, sql, simulate, output, server_tz, wiki_tz)
-
-
-def update_contest(contest, config, homesite, sql, simulate, output, server_tz, wiki_tz):
-    kstatus, kpage = contest
-
-    logger.info('Current contest: [[%s]]', kpage.name)
-
     prefix = homesite.host.split('.')[0]
     sites = {prefix: homesite}
     if 'othersites' in config:
@@ -1993,355 +2327,7 @@ def update_contest(contest, config, homesite, sql, simulate, output, server_tz, 
             logger.debug('Revert page regexp: %s', msg)
             config['ignore'].append(msg)
 
-    cpage = config['pages']['catignore']
-
-    if not kpage.exists:
-        logger.error('Contest page [[%s]] does not exist! Exiting', kpage.page_title)
-        return
-
-    # Initialize the contest
-    try:
-        uk = UK(kpage, homesite.pages[cpage].text(), sites=sites, homesite=homesite, sql=sql, config=config, wiki_tz=wiki_tz, server_tz=server_tz)
-    except ParseError as e:
-        err = "\n* '''%s'''" % e.msg
-        out = '\n{{%s | error | %s }}' % (config['templates']['botinfo'], err)
-        if simulate:
-            logger.info(out)
-        else:
-            kpage.save('dummy', summary=_('UKBot encountered a problem'), appendtext=out)
-        raise
-
-    # if kstatus == 'closing' and closeuser not in uk.ledere:
-    #     log('!! Konkurransen ble forsøkt avsluttet av %s, men konkurranseledere er oppgitt som: %s' % (closeuser, ', '.join(uk.ledere)))
-    #     #log('!! Konkurransen ble forsøkt avsluttet av andre enn konkurranseleder')
-    #     #return
-
-
-    # Loop over users
-
-    narticles = 0
-    nbytes = 0
-    nwords = 0
-    nnewpages = 0
-
-    # extraargs = {'namespace': 0}
-    extraargs = {}
-    host_filter = None
-    for f in uk.filters:
-        if isinstance(f, NamespaceFilter):
-            extraargs['namespace'] = '|'.join(f.namespaces)
-            host_filter = f.site
-
-    article_errors = {}
-    results = []
-
-    while True:
-        if len(uk.users) == 0:
-            break
-        u = uk.users.pop()
-
-        logger.info('=== User:%s ===', u.name)
-
-        # First read contributions from db
-        u.add_contribs_from_db(sql, uk.start, uk.end, sites)
-
-        # Then fill in new contributions from wiki
-        for site in sites.itervalues():
-
-            if host_filter is None or site.host == host_filter:
-                u.add_contribs_from_wiki(site, uk.start, uk.end, fulltext=True, **extraargs)
-
-        # And update db
-        u.save_contribs_to_db(sql)
-
-        try:
-
-            # Filter out relevant articles
-            u.filter(uk.filters)
-
-            # And calculate points
-            logger.info('Calculating points')
-            tp0 = time.time()
-            u.analyze(uk.rules)
-            tp1 = time.time()
-            logger.info('%s: %.f points (calculated in %.1f secs)', u.name, u.points, tp1 - tp0)
-
-            narticles += len(u.articles)
-            nbytes += u.bytes
-            nwords += u.words
-            nnewpages += u.newpages
-            tp2 = time.time()
-            logger.info('Wordcount done in %.1f secs', tp2 - tp1)
-
-            for article in u.articles.itervalues():
-                k = article.site().key + ':' + article.name
-                if len(article.errors) > 0:
-                    article_errors[k] = article.errors
-                for rev in article.revisions.itervalues():
-                    if len(rev.errors) > 0:
-                        if k in article_errors:
-                            article_errors[k].extend(rev.errors)
-                        else:
-                            article_errors[k] = rev.errors
-
-            results.append({
-                'name': u.name,
-                'points': u.points,
-                'bytes': int(u.bytes),
-                'newpages': int(u.newpages),
-                'result': u.format_result(),
-                'plotdata': u.plotdata,
-            })
-
-        except ParseError as e:
-            err = "\n* '''%s'''" % e.msg
-            out = '\n{{%s | error | %s }}' % (config['templates']['botinfo'], err)
-            if simulate:
-                logger.error(out)
-            else:
-                kpage.save('dummy', summary=_('UKBot encountered a problem'), appendtext=out)
-            raise
-        
-        del u
-
-    # Sort users by points
-
-    logger.info('Sorting contributions and preparing contest page')
-
-    results.sort(key=lambda x: x['points'], reverse=True)
-
-    # Make outpage
-
-    out = ''
-    #out += '[[File:Nowp Ukens konkurranse %s.svg|thumb|400px|Resultater (oppdateres normalt hver natt i halv ett-tiden, viser kun de ti med høyest poengsum)]]\n' % uk.start.strftime('%Y-%W')
-
-    sammen = ''
-    if 'status' in config['templates']:
-        sammen = '{{%s' % config['templates']['status']
-
-        ft = [type(f) for f in uk.filters]
-        rt = [type(r) for r in uk.rules]
-
-        #if StubFilter in ft:
-        #    sammen += '|avstubbet=%d' % narticles
-
-        trn = 0
-        for f in uk.rules:
-            if type(f) == NewPageRule:
-                sammen += '|%s=%d' % (f.key, nnewpages)
-            elif type(f) == ByteRule:
-                if nbytes >= 10000:
-                    sammen += '|kilo%s=%.f' % (f.key, nbytes / 1000.)
-                else:
-                    sammen += '|%s=%d' % (f.key, nbytes)
-            elif type(f) == WordRule:
-                sammen += '|%s=%d' % (f.key, nwords)
-            elif type(f) == RefRule:
-                sammen += '|%s=%d' % (f.key, f.totalsources)
-            elif type(f) == RefSectionFiRule:
-                sammen += '|%s=%d' % (f.key, f.totalrefsectionsadded)
-            elif type(f) == ImageRule:
-                sammen += '|%s=%d' % (f.key, f.totalimages)
-            elif type(f) == TemplateRemovalRule:
-                trn += 1
-                sammen += '|%(key)s%(idx)d=%(tpl)s|%(key)s%(idx)dn=%(cnt)d' % {
-                    'key': f.key, 'idx': trn, 'tpl': f.template, 'cnt': f.total}
-
-        sammen += '}}'
-
-    #out += sammen + '\n'
-
-    now = server_tz.localize(datetime.now())
-    if kstatus == 'ending':
-        # Konkurransen er nå avsluttet – takk til alle som deltok! Rosetter vil bli delt ut så snart konkurransearrangøren(e) har sjekket resultatene.
-        out += "''" + _('This contest is closed – thanks to everyone who participated! Awards will be sent out as soon as the contest organizer has checked the results.') + "''\n\n"
-    elif kstatus == 'closing':
-        out += "''" + _('This contest is closed – thanks to everyone who participated!') + "''\n\n"
-    else:
-        oargs = {
-            'lastupdate': now.astimezone(wiki_tz).strftime(_('%e. %B %Y, %H:%M')).decode('utf-8'),
-            'startdate': uk.start.strftime(_('%e. %B %Y, %H:%M')).decode('utf-8'),
-            'enddate': uk.end.strftime(_('%e. %B %Y, %H:%M')).decode('utf-8')
-        }
-        out += "''" + _('Last updated %(lastupdate)s. The contest is open from %(startdate)s to %(enddate)s.') % oargs + "''\n\n"
-
-    for i, u in enumerate(results):
-        awards = ''
-        if kstatus == 'closing':
-            if i == 0:
-                for r in uk.prices:
-                    if r[1] == 'winner':
-                        awards += '[[File:%s|20px]] ' % config['awards'][r[0]]['file']
-                        break
-            for r in uk.prices:
-                if r[1] == 'pointlimit' and result['points'] >= r[2]:
-                    awards += '[[File:%s|20px]] ' % config['awards'][r[0]]['file']
-                    break
-        out += u['result'].replace('{awards}', awards)
-
-    errors = []
-    for art, err in article_errors.iteritems():
-        if len(err) > 8:
-            err = err[:8]
-            err.append('(...)')
-        errors.append('\n* ' + _('UKBot encountered the following problems with the article [[:%s]]') % art + ''.join(['\n** %s' % e for e in err]))
-
-    for site in uk.sites.itervalues():
-        for error in site.errors:
-            errors.append('\n* %s' % error)
-
-    if len(errors) == 0:
-        out += '{{%s | ok | %s }}' % (config['templates']['botinfo'], now.astimezone(wiki_tz).strftime('%F %T'))
-    else:
-        out += '{{%s | 1=note | 2=%s | 3=%s }}' % (config['templates']['botinfo'], now.astimezone(wiki_tz).strftime('%F %T'), ''.join(errors))
-
-    out += '\n' + config['contestPages']['footer'] % {'year': uk.year} + '\n'
-
-    ib = config['templates']['infobox']
-
-    if not simulate:
-        txt = kpage.text()
-        tp = TemplateEditor(txt)
-        #print "---"
-        #print sammen
-        #print "---"
-        if sammen != '':
-            tp.templates[ib['name']][0].parameters[ib['status']] = sammen
-        txt = tp.wikitext()
-        secstart = -1
-        secend = -1
-
-        # Check if <!-- Begin:ResultsSection --> exists first
-        try:
-            trs1 = next(re.finditer('<!--\s*Begin:ResultsSection\s*-->', txt, re.I))
-            trs2 = next(re.finditer('<!--\s*End:ResultsSection\s*-->', txt, re.I))
-            secstart = trs1.end()
-            secend = trs2.start()
-
-        except StopIteration:
-            for s in re.finditer(r'^[\s]*==([^=]+)==[\s]*\n', txt, flags=re.M):
-                if s.group(1).strip() == config['contestPages']['resultsSection']:
-                    secstart = s.end()
-                elif secstart != -1:
-                    secend = s.start()
-                    break
-        if secstart == -1:
-            raise StandardError("Error: secstart=%d,secend=%d" % (secstart, secend))
-        else:
-            if secend == -1:
-                txt = txt[:secstart] + out
-            else:
-                txt = txt[:secstart] + out + txt[secend:]
-
-            logger.info('Updating wiki, section = %d', uk.results_section)
-            if kstatus == 'ending':
-                kpage.save(txt, summary=_('Updating with final results, the contest is now closed.'))
-            elif kstatus == 'closing':
-                kpage.save(txt, summary=_('Checking results and handing out awards'))
-            else:
-                kpage.save(txt, summary=_('Updating'))
-
-    if output != '':
-        logger.info("Writing output to file")
-        f = codecs.open(output, 'w', 'utf-8')
-        f.write(out)
-        f.close()
-
-    if kstatus == 'ending':
-        logger.info('Ending contest')
-        if not simulate:
-            uk.deliver_leader_notification(kpage.name)
-
-            aws = config['awardstatus']
-            page = homesite.pages[aws['pagename']]
-            page.save(text=aws['wait'], summary=aws['wait'], bot=True)
-
-            cur = sql.cursor()
-            cur.execute('UPDATE contests SET ended=1 WHERE site=%s AND name=%s', [config['default_prefix'], kpage.name])
-            sql.commit()
-            cur.close()
-
-    if kstatus == 'closing':
-        logger.info('Delivering prices')
-
-        uk.deliver_prices(sql, config['default_prefix'], kpage.name, simulate, results, server_tz)
-
-        cur = sql.cursor()
-
-        for result in results:
-            arg = [config['default_prefix'], kpage.name, result['name'], int(uk.startweek), result['points'], result['bytes'], result['newpages'], 0]
-            if uk.startweek != uk.endweek:
-                arg[-1] = int(uk.endweek)
-            #print arg
-            if not simulate:
-                cur.execute(u"INSERT INTO users (site, contest, user, week, points, bytes, newpages, week2) VALUES (%s,%s,%s,%s,%s,%s,%s,%s)", arg)
-
-        if not simulate:
-            cur.execute('UPDATE contests SET closed=1 WHERE site=%s AND name=%s', [config['default_prefix'], kpage.name])
-            sql.commit()
-
-        cur.close()
-
-        aws = config['awardstatus']
-        page = homesite.pages[aws['pagename']]
-        page.save(text=aws['sent'], summary=aws['sent'], bot=True)
-
-        # if not simulate:
-        #
-        # Skip for now: not Flow compatible
-        #     uk.deliver_receipt_to_leaders()
-
-        logger.info('Cleaning database')
-        if not simulate:
-            uk.delete_contribs_from_db()
-
-    # Notify users about issues
-
-    # uk.deliver_warnings(simulate=simulate)
-
-    # Update WP:UK
-
-    if 'redirect' in config['pages']:
-        if re.match('^' + config['pages']['base'], kpage.name) and not simulate and kstatus == 'normal':
-            page = homesite.pages[config['pages']['redirect']]
-            txt = _('#REDIRECT [[%s]]') % kpage.name
-            if page.text() != txt:
-                page.save(txt, summary=_('Redirecting to %s') % kpage.name)
-
-    # Update Wikipedia:Portal/Oppslagstavle
-
-    if 'noticeboard' in config:
-        boardname = config['noticeboard']['name']
-        boardtpl = config['noticeboard']['template']
-        commonargs = config['templates']['commonargs']
-        tplname = boardtpl['name']
-        oppslagstavle = homesite.pages[boardname]
-        txt = oppslagstavle.text()
-
-        dp = TemplateEditor(txt)
-        ntempl = len(dp.templates[tplname])
-        if ntempl != 1:
-            raise StandardError('Feil: Fant %d %s-maler i %s' % (ntempl, tplname, boardname))
-
-        tpl = dp.templates[tplname][0]
-        now2 = now.astimezone(wiki_tz)
-        if int(tpl.parameters['uke']) != int(now2.strftime('%V')):
-            logger.info('Updating noticeboard: %s', boardname)
-            tpllist = config['templates']['contestlist']
-            commonargs = config['templates']['commonargs']
-            tema = homesite.api('parse', text='{{subst:%s|%s=%s}}' % (tpllist['name'], commonargs['week'], now2.strftime('%Y-%V')), pst=1, onlypst=1)['parse']['text']['*']
-            tpl.parameters[1] = tema
-            tpl.parameters[boardtpl['date']] = now2.strftime('%e. %h')
-            tpl.parameters[commonargs['year']] = now2.isocalendar()[0]
-            tpl.parameters[commonargs['week']] = now2.isocalendar()[1]
-            txt2 = dp.wikitext()
-            if txt != txt2:
-                oppslagstavle.save(txt2, summary=_('The weekly contest is: %(link)s') % {'link': tema})
-
-    # Make a nice plot
-
-    if 'plot' in config:
-        uk.plot(results)
+    return homesite, sites, sql
 
 
 if __name__ == '__main__':
@@ -2379,7 +2365,32 @@ if __name__ == '__main__':
                 mainstart.astimezone(wiki_tz).strftime('%F %T'))
     logger.info('Running on %s %s %s', *platform.linux_distribution())
 
-    main(config, wiki_tz, server_tz, page=args.page, simulate=args.simulate, output=args.output)
+    homesite, sites, sql = init_sites(config)
+
+    # Determine what to work with
+    active_contests = list(get_contest_pages(sql, homesite, config, wiki_tz, server_tz, args.page))
+
+    logger.info('Number of active contests: %d', len(active_contests))
+    for kstatus, kpage in active_contests:
+        try:
+            contest = Contest(kpage,
+                              sites=sites,
+                              homesite=homesite,
+                              sql=sql,
+                              config=config,
+                              wiki_tz=wiki_tz,
+                              server_tz=server_tz)
+        except ParseError as e:
+            err = "\n* '''%s'''" % e.msg
+            out = '\n{{%s | error | %s }}' % (config['templates']['botinfo'], err)
+            if args.simulate:
+                logger.error(out)
+                sys.exit(1)
+            else:
+                kpage.save('dummy', summary=_('UKBot encountered a problem'), appendtext=out)
+            raise
+
+        contest.run(args.simulate, args.output)
 
     runend = server_tz.localize(datetime.now())
     runend_s = time.time()

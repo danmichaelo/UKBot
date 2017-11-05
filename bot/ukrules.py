@@ -3,7 +3,6 @@ from __future__ import unicode_literals
 import re
 from lxml.html import fromstring
 import lxml
-from mwtemplates import TemplateEditor
 from mwtextextractor import condition_for_lxml
 from ukcommon import init_localization
 from ukcommon import log
@@ -118,10 +117,9 @@ class TemplateRemovalRule(Rule):
                 return True
         return False
 
-    def templatecount(self, text):
+    def templatecount(self, dp):
         """ Checks if a given text has the template"""
 
-        dp = TemplateEditor(text)
         tc = 0
         for node in dp.templates.doc.findall('.//template'):
             for elem in node:
@@ -143,8 +141,8 @@ class TemplateRemovalRule(Rule):
         if rev.redirect or rev.parentredirect:
             # skip redirects
             return
-        pt = self.templatecount(rev.parenttext)
-        ct = self.templatecount(rev.text)
+        pt = self.templatecount(rev.te_parenttext())
+        ct = self.templatecount(rev.te_text())
         if ct < pt:
             rev.points.append([(pt - ct) * self.points, 'templateremoval',
                               _('removal of {{tl|%(template)s}}') % {'template': self.template}])

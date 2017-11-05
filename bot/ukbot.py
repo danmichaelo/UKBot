@@ -251,6 +251,8 @@ class Revision(object):
         self.parsedcomment = None
         self.saved = False  # Saved in local DB
         self.dirty = False  #
+        self._te_text = None  # Loaded as needed
+        self._te_parenttext = None  # Loaded as needed
 
         self.points = []
 
@@ -280,6 +282,15 @@ class Revision(object):
             if pd[0] == self.revid:
                 self.add_point_deduction(pd[1], pd[2])
 
+    def te_text(self):
+        if self._te_text is None:
+            self._te_text = TemplateEditor(self.text)
+        return self._te_text
+
+    def te_parenttext(self):
+        if self._te_parenttext is None:
+            self._te_parenttext = TemplateEditor(self.parenttext)
+        return self._te_parenttext
 
     def __str__(self):
         return ("<Revision %d for %s:%s>" % (self.revid, self.article().site().key, self.article().name))

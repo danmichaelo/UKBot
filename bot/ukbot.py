@@ -1,7 +1,6 @@
 # encoding=utf-8
 # vim: fenc=utf-8 et sw=4 ts=4 sts=4 ai
 from __future__ import unicode_literals
-
 import time
 runstart_s = time.time()
 
@@ -146,10 +145,16 @@ class Site(mwclient.Site):
         logger.debug('Initializing site: %s', host)
         ua = 'UKBot. Run by User:Danmichaelo. Using mwclient/' + mwclient.__ver__
         mwclient.Site.__init__(self, host, clients_useragent=ua, **kwargs)
+
         magicwords = self.api('query', meta='siteinfo', siprop='magicwords')['query']['magicwords']
         redirect_words = [x['aliases'] for x in magicwords if x['name'] == 'redirect'][0]
         logger.debug('Redirect words: %s', '|'.join(redirect_words))
         self.redirect_regexp = re.compile(u'(?:%s)' % u'|'.join(redirect_words), re.I)
+
+    def get_revertpage_regexp(self):
+        msg = self.pages['MediaWiki:Revertpage'].text()
+        msg = re.sub('\[\[[^\]]+\]\]', '.*?', msg)
+        return msg
 
 
 @python_2_unicode_compatible
@@ -476,10 +481,10 @@ class User(object):
                 article_comment = c['comment']
 
                 ignore = False
-                for pattern in self.contest().config.get('ignore', []):
+                for pattern in self.contest().config['ignore']:
                     if re.search(pattern, article_comment):
                         ignore = True
-                        logger.debug('Ignoring revision %d of %s because it matched %s', c['revid'], c['title'], pattern)
+                        logger.info('Ignoring revision %d of %s:%s because it matched /%s/', c['revid'], site_key, c['title'], pattern)
                         break
 
                 if not ignore:
@@ -1949,9 +1954,13 @@ class SQL(object):
 
 def main(config, wiki_tz, server_tz, page=None, simulate=False, output=''):
 
+    if 'ignore' not in config:
+        config['ignore'] = []
+
     # Configure home site (where the contests live)
     host = config['homesite']
     homesite = Site(host, **config['account'])
+
     assert homesite.logged_in
 
     # Connect to DB
@@ -1977,6 +1986,12 @@ def update_contest(contest, config, homesite, sql, simulate, output, server_tz, 
         for host in config['othersites']:
             prefix = host.split('.')[0]
             sites[prefix] = Site(host, **config['account'])
+
+    for site in sites.values():
+        msg = site.get_revertpage_regexp()
+        if msg != '':
+            logger.debug('Revert page regexp: %s', msg)
+            config['ignore'].append(msg)
 
     cpage = config['pages']['catignore']
 

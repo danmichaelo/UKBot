@@ -792,7 +792,7 @@ class User(object):
         n0 = len(self.articles)
         t0 = time.time()
 
-        if len(filters) == 1 and type(filters[0]) == NamespaceFilter:
+        if len(filters) == 1 and isinstance(filters[0], NamespaceFilter):
             pass
 
         else:
@@ -2028,7 +2028,7 @@ def update_contest(contest, config, homesite, sql, simulate, output, server_tz, 
     extraargs = {}
     host_filter = None
     for f in uk.filters:
-        if type(f) == NamespaceFilter:
+        if isinstance(f, NamespaceFilter):
             extraargs['namespace'] = '|'.join(f.namespaces)
             host_filter = f.site
 

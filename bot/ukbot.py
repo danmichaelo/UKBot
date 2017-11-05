@@ -165,7 +165,7 @@ class Article(object):
         An article is uniquely identified by its name and its site
         """
         self.site = weakref.ref(site)
-        self.user = user
+        self.user = weakref.ref(user)
         #self.site_key = site.host.split('.')[0]
         self.name = name
         self.disqualified = False
@@ -181,7 +181,7 @@ class Article(object):
             return False
 
     def __str__(self):
-        return "<Article %s:%s for user %s>" % (self.site().key, self.name, self.user.name)
+        return "<Article %s:%s for user %s>" % (self.site().key, self.name, self.user().name)
 
     def __repr__(self):
         return __str__(self)
@@ -199,7 +199,7 @@ class Article(object):
     def add_revision(self, revid, **kwargs):
         rev = Revision(self, revid, **kwargs)
         self.revisions[revid] = rev
-        self.user.revisions[revid] = rev
+        self.user().revisions[revid] = rev
         return rev
 
     @property
@@ -225,10 +225,10 @@ class Article(object):
                    ignore_disqualification=False, ignore_point_deductions=False):
         p = 0.
         article_key = self.site().key + ':' + self.name
-        if ignore_disqualification or not article_key in self.user.disqualified_articles:
+        if ignore_disqualification or not article_key in self.user().disqualified_articles:
             for revid, rev in self.revisions.iteritems():
                 dt = pytz.utc.localize(datetime.fromtimestamp(rev.timestamp))
-                if ignore_suspension_period is True or self.user.suspended_since is None or dt < self.user.suspended_since:
+                if ignore_suspension_period is True or self.user().suspended_since is None or dt < self.user().suspended_since:
                     p += rev.get_points(ptype, ignore_max, ignore_point_deductions)
                 else:
                     logger.debug('!! Skipping revision %d in suspension period', revid)
@@ -290,7 +290,7 @@ class Revision(object):
             else:
                 raise StandardError('add_revision got unknown argument %s' % k)
 
-        for pd in self.article().user.point_deductions:
+        for pd in self.article().user().point_deductions:
             if pd[0] == self.revid:
                 self.add_point_deduction(pd[1], pd[2])
 
@@ -323,7 +323,7 @@ class Revision(object):
         try:
             mt1 = get_body_text(self.text)
             mt2 = get_body_text(self.parenttext)
-        except mwtemplates.preprocessor.NowikiError:
+        except:  #  mwtemplates.preprocessor.NowikiError:
             w = _('Revision [//%(host)s/w/index.php?diff=prev&oldid=%(revid)s %(revid)s]: Could not count words because the revision contains a <nowiki/> tag') % { 'host': self.article().site().host, 'revid': self.revid }
             logger.warning(w)
             #log(self.parenttext)

@@ -853,8 +853,9 @@ class User(object):
 
                 # loop over rules
                 for rule in rules:
-                    #log('   %d : %s' % (revid, type(rule).__name__))
+                    logger.debug('Applying %s to %s', type(rule).__name__, revid)
                     rule.test(rev)
+                    # logger.debug('Generated %.1f points', rev.points[-1])
 
                 if not article.disqualified:
 
@@ -2021,13 +2022,17 @@ def update_contest(contest, config, homesite, sql, simulate, output):
 
             # And calculate points
             logger.info('Calculating points')
+            tp0 = time.time()
             u.analyze(uk.rules)
-            logger.info('%s: %.f points', u.name, u.points)
+            tp1 = time.time()
+            logger.info('%s: %.f points (calculated in %.1f secs)', u.name, u.points, tp1 - tp0)
 
             narticles += len(u.articles)
             nbytes += u.bytes
             nwords += u.words
             nnewpages += u.newpages
+            tp2 = time.time()
+            logger.info('Wordcount done in %.1f secs', tp2 - tp1)
 
             for article in u.articles.itervalues():
                 k = article.site().key + ':' + article.name

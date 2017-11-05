@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: UKBot\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2017-07-02 11:44+0000\n"
+"POT-Creation-Date: 2017-11-03 20:36+0000\n"
 "PO-Revision-Date: 2014-08-31 15:05+0100\n"
 "Last-Translator: Dan Michael O. Heggø <danmichaelo@gmail.com>\n"
 "Language-Team: \n"
@@ -18,7 +18,7 @@ msgstr ""
 "Plural-Forms: nplurals=2; plural=(n != 1);\n"
 "X-Generator: Poedit 1.5.7\n"
 
-#: bot/ukbot.py:270
+#: bot/ukbot.py:304
 #, python-format
 msgid ""
 "Revision [//%(host)s/w/index.php?diff=prev&oldid=%(revid)s %(revid)s]: The "
@@ -31,7 +31,7 @@ msgstr ""
 "Dette kan skyldes uavsluttede tagger eller maler, som vil medføre at "
 "ordtellingen blir feil, men det kan også skyldes lagring av et arbeidsutkast."
 
-#: bot/ukbot.py:275
+#: bot/ukbot.py:309
 #, python-format
 msgid ""
 "Revision [//%(host)s/w/index.php?diff=prev&oldid=%(revid)s %(revid)s]: The "
@@ -43,22 +43,22 @@ msgstr ""
 "Økningen i antall ord (%(words)d) er større enn økningen i antall byte "
 "(%(bytes)d). Det bør sjekkes om ordtellingen er riktig."
 
-#: bot/ukbot.py:863 bot/ukbot.py:922
+#: bot/ukbot.py:906 bot/ukbot.py:956
 msgid "%A, %H:%M"
 msgstr "%A klokka %H.%M"
 
-#: bot/ukbot.py:874
+#: bot/ukbot.py:917
 msgid "Category hit"
 msgstr "Kategoritreff"
 
-#: bot/ukbot.py:884
+#: bot/ukbot.py:927
 #, python-format
 msgid "Total: {{formatnum:%(bytecount)d}} bytes, %(wordcount)d words"
 msgstr ""
 "Totalt: {{formatnum:%(bytecount)d}} {{subst:PLURAL:%(bytecount)d|byte}}, "
 "%(wordcount)d {{subst:PLURAL:%(wordcount)d|ord}}"
 
-#: bot/ukbot.py:895
+#: bot/ukbot.py:938
 msgid ""
 "<strong>Note:</strong> The contributions to this article are currently "
 "disqualified."
@@ -66,36 +66,36 @@ msgstr ""
 "<strong>Merk:</strong> Bidragene til denne artikkelen er for tiden "
 "diskvalifisert."
 
-#: bot/ukbot.py:900
+#: bot/ukbot.py:943
 msgid "<abbr class=\"newpage\" title=\"New page\">N</abbr>"
 msgstr "<abbr class=\"newpage\" title=\"Ny side\">N</abbr>"
 
-#: bot/ukbot.py:922
+#: bot/ukbot.py:956
 msgid "suspended since"
 msgstr "suspendert siden"
 
-#: bot/ukbot.py:926
+#: bot/ukbot.py:960
 msgid "No qualifying contributions registered yet"
 msgstr "Ingen kvalifiserte bidrag har blitt registrert enda"
 
-#: bot/ukbot.py:928
+#: bot/ukbot.py:962
 msgid "articles"
 msgstr "%(articlecount)d {{subst:PLURAL:%(articlecount)d|artikkel|artikler}}"
 
-#: bot/ukbot.py:930
+#: bot/ukbot.py:964
 msgid "{{Kolonner}}\n"
 msgstr "{{Kolonner}}\n"
 
-#: bot/ukbot.py:954
+#: bot/ukbot.py:988
 #, python-format
 msgid "Found no \"%(section)s\" sections in the page \"%(page)s\""
 msgstr "Fant ingen \"%(section)s\"-seksjoner på siden \"%(page)s\""
 
-#: bot/ukbot.py:975
+#: bot/ukbot.py:1015
 msgid "Couldn't find the list of participants!"
 msgstr "Fant ikke deltakerlisten!"
 
-#: bot/ukbot.py:1004
+#: bot/ukbot.py:1043
 #, python-format
 msgid ""
 "There are no point rules defined for this contest. Point rules are defined "
@@ -104,23 +104,23 @@ msgstr ""
 "Denne konkurransen har ingen poengregler. Poengregler defineres med {{tl|"
 "%(template)s}}."
 
-#: bot/ukbot.py:1011
+#: bot/ukbot.py:1050
 #, python-format
 msgid "This contest is missing a {{tl|%(template)s}} template."
 msgstr "Denne konkurransen mangler en {{tl|%(template)s}}-mal."
 
-#: bot/ukbot.py:1017
+#: bot/ukbot.py:1056
 msgid "Could not parse the catignore page"
 msgstr "Klarte ikke å tolke catignore-siden"
 
-#: bot/ukbot.py:1049
+#: bot/ukbot.py:1088
 #, python-format
 msgid ""
 "No template (second argument) given to {{tlx|%(template)s|%(firstarg)s}}"
 msgstr ""
 "Ingen mal (andre argument) ble gitt til {{mlp|%(template)s|%(firstarg)s}}"
 
-#: bot/ukbot.py:1062
+#: bot/ukbot.py:1101
 #, python-format
 msgid ""
 "No byte limit (second argument) given to {{tlx|%(template)s|%(firstarg)s}}"
@@ -128,79 +128,79 @@ msgstr ""
 "Ingen bytegrense (andre argument) ble gitt til {{mlp|%(template)s|"
 "%(firstarg)s}}"
 
-#: bot/ukbot.py:1068
+#: bot/ukbot.py:1107
 #, python-format
 msgid "No categories given to {{tlx|%(template)s|%(firstarg)s}}"
 msgstr "Ingen kategorier gitt til {{mlp|%(template)s|%(firstarg)s}}"
 
-#: bot/ukbot.py:1119
+#: bot/ukbot.py:1158
 #, python-format
 msgid "Unknown argument given to {{tl|%(template)s}}: %(argument)s"
 msgstr "Ukjent argument gitt til {{tl|%(template)s}}: %(argument)s"
 
-#: bot/ukbot.py:1210
+#: bot/ukbot.py:1249
 #, python-format
 msgid "Unkown argument given to {{tl|%(template)s}}: %(argument)s"
 msgstr "Ukjent argument gitt til {{ml|%(template)s}}: %(argument)s"
 
-#: bot/ukbot.py:1222
+#: bot/ukbot.py:1259
 #, python-format
 msgid "Could not parse the {{tl|%(template)s}} template."
 msgstr "Klarte ikke å tolke {{tl|%(template)s}}-malen."
 
-#: bot/ukbot.py:1248
+#: bot/ukbot.py:1285
 #, python-format
 msgid ""
 "Did not find %(week)s+%(year)s or %(start)s+%(end)s in {{tl|%(templates)s}}."
 msgstr ""
 "Fant ikke %(week)s+%(year)s eller %(start)s+%(end)s i {{tl|%(templates)s}}."
 
-#: bot/ukbot.py:1302
+#: bot/ukbot.py:1339
 #, python-format
 msgid "Couldn't parse the date given to the {{tl|%(template)s}} template."
 msgstr "Klarte ikke å tolke datoen gitt til {{ml|%(template)s}}-malen."
 
-#: bot/ukbot.py:1332
+#: bot/ukbot.py:1369
 #, python-format
 msgid ""
 "Could not find the user %(user)s given to the {{tl|%(template)s}} template."
 msgstr "Fant ikke brukeren %(user)s gitt til {{ml|%(template)s}}-malen."
 
-#: bot/ukbot.py:1352 bot/ukbot.py:1372
+#: bot/ukbot.py:1389 bot/ukbot.py:1409
 #, python-format
 msgid ""
 "Couldn't find the user %(user)s given to the {{tl|%(template)s}} template."
 msgstr "Fant ikke brukeren %(user)s gitt til {{ml|%(template)s}}-malen."
 
-#: bot/ukbot.py:1471
+#: bot/ukbot.py:1508
 msgid "Day"
 msgstr "Dag"
 
-#: bot/ukbot.py:1472
+#: bot/ukbot.py:1509
 msgid "Points"
 msgstr "Poeng"
 
-#: bot/ukbot.py:1475 bot/ukbot.py:1716 bot/ukbot.py:2021 bot/ukbot.py:2022
-#: bot/ukbot.py:2023
+#: bot/ukbot.py:1512 bot/ukbot.py:1753 bot/ukbot.py:2106 bot/ukbot.py:2107
+#: bot/ukbot.py:2108
 msgid "%e. %B %Y, %H:%M"
 msgstr "%e. %B %Y, %H:%M"
 
-#: bot/ukbot.py:1476
+#: bot/ukbot.py:1513
 #, python-format
 msgid "Updated %(date)s"
 msgstr "Oppdatert %(date)s"
 
-#: bot/ukbot.py:1514
+#: bot/ukbot.py:1551
 #, python-format
 msgid "Weekly contest for week %(week)d"
 msgstr "Ukens konkurranse uke %(week)d"
 
-#: bot/ukbot.py:1516
+#: bot/ukbot.py:1553
 #, python-format
 msgid "Weekly contest for week %(startweek)d–%(endweek)d"
 msgstr "Ukens konkurranse uke %(startweek)d–%(endweek)d"
 
-#: bot/ukbot.py:1590
+#: bot/ukbot.py:1627
 #, python-format
 msgid ""
 "Note that the contest this week is [[%(url)s|{{%(template)s|%(weekarg)s="
@@ -209,15 +209,15 @@ msgstr ""
 "Husk at denne ukens konkurranse er [[%(url)s|{{%(template)s|%(weekarg)s="
 "%(week)s}}]]. Lykke til!"
 
-#: bot/ukbot.py:1596
+#: bot/ukbot.py:1633
 msgid "Regards"
 msgstr "Hilsen"
 
-#: bot/ukbot.py:1596
+#: bot/ukbot.py:1633
 msgid "and"
 msgstr "og"
 
-#: bot/ukbot.py:1646
+#: bot/ukbot.py:1683
 #, python-format
 msgid ""
 "Now you must check if the results look ok. If there are error messages at "
@@ -233,20 +233,20 @@ msgstr ""
 "diskusjonssiden. Hvis alt ser greit ut kan du trykke [%(link)s her] (og "
 "lagre), så sender jeg ut rosetter ved første anledning."
 
-#: bot/ukbot.py:1647
+#: bot/ukbot.py:1684
 msgid "Thanks, ~~~~"
 msgstr "Hilsen ~~~~"
 
-#: bot/ukbot.py:1659
+#: bot/ukbot.py:1696
 #, python-format
 msgid "Awards have been [%(link)s sent out]."
 msgstr "Rosetter er nå [%(link)s sendt ut]."
 
-#: bot/ukbot.py:1899 bot/ukbot.py:1963
+#: bot/ukbot.py:1959 bot/ukbot.py:2046
 msgid "UKBot encountered a problem"
 msgstr "UKBot støtte på et problem"
 
-#: bot/ukbot.py:2016
+#: bot/ukbot.py:2101
 msgid ""
 "This contest is closed – thanks to everyone who participated! Awards will be "
 "sent out as soon as the contest organizer has checked the results."
@@ -254,11 +254,11 @@ msgstr ""
 "Konkurransen er avsluttet – takk til alle som deltok! Rosetter vil sendes ut "
 "så snart konkurransearrangøren har sjekket resultatene."
 
-#: bot/ukbot.py:2018
+#: bot/ukbot.py:2103
 msgid "This contest is closed – thanks to everyone who participated!"
 msgstr "Denne konkurransen er avsluttet – takk til alle som deltok!"
 
-#: bot/ukbot.py:2025
+#: bot/ukbot.py:2110
 #, python-format
 msgid ""
 "Last updated %(lastupdate)s. The contest is open from %(startdate)s to "
@@ -267,35 +267,35 @@ msgstr ""
 "Sist oppdatert %(lastupdate)s. Konkurransen er åpen fra %(startdate)s til "
 "%(enddate)s."
 
-#: bot/ukbot.py:2048
+#: bot/ukbot.py:2131
 #, python-format
 msgid "UKBot encountered the following problems with the article [[:%s]]"
 msgstr "UKBot støtte på problemer med artikkelen [[:%s]]"
 
-#: bot/ukbot.py:2090
+#: bot/ukbot.py:2182
 msgid "Updating with final results, the contest is now closed."
 msgstr ""
 "Oppdaterer med endelige resultater og merker konkurransen som avsluttet."
 
-#: bot/ukbot.py:2092
+#: bot/ukbot.py:2184
 msgid "Checking results and handing out awards"
 msgstr "Sjekker resultater og deler ut rosetter"
 
-#: bot/ukbot.py:2094
+#: bot/ukbot.py:2186
 msgid "Updating"
 msgstr "Oppdaterer"
 
-#: bot/ukbot.py:2159
+#: bot/ukbot.py:2251
 #, python-format
 msgid "#REDIRECT [[%s]]"
 msgstr "#OMDIRIGERING [[%s]]"
 
-#: bot/ukbot.py:2161
+#: bot/ukbot.py:2253
 #, python-format
 msgid "Redirecting to %s"
 msgstr "Omdirigerer til %s"
 
-#: bot/ukbot.py:2191
+#: bot/ukbot.py:2283
 #, python-format
 msgid "The weekly contest is: %(link)s"
 msgstr "Ukens konkurranse er: %(link)s"
@@ -348,34 +348,34 @@ msgstr "%(bytes).f {{subst:PLURAL:%(bytes).f|byte}}"
 msgid "%(words).f words"
 msgstr "%(words).f {{subst:PLURAL:%(words).f|ord}}"
 
-#: bot/ukrules.py:304
+#: bot/ukrules.py:306
 msgid "images"
 msgstr "%(images).f {{subst:PLURAL:%(images).f|bilde|bilder}}"
 
-#: bot/ukrules.py:326
+#: bot/ukrules.py:328
 msgid "links"
 msgstr "%(links).f {{subst:PLURAL:%(links).f|lenke|lenker}}"
 
-#: bot/ukrules.py:391
+#: bot/ukrules.py:393
 msgid "references"
 msgstr "{{subst:PLURAL:%(num)d|én kilde|%(num)d kilder}}"
 
-#: bot/ukrules.py:394
+#: bot/ukrules.py:396
 msgid "reference pointers"
 msgstr ""
 "{{subst:PLURAL:%(num)d|én henvisning til navngitt kilde|%(num)d henvisninger "
 "til navngitte kilder}}"
 
-#: bot/ukrules.py:427
+#: bot/ukrules.py:429
 msgid "added reference section"
 msgstr "la til referanseavsnitt"
 
-#: bot/ukrules.py:452
+#: bot/ukrules.py:454
 #, python-format
 msgid "bonus %(bytes).f bytes"
 msgstr "bonus %(bytes).f {{subst:PLURAL:%(bytes).f|byte}}"
 
-#: bot/ukrules.py:479
+#: bot/ukrules.py:481
 #, python-format
 msgid "bonus %(words)d words"
 msgstr "bonus %(words)d {{subst:PLURAL:%(words)d|ord}}"

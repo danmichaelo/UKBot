@@ -291,8 +291,8 @@ class Revision(object):
                 raise StandardError('add_revision got unknown argument %s' % k)
 
         for pd in self.article().user().point_deductions:
-            if pd[0] == self.revid:
-                self.add_point_deduction(pd[1], pd[2])
+            if pd['revid'] == self.revid and (pd['site'] == '' or pd['site'] == self.article().site().key):
+                self.add_point_deduction(pd['points'], pd['reason'])
 
     def te_text(self):
         if self._te_text is None:
@@ -1432,6 +1432,9 @@ class Contest(object):
             for templ in dp.templates[pocfg['name']]:
                 uname = templ.parameters[1].value
                 revid = int(templ.parameters[2].value)
+                site_key = ''
+                if templ.parameters.get('site') is not None:
+                    site_key = templ.parameters.get['site'].value
 
                 #if not re.match('^[a-z]{2,3}:', aname):
                 #    aname = config['default_prefix'] + ':' + aname
@@ -1439,10 +1442,15 @@ class Contest(object):
                 points = float(templ.parameters[3].value.replace(',', '.'))
                 reason = templ.parameters[4].value
                 ufound = False
-                logger.info('poengtrekk: USER: %s REVISION: %s POINTS: %d REASON: %s', uname, revid, points, reason)
+                logger.info('Point deduction: %d points to %s for revision %s:%s. Reason: %s', points, uname, site_key, revid, reason)
                 for u in self.users:
                     if u.name == uname:
-                        u.point_deductions.append([revid, points, reason])
+                        u.point_deductions.append({
+                            'site': site_key,
+                            'revid': revid,
+                            'points': points,
+                            'reason': reason,
+                        })
                         ufound = True
                 if not ufound:
                     raise ParseError(_("Couldn't find the user %(user)s given to the {{tl|%(template)s}} template.") % {'user': uname, 'template': dicfg['name']})
@@ -1452,6 +1460,9 @@ class Contest(object):
             for templ in dp.templates[pocfg['name']]:
                 uname = templ.parameters[1].value
                 revid = int(templ.parameters[2].value)
+                site_key = ''
+                if templ.parameters.get('site') is not None:
+                    site_key = templ.parameters.get['site'].value
 
                 #if not re.match('^[a-z]{2,3}:', aname):
                 #    aname = config['default_prefix'] + ':' + aname
@@ -1459,10 +1470,15 @@ class Contest(object):
                 points = float(templ.parameters[3].value.replace(',', '.'))
                 reason = templ.parameters[4].value
                 ufound = False
-                logger.info('poeng: USER: %s REVISION: %s POINTS: %d REASON: %s', uname, revid, points, reason)
+                logger.info('Point addition: %d points to %s for revision %s:%s. Reason: %s', points, uname, site_key, revid, reason)
                 for u in self.users:
                     if u.name == uname:
-                        u.point_deductions.append([revid, -points, reason])
+                        u.point_deductions.append({
+                            'site': site_key,
+                            'revid': revid,
+                            'points': -points,
+                            'reason': reason
+                        })
                         ufound = True
                 if not ufound:
                     raise ParseError(_("Couldn't find the user %(user)s given to the {{tl|%(template)s}} template.") % {'user': uname, 'template': dicfg['name']})

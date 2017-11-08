@@ -322,25 +322,48 @@ class Revision(object):
             pass
 
         mt1 = get_body_text(re.sub('<nowiki ?/>', '', self.text))
-        mt2 = get_body_text(re.sub('<nowiki ?/>', '', self.parenttext))
+        mt0 = get_body_text(re.sub('<nowiki ?/>', '', self.parenttext))
 
-        logger.debug('Body size: %d -> %d, wordcount: %d -> %d (%s)', len(self.parenttext), len(self.text), len(mt2.split()), len(mt1.split()), self.article().name)
-        self._wordcount = len(mt1.split()) - len(mt2.split())
-        if not self.new and len(mt2.split()) == 0 and self._wordcount > 1:
-            w = _('Revision [//%(host)s/w/index.php?diff=prev&oldid=%(revid)s %(revid)s]: The word count difference might be wrong, because no words were found in the parent revision (%(parentid)s) of size %(size)d, possibly due to unclosed tags or templates in that revision.') % { 'host': self.article().site().host, 'revid': self.revid, 'parentid': self.parentid, 'size': len(self.parenttext) }
+        if self.article().site().key == 'ja':
+            words1 = len(mt1) / 3.0
+            words0 = len(mt0) / 3.0
+        elif self.article().site().key == 'zh':
+            words1 = len(mt1) / 2.0
+            words0 = len(mt0) / 2.0
+        else:
+            words1 = len(mt1.split())
+            words0 = len(mt0.split())
+
+        charcount = len(mt1) - len(mt0)
+        self._wordcount = words1 - words0
+
+        logger.debug('Wordcount: Revision %s@%s: %+d bytes, %+d characters, %+d words',
+                     self.revid, self.article().site().key, self.bytes, charcount, self._wordcount)
+
+        if not self.new and words0 == 0 and self._wordcount > 1:
+            w = _('Revision [//%(host)s/w/index.php?diff=prev&oldid=%(revid)s %(revid)s]: The word count difference might be wrong, because no words were found in the parent revision (%(parentid)s) of size %(size)d, possibly due to unclosed tags or templates in that revision.') % {
+                'host': self.article().site().host,
+                'revid': self.revid,
+                'parentid': self.parentid,
+                'size': len(self.parenttext)
+            }
             logger.warning(w)
-            #log(self.parenttext)
             self.errors.append(w)
+
         elif self._wordcount > 10 and self._wordcount > self.bytes:
-            w = _('Revision [//%(host)s/w/index.php?diff=prev&oldid=%(revid)s %(revid)s]: The word count difference might be wrong, because the word count increase (%(words)d) is larger than the byte increase (%(bytes)d). Wrong word counts may occur for invalid wiki text.') % { 'host': self.article().site().host, 'revid': self.revid, 'words': self._wordcount, 'bytes': self.bytes }
+            w = _('Revision [//%(host)s/w/index.php?diff=prev&oldid=%(revid)s %(revid)s]: The word count difference might be wrong, because the word count increase (%(words)d) is larger than the byte increase (%(bytes)d). Wrong word counts may occur for invalid wiki text.') % {
+                'host': self.article().site().host,
+                'revid': self.revid,
+                'words': self._wordcount,
+                'bytes': self.bytes
+            }
             logger.warning(w)
-            #log(self.parenttext)
             self.errors.append(w)
 
         #s = _('A problem encountered with revision %(revid)d may have influenced the word count for this revision: <nowiki>%(problems)s</nowiki> ')
         #s = _('Et problem med revisjon %d kan ha påvirket ordtellingen for denne: <nowiki>%s</nowiki> ')
         del mt1
-        del mt2
+        del mt0
         # except DanmicholoParseError as e:
         #     log("!!!>> FAIL: %s @ %d" % (self.article().name, self.revid))
         #     self._wordcount = 0

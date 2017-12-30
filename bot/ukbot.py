@@ -1038,14 +1038,13 @@ class Contest(object):
         txt = page.text()
         m = re.search('==\s*' + resultsSection + '\s*==', txt)
         if not m:
-            raise ParseError(_('Found no "%(section)s" sections in the page "%(page)s"') % {'section': resultsSection, 'page': self.page.name})
-
-        txt = txt[:m.end()]
+            logger.warning(_('Found no "%(section)s" sections in the page "%(page)s"') % {'section': resultsSection, 'page': self.page.name})
+        else:
+            txt = txt[:m.end()]
+            sections = [s.strip() for s in re.findall('^[\s]*==([^=]+)==', txt, flags=re.M)]
+            self.results_section = sections.index(resultsSection) + 1
 
         self.sql = sql
-        sections = [s.strip() for s in re.findall('^[\s]*==([^=]+)==', txt, flags=re.M)]
-        self.results_section = sections.index(resultsSection) + 1
-
         self.wiki_tz = wiki_tz
         self.server_tz = server_tz
 

@@ -4,6 +4,7 @@
 # you have to adhere to make syntax.
 LINGUAS = nb_NO \
 	  fi_FI \
+          eu_ES
 
 # Textdomain for our package.
 TEXTDOMAIN = messages

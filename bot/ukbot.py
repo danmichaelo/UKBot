@@ -668,19 +668,21 @@ class User(object):
             dt = time.time() - t0
             logger.info('Added %d contributions to database in %.2f secs', len(contribs_query_params), dt)
 
-        if len(fulltexts_query_params) > 0:
-            logger.info('Adding %d fulltexts to database', len(fulltexts_query_params))
+        chunk_size = 500
+        for n in range(0, len(fulltexts_query_params), chunk_size):
+            data = fulltexts_query_params[n:n+chunk_size]
+            logger.info('Adding %d fulltexts to database', len(data))
             t0 = time.time()
 
             cur.executemany("""
                 insert into fulltexts (revid, site, revtxt)
                 values (%s,%s,%s)
                 on duplicate key update revtxt=values(revtxt);
-                """, fulltexts_query_params
+                """, data
             )
 
             dt = time.time() - t0
-            logger.info('Added %d fulltexts to database in %.2f secs', len(fulltexts_query_params), dt)
+            logger.info('Added %d fulltexts to database in %.2f secs', len(data), dt)
 
         sql.commit()
         cur.close()

@@ -75,7 +75,7 @@ msgstr "noiztik suspenditua"
 
 #: bot/ukbot.py:1013
 msgid "No qualifying contributions registered yet"
-msgstr "Ez da izena eman dezakeen wikilaririk erregistratu oraindik"
+msgstr "Ez du egin lehiaketa honetarako ekarpen baliagarririk oraindik"
 
 #: bot/ukbot.py:1015
 msgid "articles"

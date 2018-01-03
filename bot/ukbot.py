@@ -1354,7 +1354,9 @@ class Contest(object):
         self.endweek = self.end.isocalendar()[1]
 
         userprefix = self.homesite.namespaces[2]
-        self.ledere = re.findall(r'\[\[(?:User|%s):([^\|\]]+)' % userprefix, unicode(infoboks.parameters[ibcfg['organizer']]), flags=re.I)
+        self.ledere = []
+        if ibcfg['organizer'] in infoboks.parameters:
+            self.ledere = re.findall(r'\[\[(?:User|%s):([^\|\]]+)' % userprefix, unicode(infoboks.parameters[ibcfg['organizer']]), flags=re.I)
         if len(self.ledere) == 0:
             logger.warning('Found no organizers in {{tl|%s}}.', ibcfg['name'])
 

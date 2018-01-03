@@ -1,7 +1,11 @@
-#encoding=utf-8
-# run twice a day, at 12.30 and 00.30
-
+# encoding=utf-8
+# vim: fenc=utf-8 et sw=4 ts=4 sts=4 ai
 from __future__ import unicode_literals
+
+import logging
+
+logger = logging.getLogger(__name__)
+logger.setLevel(logging.DEBUG)
 
 import sys, os 
 import re
@@ -13,7 +17,7 @@ import mwclient
 import yaml
 import pytz
 import locale
-from ukcommon import init_localization, log
+from ukcommon import get_mem_usage, Localization, t, _
 import argparse
 # Read args
 from mwtemplates import TemplateEditor
@@ -35,10 +39,10 @@ def unix_time(dt):
     delta = dt - epoch
     return delta.total_seconds()
 
-_ = init_localization(config['locale'])
+Localization().init(config['locale'])
 
 runstart = server_tz.localize(datetime.now())
-#log('UKBot-uploader starting at %s (server time), %s (wiki time)' % (runstart.strftime('%F %T'), runstart.astimezone(wiki_tz).strftime('%F %T')))
+#logger.info('UKBot-uploader starting at %s (server time), %s (wiki time)' % (runstart.strftime('%F %T'), runstart.astimezone(wiki_tz).strftime('%F %T')))
 
 host = config['homesite']
 homesite = mwclient.Site(host)
@@ -48,7 +52,7 @@ now = server_tz.localize(datetime.now())
 if args.page is not None:
     ktitle = args.page.decode('utf-8')
 else:
-    log('  No page specified. Using default page')
+    logger.info('  No page specified. Using default page')
     ktitle = config['pages']['default']
     # subtract a few hours, so we close last week's contest right after midnight
     #ktitle = (now - timedelta(hours=1)).astimezone(wiki_tz).strftime(ktitle.encode('utf-8')).decode('utf-8')
@@ -59,15 +63,15 @@ else:
 
 # Is ktitle redirect? Resolve
 
-log('@ ktitle is %s' % ktitle)
+logger.info('@ ktitle is %s' % ktitle)
 pp = homesite.api('query', prop='pageprops', titles=ktitle, redirects='1')
 if 'redirects' in pp['query']:
     ktitle = pp['query']['redirects'][0]['to']
-    log('  -> Redirected to:  %s' % ktitle)
+    logger.info('  -> Redirected to:  %s' % ktitle)
 
 kpage = homesite.pages[ktitle]
 if not kpage.exists:
-    log('  !! kpage does not exist! Exiting')
+    logger.info('  !! kpage does not exist! Exiting')
     sys.exit(0)
 
 ibcfg = config['templates']['infobox']
@@ -77,7 +81,7 @@ dp = TemplateEditor(kpage.text())
 try:
     infoboks = dp.templates[ibcfg['name']][0]
 except:
-    log(' !! Fant ikke infoboks!')
+    logger.info(' !! Fant ikke infoboks!')
     sys.exit(0)
 
 if infoboks.has_param(commonargs['year']) and infoboks.has_param(commonargs['week']):
@@ -101,7 +105,7 @@ elif infoboks.has_param(ibcfg['start']) and infoboks.has_param(ibcfg['end']):
     start = wiki_tz.localize(datetime.strptime(startdt + ' 00 00 00', '%Y-%m-%d %H %M %S'))
     end = wiki_tz.localize(datetime.strptime(enddt + ' 23 59 59', '%Y-%m-%d %H %M %S'))
 else:
-    log('!! fant ikke datoer')
+    logger.info('!! fant ikke datoer')
     sys.exit(0)
 
 year = start.isocalendar()[0]
@@ -110,7 +114,7 @@ endweek = end.isocalendar()[1]
 
 figname = config['plot']['figname'] % {'year': year, 'week': startweek}
 
-log('Filename is ' + figname)
+logger.info('Filename is ' + figname)
 
 
 remote_filename = figname.replace(' ', '_')
@@ -131,10 +135,12 @@ p = commons.pages['File:' + remote_filename]
 f = open(filename.encode('utf-8'), 'rb')
 
 if p.exists:
-    print "updating plot"
-    print commons.upload(f, remote_filename, comment='Bot: Updating plot', ignore=True)
+    logger.info('Updating plot')
+    res = commons.upload(f, remote_filename, comment='Bot: Updating plot', ignore=True)
+    logger.info(res)
 else:
-    print "adding plot"
-    print commons.upload(f, remote_filename, comment='Bot: Uploading new "Ukens konkurranse" plot at week-start', description=pagetext, ignore=True)
+    logger.info('Adding plot')
+    res = commons.upload(f, remote_filename, comment='Bot: Uploading new "Ukens konkurranse" plot at week-start', description=pagetext, ignore=True)
+    logger.info(res)
 f.close()
 

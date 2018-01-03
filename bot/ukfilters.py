@@ -415,9 +415,13 @@ class BackLinkFilter(Filter):
                     if page.exists:
                         page_found = True
                         for linked_article in page.links(namespace=0, redirects=True):
-                            self.links.add(site_key + ':' + linked_article.name.replace('_', ' '))
+                            link = site_key + ':' + linked_article.name.replace('_', ' ')
+                            logger.debug(' - Include: %s', link)
+                            self.links.add(link)
                             for langlink in linked_article.langlinks():
-                                self.links.add(langlink[0] + ':' + langlink[1].replace('_', ' '))
+                                link = langlink[0] + ':' + langlink[1].replace('_', ' ')
+                                logger.debug(' - Include: %s', link)
+                                self.links.add(link)
                 except KeyError:
                     pass
             if not page_found:

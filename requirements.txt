@@ -1,4 +1,3 @@
-Cython
 Jinja2
 Werkzeug
 pytz
@@ -14,9 +13,8 @@ git+git://github.com/danmichaelo/mwtemplates.git
 git+git://github.com/danmichaelo/mwtextextractor.git
 datetime
 rollbar
-flup
+flipflop
 flask
-requests[security]
-mysql-connector==2.1.4
+requests
+mysql-connector==2.1.6
 psutil
-future

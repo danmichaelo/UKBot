@@ -1,4 +1,4 @@
-#encoding=utf-8
+# encoding=utf-8
 from __future__ import unicode_literals
 import sys
 import locale
@@ -22,19 +22,19 @@ class Localization:
 
         def init(self, cl):
             '''prepare i18n'''
-            if type(cl) != list:
+            if not isinstance(cl, list):
                 cl = [cl]
                 #['nb_NO.UTF-8', 'nb_NO.utf8', 'no_NO']:
             for loc in cl:
                 try:
                     # print "Trying (", loc.encode('utf-8'), 'utf-8',")"
-                    locale.setlocale(locale.LC_ALL, (loc.encode('utf-8'), 'utf-8'))
+                    locale.setlocale(locale.LC_ALL, (loc, 'utf-8'))
                     logger.info('Using locale %s', loc)
                     #logger.info('Locale set to %s' % loc)
                     break
                 except locale.Error:
                     try:
-                        locstr = (loc + '.UTF-8').encode('utf-8')
+                        locstr = loc + '.UTF-8'
                         # print "Trying",locstr
                         locale.setlocale(locale.LC_ALL, locstr )
                         logger.info('Using locale %s', loc)
@@ -48,7 +48,7 @@ class Localization:
             t = gettext.translation('messages', 'locale', fallback=True, languages=[lang])
 
             self.t = t
-            self._ = t.ugettext
+            self._ = t.gettext
 
     instance = None
     def __init__(self):

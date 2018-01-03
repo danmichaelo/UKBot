@@ -1,6 +1,5 @@
 # encoding=utf-8
 # vim: fenc=utf-8 et sw=4 ts=4 sts=4 ai
-from __future__ import unicode_literals
 import re
 from lxml.html import fromstring
 import lxml
@@ -250,7 +249,7 @@ class ImageRule(Rule):
         #others_imgs_added = []
         counters = {'ownwork': [], 'own': [], 'other': []}
         for filename in imgs_added:
-            filename = urllib.unquote(filename)
+            filename = urllib.parse.unquote(filename)
             image = rev.article().site().images[filename]
             imageinfo = image.imageinfo
             if len(imageinfo) > 0:   # seems like image.exists only checks locally
@@ -347,6 +346,8 @@ class RefRule(Rule):
 
         # Count all <ref> tags
         try:
+            if txt == '':
+                return 0, 0
             xml = fromstring(condition_for_lxml(txt))
             allref1 = xml.findall('.//ref')
             for tag in allref1:
@@ -442,7 +443,7 @@ class ByteBonusRule(Rule):
         abytes = 0
         thisrev = False
         passedlimit = False
-        for r in rev.article().revisions.itervalues():
+        for r in rev.article().revisions.values():
             if r.bytes > 0:
                 abytes += r.bytes
             if passedlimit is False and abytes >= self.limit:
@@ -467,7 +468,7 @@ class WordBonusRule(Rule):
         awords = 0
         thisrev = False
         passedlimit = False
-        for r in rev.article().revisions.itervalues():
+        for r in rev.article().revisions.values():
             if r.words > 0:
                 awords += r.words
 

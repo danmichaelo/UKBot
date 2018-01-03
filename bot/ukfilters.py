@@ -1,6 +1,5 @@
 # encoding=utf-8
 # vim: fenc=utf-8 et sw=4 ts=4 sts=4 ai
-from __future__ import unicode_literals
 import sys
 import re
 from copy import copy
@@ -50,7 +49,7 @@ class Filter(object):
     #def filter(self, articles):
 
     #    out = odict()
-    #    for article_key, article in articles.iteritems():
+    #    for article_key, article in articles.items():
 
     #        firstrevid = article.revisions.firstkey()
     #        lastrevid = article.revisions.lastkey()
@@ -108,7 +107,7 @@ class TemplateFilter(Filter):
     def filter(self, articles):
 
         out = odict()
-        for article_key, article in articles.iteritems():
+        for article_key, article in articles.items():
 
             firstrevid = article.revisions.firstkey()
             firstrev = article.revisions[firstrevid]
@@ -188,7 +187,7 @@ class CatFilter(Filter):
         #for p in pages:
         #    ctree.add_child( name = p.encode('utf-8') )
 
-        for site_key, site in self.sites.iteritems():
+        for site_key, site in self.sites.items():
 
             if 'bot' in site.rights:
                 requestlimit = 500
@@ -198,7 +197,7 @@ class CatFilter(Filter):
                 returnlimit = 500
 
             # Titles of articles that belong to this site
-            titles = [article.name for article in articles.itervalues() if article.site().key == site_key]
+            titles = [article.name for article in articles.values() if article.site().key == site_key]
 
             # logger.debug(' ['+site_key+':'+str(len(titles))+']')
             #.flush()
@@ -212,9 +211,7 @@ class CatFilter(Filter):
                     nnc = 0
 
                     for s0 in range(0, len(titles0), requestlimit):
-                        if debug:
-                            print
-                            print "[%d] > Getting %d to %d of %d" % (level, s0, s0+requestlimit, len(titles0))
+                        logger.debug('[%d] > Getting %d to %d of %d', level, s0, s0+requestlimit, len(titles0))
                         ids = '|'.join(titles0[s0:s0+requestlimit])
 
                         cont = True
@@ -228,7 +225,7 @@ class CatFilter(Filter):
                             if 'warnings' in q:
                                 raise StandardError(q['warnings']['query']['*'])
 
-                            for pageid, page in q['query']['pages'].iteritems():
+                            for pageid, page in q['query']['pages'].items():
                                 fulltitle = page['title']
                                 shorttitle = fulltitle.split(':', 1)[-1]
                                 article_key = site_key + ':' + fulltitle
@@ -252,7 +249,7 @@ class CatFilter(Filter):
                                                 # use iter_search_nodes instead?
                                                 #ctree.search_nodes( name = fulltitle.encode('utf-8') )[0].add_child( name = cat_short.encode('utf-8') )
                                             else:
-                                                for article_key2, ccc in cats.iteritems():
+                                                for article_key2, ccc in cats.items():
                                                     if article_key in ccc[level-1]:
                                                         ccc[level].append(site_cat)
                                                         parents[article_key2][site_cat] = article_key
@@ -292,7 +289,7 @@ class CatFilter(Filter):
         out = odict()
 
         # loop over articles
-        for article_key, article_cats in cats.iteritems():
+        for article_key, article_cats in cats.items():
             #if debug:
             #    print
             article = articles[article_key]
@@ -343,7 +340,7 @@ class ByteFilter(Filter):
 
     def filter(self, articles):
         out = odict()
-        for article_key, article in articles.iteritems():
+        for article_key, article in articles.items():
             if article.bytes >= self.bytelimit:
                 out[article_key] = article
         logger.info(" - ByteFilter: Articles reduced from %d to %d",
@@ -360,7 +357,7 @@ class NewPageFilter(Filter):
 
     def filter(self, articles):
         out = odict()
-        for a, aa in articles.iteritems():
+        for a, aa in articles.items():
             if not self.redirects and aa.new_non_redirect:
                 out[a] = aa
             elif self.redirects and aa.new:
@@ -377,7 +374,7 @@ class ExistingPageFilter(Filter):
 
     def filter(self, articles):
         out = odict()
-        for aname, article in articles.iteritems():
+        for aname, article in articles.items():
             if not article.new:
                 out[aname] = article
         logger.info(" - ExistingPageFilter: Articles reduced from %d -> %d", len(articles), len(out))
@@ -402,7 +399,7 @@ class BackLinkFilter(Filter):
 
         for page_param in self.articles:
             page_found = False
-            for site_key, site in self.sites.iteritems():
+            for site_key, site in self.sites.items():
                 page_name = page_param
                 kv = page_param.split(':', 1)
                 if len(kv) == 2 and len(kv[0]) == 2:
@@ -436,7 +433,7 @@ class BackLinkFilter(Filter):
 
     def filter(self, articles):
         out = odict()
-        for article_key, article in articles.iteritems():
+        for article_key, article in articles.items():
             if article_key in self.links:
                 out[article_key] = article
         logger.info(" - BackLinkFilter: Articles reduced from %d to %d",
@@ -458,7 +455,7 @@ class ForwardLinkFilter(Filter):
         self.articles = articles
         self.links = []
 
-        for site_key, site in self.sites.iteritems():
+        for site_key, site in self.sites.items():
             for aname in self.articles:
                 p = site.pages[aname]
                 if p.exists:
@@ -473,7 +470,7 @@ class ForwardLinkFilter(Filter):
 
     def filter(self, articles):
         out = odict()
-        for article_key, article in articles.iteritems():
+        for article_key, article in articles.items():
             if article_key in self.links:
                 out[article_key] = article
         logger.info(" - ForwardLinkFilter: Articles reduced from %d to %d",
@@ -499,7 +496,7 @@ class PageFilter(Filter):
 
     def filter(self, articles):
         out = odict()
-        for article_key, article in articles.iteritems():
+        for article_key, article in articles.items():
             if article_key in self.pages:
                 out[article_key] = article
         logger.info(' - PageFilter: Articles reduced from %d to %d',
@@ -522,7 +519,7 @@ class NamespaceFilter(Filter):
     def filter(self, articles):
         # Note: The .namespace property does not yet exist on the Article object!
         # out = odict()
-        # for article_key, article in articles.iteritems():
+        # for article_key, article in articles.items():
         #    if article.namespace == self.namespace:
         #        out[article_key] = article
         # log("  [+] Applying namespace filter (%s): %d -> %d" % (','.join(self.articles), len(articles), len(out)))

@@ -1,7 +1,7 @@
 # encoding=utf-8
 # vim: fenc=utf-8 et sw=4 ts=4 sts=4 ai
-from __future__ import unicode_literals
 import time
+import sys
 runstart_s = time.time()
 
 import logging
@@ -11,12 +11,16 @@ syslog = logging.StreamHandler()
 # formatter = logging.Formatter('%(asctime)s [%(mem_usage)s MB] %(name)s %(levelname)s : %(message)s')
 logger.addHandler(syslog)
 syslog.setLevel(logging.INFO)
+
+if sys.version_info < (3, 4):
+    print('Requires Python >= 3.4')
+    sys.exit(1)
+
 logger.info('Loading')
 
 import matplotlib
 matplotlib.use('svg')
 
-from future.utils import python_2_unicode_compatible
 import weakref
 import numpy as np
 import time
@@ -27,7 +31,6 @@ import gettext
 import pytz
 from isoweek import Week  # Sort-of necessary until datetime supports %V, see http://bugs.python.org/issue12006
                           # and See http://stackoverflow.com/questions/5882405/get-date-from-iso-week-number-in-python
-import sys
 import unicodedata
 import re
 import json
@@ -38,7 +41,6 @@ from odict import odict
 import urllib
 import argparse
 import codecs
-
 
 logging.getLogger('requests').setLevel(logging.WARNING)
 logging.getLogger('urllib3').setLevel(logging.WARNING)
@@ -51,7 +53,6 @@ import mwtemplates
 from mwtemplates import TemplateEditor
 from mwtextextractor import get_body_text
 import ukcommon
-
 
 from ukcommon import get_mem_usage, Localization, t, _
 import locale
@@ -85,13 +86,13 @@ import platform
 
 # Read args
  
-all_chars = (unichr(i) for i in range(sys.maxunicode))
+all_chars = (chr(i) for i in range(sys.maxunicode))
 control_chars = ''.join(c for c in all_chars if unicodedata.category(c) in set(['Cc','Cf']))
 control_char_re = re.compile('[%s]' % re.escape(control_chars))
 logger.info('Control char regexp is ready')
 
 def remove_control_chars(s):
-    if type(s) == str or type(s) == unicode:
+    if isinstance(s, str):
         return control_char_re.sub('', s)
     else:
         return s
@@ -160,7 +161,6 @@ class Site(mwclient.Site):
         return msg
 
 
-@python_2_unicode_compatible
 class Article(object):
 
     def __init__(self, site, user, name):
@@ -207,7 +207,7 @@ class Article(object):
 
     @property
     def bytes(self):
-        return np.sum([rev.bytes for rev in self.revisions.itervalues()])
+        return np.sum([rev.bytes for rev in self.revisions.values()])
 
     @property
     def words(self):
@@ -216,7 +216,7 @@ class Article(object):
         will never be negative, but words removed in one revision will
         contribute negatively to the sum.
         """
-        return np.max([0, np.sum([rev.words for rev in self.revisions.itervalues()])])
+        return np.max([0, np.sum([rev.words for rev in self.revisions.values()])])
 
     @property
     def points(self):
@@ -229,7 +229,7 @@ class Article(object):
         p = 0.
         article_key = self.site().key + ':' + self.name
         if ignore_disqualification or not article_key in self.user().disqualified_articles:
-            for revid, rev in self.revisions.iteritems():
+            for revid, rev in self.revisions.items():
                 dt = pytz.utc.localize(datetime.fromtimestamp(rev.timestamp))
                 if ignore_suspension_period is True or self.user().suspended_since is None or dt < self.user().suspended_since:
                     p += rev.get_points(ptype, ignore_max, ignore_point_deductions)
@@ -240,7 +240,6 @@ class Article(object):
         #return np.sum([a.points for a in self.articles.values()])
 
 
-@python_2_unicode_compatible
 class Revision(object):
 
     def __init__(self, article, revid, **kwargs):
@@ -271,7 +270,7 @@ class Revision(object):
 
         self.points = []
 
-        for k, v in kwargs.iteritems():
+        for k, v in kwargs.items():
             if k == 'timestamp':
                 self.timestamp = int(v)
             elif k == 'parentid':
@@ -387,15 +386,15 @@ class Revision(object):
 
     def get_link(self):
         """ returns a link to revision """
-        q = {'title': self.article().name.encode('utf-8'), 'oldid': self.revid}
+        q = {'title': self.article().name, 'oldid': self.revid}
         if not self.new:
             q['diff'] = 'prev'
-        return '//' + self.article().site().host + self.article().site().site['script'] + '?' + urllib.urlencode(q)
+        return '//' + self.article().site().host + self.article().site().site['script'] + '?' + urllib.parse.urlencode(q)
 
     def get_parent_link(self):
         """ returns a link to parent revision """
-        q = {'title': self.article().name.encode('utf-8'), 'oldid': self.parentid}
-        return '//' + self.article().site().host + self.article().site().site['script'] + '?' + urllib.urlencode(q)
+        q = {'title': self.article().name, 'oldid': self.parentid}
+        return '//' + self.article().site().host + self.article().site().site['script'] + '?' + urllib.parse.urlencode(q)
 
     def get_points(self, ptype='', ignore_max=False, ignore_point_deductions=False):
         p = 0.0
@@ -429,12 +428,12 @@ class User(object):
         self.point_deductions = []
 
     def __repr__(self):
-        return ("<User %s>" % self.name).encode('utf-8')
+        return "<User %s>" % self.name
 
     def sort_contribs(self):
 
         # sort revisions by revision id
-        for article in self.articles.itervalues():
+        for article in self.articles.values():
             article.revisions.sort(key=lambda x: x[0])   # sort by key (revision id)
 
         # sort articles by first revision id
@@ -532,7 +531,7 @@ class User(object):
 
         # If revisions were moved from one article to another, and the redirect was not created by the same user,
         # some articles may now have zero revisions. We should drop them
-        for article_key, article in self.articles.iteritems():
+        for article_key, article in self.articles.items():
             if len(article.revisions) == 0:
                 logger.info('Dropping article "%s" due to zero remaining revisions', article.name)
                 del self.articles[article_key]
@@ -552,7 +551,7 @@ class User(object):
         #titles = [a.name for a in self.articles.values() if a.site.key == site_key]
         #for s0 in range(0, len(titles), apilim):
         #    ids = '|'.join(titles[s0:s0+apilim])
-        #    for page in site.api('query', prop = 'info', titles = ids)['query']['pages'].itervalues():
+        #    for page in site.api('query', prop = 'info', titles = ids)['query']['pages'].values():
         #        article_key = site_key + ':' + page['title']
         #        self.articles[article_key].redirect = ('redirect' in page.keys())
 
@@ -569,7 +568,7 @@ class User(object):
             try:
                 ids = '|'.join(revids[:apilim])
                 logger.info('Checking ids: %s', ids)
-                for page in site.api('query', prop='revisions', rvprop=props, revids=ids, uselang='nb')['query']['pages'].itervalues():
+                for page in site.api('query', prop='revisions', rvprop=props, revids=ids, uselang='nb')['query']['pages'].values():
                     article_key = site_key + ':' + page['title']
                     for apirev in page['revisions']:
                         rev = self.articles[article_key].revisions[apirev['revid']]
@@ -605,7 +604,7 @@ class User(object):
         parentids = [str(i) for i in parentids]
         for s0 in range(0, len(parentids), apilim):
             ids = '|'.join(parentids[s0:s0 + apilim])
-            for page in site.api('query', prop='revisions', rvprop=props, revids=ids)['query']['pages'].itervalues():
+            for page in site.api('query', prop='revisions', rvprop=props, revids=ids)['query']['pages'].values():
                 article_key = site_key + ':' + page['title']
 
                 # In the case of a merge, the new title (article_key) might not be part of the user's 
@@ -616,7 +615,7 @@ class User(object):
                         nr += 1
                         parentid = apirev['revid']
                         found = False
-                        for revid, rev in article.revisions.iteritems():
+                        for revid, rev in article.revisions.items():
                             if rev.parentid == parentid:
                                 found = True
                                 break
@@ -641,10 +640,10 @@ class User(object):
         contribs_query_params = []
         fulltexts_query_params = []
 
-        for article_key, article in self.articles.iteritems():
+        for article_key, article in self.articles.items():
             site_key = article.site().key
 
-            for revid, rev in article.revisions.iteritems():
+            for revid, rev in article.revisions.items():
                 ts = datetime.fromtimestamp(rev.timestamp).strftime('%F %T')
 
                 # Save revision if not already saved
@@ -671,7 +670,7 @@ class User(object):
             dt = time.time() - t0
             logger.info('Added %d contributions to database in %.2f secs', len(contribs_query_params), dt)
 
-        chunk_size = 500
+        chunk_size = 100
         for n in range(0, len(fulltexts_query_params), chunk_size):
             data = fulltexts_query_params[n:n+chunk_size]
             logger.info('Adding %d fulltexts to database', len(data))
@@ -698,7 +697,7 @@ class User(object):
             logger.info('Failed to get revision %d, revision deleted?', rev.revid)
             return
 
-        for page in res['pages'].itervalues():
+        for page in res['pages'].values():
             for apirev in page['revisions']:
                 if apirev['revid'] == rev.revid:
                     if '*' in apirev.keys():
@@ -852,26 +851,26 @@ class User(object):
 
         dt = time.time() - t0
         logger.info('%d of %d pages remain after filtering. Filtering took %.2f secs', len(self.articles), n0, dt)
-        for a in self.articles.iterkeys():
+        for a in self.articles.keys():
             logger.debug(' - %s', a)
 
     @property
     def bytes(self):
-        return np.sum([a.bytes for a in self.articles.itervalues()])
+        return np.sum([a.bytes for a in self.articles.values()])
 
     @property
     def newpages(self):
-        return np.sum([1 for a in self.articles.itervalues() if a.new_non_redirect])
+        return np.sum([1 for a in self.articles.values() if a.new_non_redirect])
 
     @property
     def words(self):
-        return np.sum([a.words for a in self.articles.itervalues()])
+        return np.sum([a.words for a in self.articles.values()])
 
     @property
     def points(self):
         """ The points for all the user's articles, excluding disqualified ones """
         p = 0.
-        for article_key, article in self.articles.iteritems():
+        for article_key, article in self.articles.items():
             p += article.get_points()
         return p
         #return np.sum([a.points for a in self.articles.values()])
@@ -883,7 +882,7 @@ class User(object):
         utc = pytz.utc
 
         # loop over articles
-        for article_key, article in self.articles.iteritems():
+        for article_key, article in self.articles.items():
             # if self.contest().verbose:
             #     logger.info(article_key)
             # else:
@@ -891,7 +890,7 @@ class User(object):
             #log(article_key)
 
             # loop over revisions
-            for revid, rev in article.revisions.iteritems():
+            for revid, rev in article.revisions.items():
 
                 rev.points = []
 
@@ -935,7 +934,7 @@ class User(object):
 
         logger.debug('Formatting results for user %s', self.name)
         # loop over articles
-        for article_key, article in self.articles.iteritems():
+        for article_key, article in self.articles.items():
 
             brutto = article.get_points(ignore_suspension_period=True, ignore_point_deductions=True, ignore_disqualification=True)
             netto = article.get_points()
@@ -948,7 +947,7 @@ class User(object):
 
                 # loop over revisions
                 revs = []
-                for revid, rev in article.revisions.iteritems():
+                for revid, rev in article.revisions.items():
 
                     if len(rev.points) > 0:
                         descr = ' + '.join(['%.1f p (%s)' % (p[0], p[2]) for p in rev.points])
@@ -959,7 +958,7 @@ class User(object):
                                 descr += ' <span style="color:green">+ %.1f p (%s)</span>' % (-p[0], p[1])
 
                         dt = utc.localize(datetime.fromtimestamp(rev.timestamp))
-                        dt_str = dt.astimezone(self.contest().wiki_tz).strftime(_('%A, %H:%M')).decode('utf-8')
+                        dt_str = dt.astimezone(self.contest().wiki_tz).strftime(_('%A, %H:%M'))
                         out = '[%s %s]: %s' % (rev.get_link(), dt_str, descr)
                         if self.suspended_since is not None and dt > self.suspended_since:
                             out = '<s>' + out + '</s>'
@@ -1009,7 +1008,7 @@ class User(object):
 
         suspended = ''
         if self.suspended_since is not None:
-            suspended = ', ' + _('suspended since') + ' %s' % self.suspended_since.strftime(_('%A, %H:%M')).decode('utf-8')
+            suspended = ', ' + _('suspended since') + ' %s' % self.suspended_since.strftime(_('%A, %H:%M'))
         userprefix = self.contest().homesite.namespaces[2]
         out = '=== %s [[%s:%s|%s]] (%.f p%s) ===\n' % (ros, userprefix, self.name, self.name, self.points, suspended)
         if len(entries) == 0:
@@ -1325,10 +1324,10 @@ class Contest(object):
         utc = pytz.utc
 
         if infoboks.has_param(commonargs['year']) and infoboks.has_param(commonargs['week']):
-            year = int(re.sub(r'<\!--.+?-->', r'', unicode(infoboks.parameters[commonargs['year']])).strip())
-            startweek = int(re.sub(r'<\!--.+?-->', r'', unicode(infoboks.parameters[commonargs['week']])).strip())
+            year = int(re.sub(r'<\!--.+?-->', r'', infoboks.parameters[commonargs['year']].value).strip())
+            startweek = int(re.sub(r'<\!--.+?-->', r'', infoboks.parameters[commonargs['week']].value).strip())
             if infoboks.has_param(commonargs['week2']):
-                endweek = re.sub(r'<\!--.+?-->', r'', unicode(infoboks.parameters[commonargs['week2']])).strip()
+                endweek = re.sub(r'<\!--.+?-->', r'', infoboks.parameters[commonargs['week2']].value).strip()
                 if endweek == '':
                     endweek = startweek
             else:
@@ -1355,7 +1354,7 @@ class Contest(object):
         userprefix = self.homesite.namespaces[2]
         self.ledere = []
         if ibcfg['organizer'] in infoboks.parameters:
-            self.ledere = re.findall(r'\[\[(?:User|%s):([^\|\]]+)' % userprefix, unicode(infoboks.parameters[ibcfg['organizer']]), flags=re.I)
+            self.ledere = re.findall(r'\[\[(?:User|%s):([^\|\]]+)' % userprefix, infoboks.parameters[ibcfg['organizer']].value, flags=re.I)
         if len(self.ledere) == 0:
             logger.warning('Found no organizers in {{tl|%s}}.', ibcfg['name'])
 
@@ -1363,7 +1362,7 @@ class Contest(object):
         self.prices = []
         for col in awards.keys():
             if infoboks.has_param(col):
-                r = re.sub(r'<\!--.+?-->', r'', unicode(infoboks.parameters[col])).strip()  # strip comments, then whitespace
+                r = re.sub(r'<\!--.+?-->', r'', infoboks.parameters[col].value.strip())  # strip comments, then whitespace
                 if r != '':
                     r = r.lower().replace('&nbsp;', ' ').split()[0]
                     #print col,r
@@ -1558,7 +1557,7 @@ class Contest(object):
         ax.set_xticklabels([], minor=False)
 
         ax.set_xticks(xt_mid, minor=True)
-        abday = map(lambda x: calendar.day_abbr[x].decode('utf-8'), [0, 1, 2, 3, 4, 5, 6])
+        abday = map(lambda x: calendar.day_abbr[x], [0, 1, 2, 3, 4, 5, 6])
         if ndays == 7:
             ax.set_xticklabels(abday, minor=True)
         elif ndays == 14:
@@ -1591,7 +1590,7 @@ class Contest(object):
             ax.set_ylabel(_('Points'))
 
             now = self.server_tz.localize(datetime.now())
-            now2 = now.astimezone(self.wiki_tz).strftime(_('%e. %B %Y, %H:%M')).decode('utf-8')
+            now2 = now.astimezone(self.wiki_tz).strftime(_('%e. %B %Y, %H:%M'))
             ax_title = _('Updated %(date)s')
 
             #print ax_title.encode('utf-8')
@@ -1606,7 +1605,7 @@ class Contest(object):
                 loc=2, bbox_to_anchor=(1.0, 1.0), borderaxespad=0., frameon=0.
             )
             figname = '../plots/' + self.config['plot']['figname'] % {'year': self.year, 'week': self.startweek}
-            plt.savefig(figname.encode('utf-8'), dpi=200)
+            plt.savefig(figname, dpi=200)
 
     def format_msg(self, template, award):
         tpl = self.config['award_message']
@@ -1835,11 +1834,11 @@ class Contest(object):
                 d = [self.config['default_prefix'], self.name, u.name, 'suspension', '']
                 cur.execute('SELECT id FROM notifications WHERE site=%s AND contest=%s AND user=%s AND class=%s AND args=%s', d)
                 if len(cur.fetchall()) == 0:
-                    msgs.append('Du er inntil videre suspendert fra konkurransen med virkning fra %s. Dette innebærer at dine bidrag gjort etter dette tidspunkt ikke teller i konkurransen, men alle bidrag blir registrert og skulle suspenderingen oppheves i løpet av konkurranseperioden vil også bidrag gjort i suspenderingsperioden telle med. Vi oppfordrer deg derfor til å arbeide med problemene som førte til suspenderingen slik at den kan oppheves.' % u.suspended_since.strftime(_('%e. %B %Y, %H:%M')).decode('utf-8'))
+                    msgs.append('Du er inntil videre suspendert fra konkurransen med virkning fra %s. Dette innebærer at dine bidrag gjort etter dette tidspunkt ikke teller i konkurransen, men alle bidrag blir registrert og skulle suspenderingen oppheves i løpet av konkurranseperioden vil også bidrag gjort i suspenderingsperioden telle med. Vi oppfordrer deg derfor til å arbeide med problemene som førte til suspenderingen slik at den kan oppheves.' % u.suspended_since.strftime(_('%e. %B %Y, %H:%M')))
                     if not simulate:
                         cur.execute('INSERT INTO notifications (site, contest, user, class, args) VALUES (%s,%s,%s,%s,%s)', d)
             discs = []
-            for article_key, article in u.articles.iteritems():
+            for article_key, article in u.articles.items():
                 if article.disqualified:
                     d = [self.config['default_prefix'], self.name, u.name, 'disqualified', article_key]
                     cur.execute('SELECT id FROM notifications WHERE site=%s AND contest=%s AND user=%s AND class=%s AND args=%s', d)
@@ -1913,7 +1912,7 @@ class Contest(object):
             user.add_contribs_from_db(self.sql, self.start, self.end, self.sites)
 
             # Then fill in new contributions from wiki
-            for site in self.sites.itervalues():
+            for site in self.sites.values():
 
                 if host_filter is None or site.host == host_filter:
                     user.add_contribs_from_wiki(site, self.start, self.end, fulltext=True, **extraargs)
@@ -1940,11 +1939,11 @@ class Contest(object):
                 tp2 = time.time()
                 logger.info('Wordcount done in %.1f secs', tp2 - tp1)
 
-                for article in user.articles.itervalues():
+                for article in user.articles.values():
                     k = article.site().key + ':' + article.name
                     if len(article.errors) > 0:
                         article_errors[k] = article.errors
-                    for rev in article.revisions.itervalues():
+                    for rev in article.revisions.values():
                         if len(rev.errors) > 0:
                             if k in article_errors:
                                 article_errors[k].extend(rev.errors)
@@ -2026,9 +2025,9 @@ class Contest(object):
             out += "''" + _('This contest is closed – thanks to everyone who participated!') + "''\n\n"
         else:
             oargs = {
-                'lastupdate': now.astimezone(self.wiki_tz).strftime(_('%e. %B %Y, %H:%M')).decode('utf-8'),
-                'startdate': self.start.strftime(_('%e. %B %Y, %H:%M')).decode('utf-8'),
-                'enddate': self.end.strftime(_('%e. %B %Y, %H:%M')).decode('utf-8')
+                'lastupdate': now.astimezone(self.wiki_tz).strftime(_('%e. %B %Y, %H:%M')),
+                'startdate': self.start.strftime(_('%e. %B %Y, %H:%M')),
+                'enddate': self.end.strftime(_('%e. %B %Y, %H:%M'))
             }
             out += "''" + _('Last updated %(lastupdate)s. The contest is open from %(startdate)s to %(enddate)s.') % oargs + "''\n\n"
 
@@ -2047,13 +2046,13 @@ class Contest(object):
             out += result['result'].replace('{awards}', awards)
 
         errors = []
-        for art, err in article_errors.iteritems():
+        for art, err in article_errors.items():
             if len(err) > 8:
                 err = err[:8]
                 err.append('(...)')
             errors.append('\n* ' + _('UKBot encountered the following problems with the article [[:%s]]') % art + ''.join(['\n** %s' % e for e in err]))
 
-        for site in self.sites.itervalues():
+        for site in self.sites.values():
             for error in site.errors:
                 errors.append('\n* %s' % error)
 
@@ -2262,7 +2261,7 @@ def get_contest_page_titles(sql, homesite, config, wiki_tz, server_tz):
             page_title = page_title % { 'year': w.year, 'week': w.week }
         else:
             page_title = page_title % { 'year': now_w.year, 'month': now_w.month }
-        #strftime(page_title.encode('utf-8')).decode('utf-8')
+        #strftime(page_title.encode('utf-8'))
         if page_title not in contests:
             contests.add(page_title)
             yield ('normal', page_title)
@@ -2314,7 +2313,9 @@ class MyConverter(mysql.connector.conversion.MySQLConverter):
         row = super(MyConverter, self).row_to_python(row, fields)
 
         def to_unicode(col):
-            if type(col) == bytearray:
+            if isinstance(col, bytearray):
+                return col.decode('utf-8')
+            elif isinstance(col, bytes):
                 return col.decode('utf-8')
             return col
 

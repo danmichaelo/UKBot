@@ -1,7 +1,4 @@
 # vim: fenc=utf-8 et sw=4 ts=4 sts=4 ai
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import unicode_literals
 from flask import Flask
 from flask import request
 from flask import render_template

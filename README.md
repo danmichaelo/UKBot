@@ -7,14 +7,14 @@ Python bot for updating results in Ukens konkurranse and similar contests at Wik
 
 Setup
 -----
-Making a [virtualenv](http://www.virtualenv.org/) and installing dependencies (numpy should be installed first, then the rest in no particular order):
 
-	virtualenv ENV
-	source ENV/bin/activate
+Make a [virtualenv](http://www.virtualenv.org/) with Python 3,
+and install dependencies:
 
-	pip install numpy 
+	virtualenv ENV --no-site-packages -p /Users/danmichael/.pyenv/shims/python3
+	. ENV/bin/activate
+
 	pip install -r requirements.txt
-	pip install 
 
 To generate locales:
 

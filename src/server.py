@@ -1,12 +1,8 @@
 #!/data/project/ukbot/ENV/bin/python
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import unicode_literals
-
 import os, sys
-sys.path.insert(0, '/data/project/ukbot/ENV/lib/python2.7/site-packages')
+sys.path.insert(0, '/data/project/ukbot/ENV/lib/python3.4/site-packages')
 
-from flup.server.fcgi import WSGIServer
+from flipflop import WSGIServer
 from .webinterface.app import app
 
 import logging

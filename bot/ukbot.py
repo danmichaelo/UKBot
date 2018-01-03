@@ -1441,8 +1441,8 @@ class Contest(object):
                 uname = templ.parameters[1].value
                 revid = int(templ.parameters[2].value)
                 site_key = ''
-                if templ.parameters.get('site') is not None:
-                    site_key = templ.parameters.get['site'].value
+                if 'site' in templ.parameters:
+                    site_key = templ.parameters['site'].value
 
                 #if not re.match('^[a-z]{2,3}:', aname):
                 #    aname = config['default_prefix'] + ':' + aname
@@ -1469,8 +1469,8 @@ class Contest(object):
                 uname = templ.parameters[1].value
                 revid = int(templ.parameters[2].value)
                 site_key = ''
-                if templ.parameters.get('site') is not None:
-                    site_key = templ.parameters.get['site'].value
+                if 'site' in templ.parameters:
+                    site_key = templ.parameters['site'].value
 
                 #if not re.match('^[a-z]{2,3}:', aname):
                 #    aname = config['default_prefix'] + ':' + aname
@@ -2101,7 +2101,7 @@ class Contest(object):
                 else:
                     txt = txt[:secstart] + out + txt[secend:]
 
-                logger.info('Updating wiki, section = %d', self.results_section)
+                logger.info('Updating wiki')
                 if kstatus == 'ending':
                     self.page.save(txt, summary=_('Updating with final results, the contest is now closed.'))
                 elif kstatus == 'closing':

@@ -1025,7 +1025,7 @@ class User(object):
 
 class Contest(object):
 
-    def __init__(self, page, sites, homesite, sql, config, wiki_tz, server_tz):
+    def __init__(self, page, sites, homesite, sql, config, wiki_tz, server_tz, project_dir, contest_name):
         """
             page: mwclient.Page object
             sites: list
@@ -1036,6 +1036,8 @@ class Contest(object):
         self.name = self.page.name
         self.config = config
         self.homesite = homesite
+        self.project_dir = project_dir
+        self.contest_name = contest_name
         resultsSection = config['contestPages']['resultsSection']
         txt = page.text()
         m = re.search('==\s*' + resultsSection + '\s*==', txt)
@@ -1348,8 +1350,10 @@ class Contest(object):
             raise ParseError(_('Did not find %(week)s+%(year)s or %(start)s+%(end)s in {{tl|%(templates)s}}.') % args)
 
         self.year = self.start.isocalendar()[0]
+
         self.startweek = self.start.isocalendar()[1]
         self.endweek = self.end.isocalendar()[1]
+        self.month = self.start.month
 
         userprefix = self.homesite.namespaces[2]
         self.ledere = []
@@ -1546,9 +1550,9 @@ class Contest(object):
                 if cnt >= 15:
                     break
 
-        if 'datafile' in self.config['plot']:
-            datafile = open(self.config['plot']['datafile'], 'w')
-            json.dump(alldata, datafile)
+        datafile = os.path.join(self.project_dir, 'plots', '%s.json' % self.contest_name)
+        with open(datafile, 'w+') as f:
+            json.dump(alldata, f)
 
         if now < xt[-1]:   # showing vertical line telling day when plot was updated
             ax.axvline(now, color='black', alpha=0.5)
@@ -1604,7 +1608,7 @@ class Contest(object):
                 # ncol = 4, loc = 3, bbox_to_anchor = (0., 1.02, 1., .102), mode = "expand", borderaxespad = 0.
                 loc=2, bbox_to_anchor=(1.0, 1.0), borderaxespad=0., frameon=0.
             )
-            figname = '../plots/' + self.config['plot']['figname'] % {'year': self.year, 'week': self.startweek}
+            figname = os.path.join(self.project_dir, 'plots', self.config['plot']['figname'] % {'year': self.year, 'week': self.startweek, 'month': self.month})
             plt.savefig(figname, dpi=200)
 
     def format_msg(self, template, award):
@@ -1617,6 +1621,7 @@ class Contest(object):
             'extraargs': (tpl['extraargs'] if 'extraargs' in tpl else ''),
             'year': self.year,
             'week': self.startweek,
+            'month': self.month,
             'award': award,
             'yes': self.config['templates']['commonargs'][True],
             'no': self.config['templates']['commonargs'][False]
@@ -2386,7 +2391,7 @@ if __name__ == '__main__':
     parser.add_argument('--log', nargs='?', default='', help='Log file')
     parser.add_argument('--verbose', action='store_true', default=False, help='More verbose logging')
     parser.add_argument('--close', action='store_true', help='Close contest')
-    parser.add_argument('--config', nargs='?', default='config.yml', help='Config file')
+    parser.add_argument('--contest', help='Contest name')
     args = parser.parse_args()
 
     if args.verbose:
@@ -2397,7 +2402,14 @@ if __name__ == '__main__':
     if args.log != '':
         ukcommon.logfile = open(args.log, 'a')
 
-    config = yaml.load(open(args.config, 'r'))
+    project_dir = os.path.dirname(os.path.dirname(os.path.realpath(__file__)))
+    contest = args.contest
+    config_file = os.path.join(project_dir, 'config', 'config.%s.yml' % contest)
+    if not os.path.isfile(config_file):
+        logger.error('Config file not found: %s', config_file)
+        sys.exit(1)
+
+    config = yaml.load(open(config_file, 'r'))
     # rollbar.init(config['rollbar_token'], 'production')
     wiki_tz = pytz.timezone(config['wiki_timezone'])
     server_tz = pytz.timezone(config['server_timezone'])
@@ -2426,7 +2438,9 @@ if __name__ == '__main__':
                               sql=sql,
                               config=config,
                               wiki_tz=wiki_tz,
-                              server_tz=server_tz)
+                              server_tz=server_tz,
+                              project_dir=project_dir,
+                              contest_name=contest)
         except ParseError as e:
             err = "\n* '''%s'''" % e.msg
             out = '\n{{%s | error | %s }}' % (config['templates']['botinfo'], err)

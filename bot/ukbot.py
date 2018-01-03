@@ -1366,7 +1366,7 @@ class Contest(object):
             if infoboks.has_param(col):
                 r = re.sub(r'<\!--.+?-->', r'', unicode(infoboks.parameters[col])).strip()  # strip comments, then whitespace
                 if r != '':
-                    r = r.split()[0].lower()
+                    r = r.lower().replace('&nbsp;', ' ').split()[0]
                     #print col,r
                     if r == ibcfg['winner']:
                         self.prices.append([col, 'winner', 0])

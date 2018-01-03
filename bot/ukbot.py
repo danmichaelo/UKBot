@@ -84,12 +84,11 @@ import platform
 #locale.setlocale(locale.LC_TIME, 'no_NO'.encode('utf-8'))
 
 # Read args
-
-# This actually takes about 10 seconds and eats some memory
-all_chars = (unichr(i) for i in xrange(sys.maxunicode))
-control_chars = ''.join(c for c in all_chars if unicodedata.category(c) in set(['Cc','Cf','Cn','Co','Cs']))
+ 
+all_chars = (unichr(i) for i in range(sys.maxunicode))
+control_chars = ''.join(c for c in all_chars if unicodedata.category(c) in set(['Cc','Cf']))
 control_char_re = re.compile('[%s]' % re.escape(control_chars))
-logger.info('Gigantic regexp is ready')
+logger.info('Control char regexp is ready')
 
 def remove_control_chars(s):
     if type(s) == str or type(s) == unicode:

@@ -2283,6 +2283,9 @@ def get_contest_pages(sql, homesite, config, wiki_tz, server_tz, page_title=None
 
     for p in pages:
         page = homesite.pages[p[1]]
+        if not page.exists:
+            log.warning('Page does not exist: %s', p[1])
+            continue
         page = page.resolve_redirect()
 
         yield (p[0], page)

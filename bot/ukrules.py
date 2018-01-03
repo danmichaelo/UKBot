@@ -205,11 +205,12 @@ class WordRule(Rule):
 
 class ImageRule(Rule):
 
-    def __init__(self, key, points, maxpoints=-1, own=-1, ownwork=-1, maxinitialcount=9999):
+    def __init__(self, key, points, maxpoints=-1, own=-1, ownwork=-1, maxinitialcount=9999, file_prefixes=None):
         Rule.__init__(self, key)
         self.points = float(points)
         self.maxpoints = float(maxpoints)
         self.totalimages = 0
+        self.file_prefixes = file_prefixes or set()
 
         if own == -1:
             self.own = float(points)
@@ -222,7 +223,7 @@ class ImageRule(Rule):
         self.maxinitialcount = int(maxinitialcount)
 
     def get_images(self, txt):
-        prefixes = r'(?:file:|tiedosto:|kuva:|image:|bilde:|fil:|fiila:)'
+        prefixes = r'(?:%s)' % '|'.join(['%s:' % x for x in self.file_prefixes])
         suffixes = r'(?:\.svg|\.png|\.jpg|\.jpeg|\.gif|\.tiff)'
         imagematcher = ''.join([
             r'(?:(?:=|\|)', prefixes, '?',     # matches "=File:" or "=" or "|File:" or "|"

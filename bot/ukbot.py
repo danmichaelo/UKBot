@@ -146,8 +146,12 @@ class Site(mwclient.Site):
         ua = 'UKBot. Run by User:Danmichaelo. Using mwclient/' + mwclient.__ver__
         mwclient.Site.__init__(self, host, clients_useragent=ua, **kwargs)
 
-        magicwords = self.api('query', meta='siteinfo', siprop='magicwords')['query']['magicwords']
-        redirect_words = [x['aliases'] for x in magicwords if x['name'] == 'redirect'][0]
+        res = self.api('query', meta='siteinfo', siprop='magicwords|namespaces|namespacealiases')['query']
+
+        self.file_prefixes = [res['namespaces']['6']['*'], res['namespaces']['6']['canonical']] + [x['*'] for x in res['namespacealiases'] if x['id'] == 6]
+        logger.debug('File prefixes: %s', '|'.join(self.file_prefixes))
+
+        redirect_words = [x['aliases'] for x in res['magicwords'] if x['name'] == 'redirect'][0]
         logger.debug('Redirect words: %s', '|'.join(redirect_words))
         self.redirect_regexp = re.compile(u'(?:%s)' % u'|'.join(redirect_words), re.I)
 
@@ -1270,7 +1274,8 @@ class Contest(object):
                 rules.append(WordRule(**params))
 
             elif key == rulecfg['image']:
-                params = {'key': key, 'points': anon[2]}
+                file_prefixes = set([prefix for site in self.sites.values() for prefix in site.file_prefixes])
+                params = {'key': key, 'points': anon[2], 'file_prefixes': file_prefixes}
                 if templ.has_param(maxpoints):
                     params['maxpoints'] = p[maxpoints]
                 if templ.has_param(rulecfg['own']):

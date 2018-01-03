@@ -366,7 +366,7 @@ msgstr "erreferentziak"
 
 #: bot/ukrules.py:395
 msgid "reference pointers"
-msgstr "erreferentzia puntu"
+msgstr "erreferentzia berrerabilpena"
 
 #: bot/ukrules.py:428
 msgid "added reference section"

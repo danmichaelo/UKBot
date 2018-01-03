@@ -2239,7 +2239,8 @@ def get_contest_page_titles(sql, homesite, config, wiki_tz, server_tz):
 
     # 2) Check if there is a contest to end
     now = server_tz.localize(datetime.now())
-    now_s = now.astimezone(wiki_tz).strftime('%F %T')
+    now_w = now.astimezone(wiki_tz)
+    now_s = now_w.strftime('%F %T')
     cursor.execute('SELECT name FROM contests WHERE site=%s AND name LIKE %s AND ended=0 AND closed=0 AND end_date < %s LIMIT 1', [
         config['default_prefix'],
         config['pages']['base'] + '%',
@@ -2257,8 +2258,11 @@ def get_contest_page_titles(sql, homesite, config, wiki_tz, server_tz):
         page_title = config['pages']['default']
         # subtract one hour, so we close last week's contest right after midnight
         # w = Week.withdate((now - timedelta(hours=1)).astimezone(wiki_tz).date())
-        w = Week.withdate(now.astimezone(wiki_tz).date())
-        page_title = page_title % { 'year': w.year, 'week': w.week }
+        if 'week' in page_title:
+            w = Week.withdate(now_w.date())
+            page_title = page_title % { 'year': w.year, 'week': w.week }
+        else:
+            page_title = page_title % { 'year': now_w.year, 'month': now_w.month }
         #strftime(page_title.encode('utf-8')).decode('utf-8')
         if page_title not in contests:
             contests.add(page_title)

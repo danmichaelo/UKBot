@@ -1504,7 +1504,7 @@ class Contest(object):
         for result in results:
             tmp = {'name': result['name'], 'values': []}
             for point in result['plotdata']:
-                tmp.append({'x': point[0], 'y': point[1]})
+                tmp['values'].append({'x': point[0], 'y': point[1]})
             plotdata.append(tmp)
 
         datafile = os.path.join(self.project_dir, 'plots', '%s.json' % self.contest_name)
@@ -1538,10 +1538,10 @@ class Contest(object):
         yall = []
         cnt = 0
 
-        x = [t['x'] for t in plotdata['values']]
-        y = [t['y'] for t in plotdata['values']]
-
         for result in plotdata:
+            x = [t['x'] for t in result['values']]
+            y = [t['y'] for t in result['values']]
+
             if len(x) > 0:
                 cnt += 1
                 yall.extend(y)
@@ -2471,7 +2471,7 @@ if __name__ == '__main__':
         logger.error('Config file not found: %s', config_file)
         sys.exit(1)
 
-    config = yaml.load(open(config_file, 'r'))
+    config = yaml.load(open(config_file, 'r', encoding='utf-8'))
     # rollbar.init(config['rollbar_token'], 'production')
     wiki_tz = pytz.timezone(config['wiki_timezone'])
     server_tz = pytz.timezone(config['server_timezone'])

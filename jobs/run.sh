@@ -18,7 +18,7 @@ echo "running $START" >| $statusfile
 
 cd ${projectdir}/bot
 # set -o pipefail  # doesn't work when run through the task schedueler
-python ukbot.py --contest "${CONTEST}" --action "uploadplot" "$@" 2>&1 | tee -a $logfile
+python ukbot.py --contest "${CONTEST}" "$@" 2>&1 | tee -a $logfile
 status="${PIPESTATUS[0]}"
 
 echo "$(date) : Job $JOB_NAME ($JOB_ID) on $HOSTNAME finished with exit code $status" | tee -a $logfile

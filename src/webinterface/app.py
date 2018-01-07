@@ -67,7 +67,7 @@ def db_cursor():
     db.close()
 
 
-app = Flask(__name__)
+app = Flask(__name__, static_url_path='/ukbot/static')
 sockets = Sockets(app)
 
 def error_404():
@@ -88,7 +88,7 @@ def read_status(fname):
         stat = '<em>Failed</em>'
     return stat
 
-@app.route('/')
+@app.route('/ukbot/')
 def show_index():
 
     cf = copy(contests)
@@ -122,7 +122,7 @@ def show_index():
 #         )
 
 
-@app.route('/<contest>/status')
+@app.route('/ukbot/<contest>/status')
 def show_uk_log(contest):
     if contest not in [c['id'] for c in contests]:
         return error_404()
@@ -130,7 +130,7 @@ def show_uk_log(contest):
     return render_template('status.html', base_href=base_href, contest=contest)
 
 
-@sockets.route('/<contest>/status.sock')
+@sockets.route('/ukbot/<contest>/status.sock')
 def show_contest_status_sock(socket, contest):
     if contest not in [c['id'] for c in contests]:
         return error_404()
@@ -205,7 +205,7 @@ def validate(data):
     return page, errors
 
 
-@app.route('/wordcount')
+@app.route('/ukbot/wordcount')
 def show_wordcount():
     lang = request.args.get('lang', '')
     page = request.args.get('page', '')

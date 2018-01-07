@@ -1,31 +1,32 @@
-# Makefile for various po files.
- 
+# encoding=utf-8
+# vim: fenc=utf-8 noet sw=4 ts=4 sts=4 ai
+
 # Add more languages here!  Beware that this is a makefile snippet and
 # you have to adhere to make syntax.
 LINGUAS = nb_NO \
-	  fi_FI \
-          eu_ES
+	fi_FI \
+	eu_ES
 
 # Textdomain for our package.
 TEXTDOMAIN = messages
 
-srcdir = ./bot
- 
+localedir = ./locale
+
 CATALOGS = $(LINGUAS)
-MO_FILES = $(addprefix $(srcdir)/, $(addsuffix .mo, $(LINGUAS)))
- 
+MO_FILES = $(addprefix $(localedir)/, $(addsuffix .mo, $(LINGUAS)))
+
 MSGMERGE = msgmerge
 MSGFMT   = msgfmt
 XGETTEXT = xgettext
 CATOBJEXT = .po
- 
+
 TD = $(strip $(TEXTDOMAIN))
- 
+
 default: help
- 
-all: $(TD).pot update-po update-mo install 
+
+all: $(TD).pot update-po update-mo install
 # makedb
- 
+
 help:
 	@echo "Available targets:"
 	@echo "  pot          - Regenerate master catalog from source files"
@@ -33,14 +34,14 @@ help:
 	@echo "  update-mo    - Regenerate mo files from po files"
 	@echo "  install      - Install mo files"
 	@echo "  all          - All of the above"
- 
-POTFILES = $(srcdir)/POTFILES.in \
-	$(shell cat $(srcdir)/POTFILES.in) 
- 
-pot: $(TD).pot 
+
+POTFILES = $(localedir)/POTFILES.in \
+	$(shell cat $(localedir)/POTFILES.in)
+
+pot: $(TD).pot
 
 clean:
-	for dir in ./ ./bot; do \
+	for dir in ./ $(localedir); do \
 		rm -fv $$dir/*~ $$dir/*.bak $$dir/*.mo $$dir/*.pox $$dir/*.pot; \
 	done
 
@@ -49,44 +50,44 @@ clean:
 # files listed in POTFILESS.in
 
 $(TD).pot: $(POTFILES)
-	$(XGETTEXT) --output=$(srcdir)/$(TD).pox \
-		--files-from=$(srcdir)/POTFILES.in
-	rm -f $(srcdir)/$@ && mv $(srcdir)/$(TD).pox $(srcdir)/$@
- 
+	$(XGETTEXT) --output=$(localedir)/$(TD).pox \
+		--files-from=$(localedir)/POTFILES.in
+	rm -f $(localedir)/$@ && mv $(localedir)/$(TD).pox $(localedir)/$@
+
 install: $(MO_FILES)
-	targetdir='./bot/locale'; \
+	targetdir="$(localedir)"; \
 	languages='$(LINGUAS)'; \
 	for lang in $$languages; do \
 		mkdir -p "$$targetdir/$$lang/LC_MESSAGES" || exit 1; \
 		dest="$$targetdir/$$lang/LC_MESSAGES/$(TD).mo"; \
-		cat="$(srcdir)/$$lang.mo"; \
+		cat="$(localedir)/$$lang.mo"; \
 		echo "installing $$cat as $$dest"; \
-		cp -f $$cat $$dest && chmod 644 $$dest || exit 1; \
+		mv -f $$cat $$dest && chmod 644 $$dest || exit 1; \
 	done
- 
+
 update-mo: $(MO_FILES)
- 
+
 update-po:
 	$(MAKE) $(TD).pot
-	cd $(srcdir); \
-		catalogs='$(CATALOGS)'; \
-		for cat in $$catalogs; do \
-		  cat=`basename $$cat`; \
-		  lang=`echo $$cat | sed 's/\$(CATOBJEXT)$$//'`; \
-		  mv $$lang.po $$lang.old.po; \
-		  echo "$$lang:"; \
-		  if $(MSGMERGE) $$lang.old.po $(TD).pot -o $$lang.po; then \
+	cd $(localedir); \
+	catalogs='$(CATALOGS)'; \
+	for cat in $$catalogs; do \
+		cat=`basename $$cat`; \
+		lang=`echo $$cat | sed 's/\$(CATOBJEXT)$$//'`; \
+		mv $$lang.po $$lang.old.po; \
+		echo "$$lang:"; \
+		if $(MSGMERGE) $$lang.old.po $(TD).pot -o $$lang.po; then \
 			rm -f $$lang.old.po; \
-		  else \
+		else \
 			echo "msgmerge for $$cat failed!"; \
 			rm -f $$lang.po; \
 			mv $$lang.old.po $$lang.po; \
-		  fi; \
-		done
- 
+		fi; \
+	done
+
 .SUFFIXES:
 .SUFFIXES: .po .mo
- 
+
 .po.mo:
 	$(MSGFMT) --verbose -o $@ $<
 

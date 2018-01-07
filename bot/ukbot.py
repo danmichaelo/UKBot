@@ -2476,7 +2476,7 @@ if __name__ == '__main__':
     wiki_tz = pytz.timezone(config['wiki_timezone'])
     server_tz = pytz.timezone(config['server_timezone'])
 
-    Localization().init(config['locale'])
+    Localization().init(config['locale'], project_dir)
 
     mainstart = server_tz.localize(datetime.now())
     mainstart_s = time.time()

@@ -20,7 +20,7 @@ class Localization:
             self.t = lambda x: x
             self._ = lambda x: x
 
-        def init(self, cl):
+        def init(self, cl, project_dir):
             '''prepare i18n'''
             if not isinstance(cl, list):
                 cl = [cl]
@@ -44,8 +44,10 @@ class Localization:
 
             lang, charset = locale.getlocale()
             if lang == None:
-                raise StandardError("Failed to set locale!")
-            t = gettext.translation('messages', 'locale', fallback=True, languages=[lang])
+                raise StandardError('Failed to set locale!')
+
+            localedir = os.path.join(project_dir, 'locale')
+            t = gettext.translation('messages', localedir, fallback=True, languages=[lang])
 
             self.t = t
             self._ = t.gettext

@@ -3,34 +3,33 @@
 <html lang="en">
 <head>
 	<meta charset="utf-8" />
+    <base href="{{ base_href }}">
 	<title>{% block title %}{% endblock %} | UKBot</title>
 	<!--
     <script type="text/javascript" src="assets/novus-nvd3-683eb18/lib/d3.v2.min.js"></script>
     -->
-    <link rel="stylesheet" href="/ukbot/site.css" />
-    <link rel="stylesheet" href="assets/nv.d3.css" />
-    <script src="assets/d3.v3.min.js"></script>
-    <script src="assets/nv.d3.js"></script>
-    <script src="assets/jquery-1.10.2.min.js"></script>
+    <link rel="stylesheet" href="static/site.css" />
+    <link rel="stylesheet" href="static/assets/nv.d3.css" />
+    <script src="static/assets/d3.v3.min.js"></script>
+    <script src="static/assets/nv.d3.js"></script>
+    <script src="static/assets/jquery-1.10.2.min.js"></script>
 	{% block header %}{% endblock %}
 </head>
 <body>
-    <!--
-    <p style="background:#ffffaa; padding:10px;margin:10px;">
-        <em>Verktøyet er under utvikling. Resultatlisten oppdateres foreløpig med ujevne mellomrom. Miniatyrbilder vises ikke for alle bilder enda.</em>
-        </p>-->
-        <div class="container">
-            <h1>
-                <a href="/ukbot/">UKB</a>
-                @ Toolforge
-            </h1>
-{% block body %}{% endblock %}
-</div>
-<div id="footer">
-    A tool by <a href="//no.wikipedia.org/wiki/Bruker:Danmichaelo">Danmichaelo</a>. 
-    <a href="https://github.com/danmichaelo/UKBot">Open source</a> 
-    (<a href="http://opensource.org/licenses/MIT">MIT license</a>).
-</div>
+    <div class="container">
+        <h1>
+            <a href="/">UKB</a>
+            @ Toolforge
+        </h1>
+
+        {% block body %}{% endblock %}
+    </div>
+
+    <div id="footer">
+        A tool by <a href="//no.wikipedia.org/wiki/Bruker:Danmichaelo">Danmichaelo</a>.
+        <a href="https://github.com/danmichaelo/UKBot">Open source</a>
+        (<a href="http://opensource.org/licenses/MIT">MIT license</a>).
+    </div>
 
 </body>
 </html>

@@ -15,6 +15,7 @@ datetime
 rollbar
 flipflop
 flask
+flask-sockets
 requests
 mysql-connector==2.1.6
 psutil

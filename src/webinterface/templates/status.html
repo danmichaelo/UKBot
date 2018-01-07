@@ -3,10 +3,29 @@
 {% block title %}UKB log{% endblock %}
 {% block body %}
 
-<pre>
-{{ data }}
+<pre id="run_log">
 </pre>
 
+<script>
+
+var baseHref = document.getElementsByTagName('base')[0].href.replace(/https?:/, 'ws:');
+var contest = "{{contest}}";
+
+var socket = new WebSocket(baseHref + contest + "/status.sock");
+socket.onopen = function(){
+    console.log("Socket has been opened!");
+    socket.send('Hello');
+    // setInterval(function() {
+    //     socket.send('ping');
+    // }, 1000);
+
+}
+socket.onmessage = function(msg){
+    $('#run_log').text( $('#run_log').text() + msg.data);
+    console.log(msg); //Awesome!
+}
+
+
+</script>
+
 {% endblock %}
-
-

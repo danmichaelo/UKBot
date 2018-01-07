@@ -2,7 +2,7 @@
 from flask import Flask
 from flask import request
 from flask import render_template
-from flask_socketio import SocketIO
+from flask_sockets import Sockets
 from time import time
 from mwclient import Site
 from requests import ConnectionError
@@ -12,19 +12,31 @@ from contextlib import contextmanager
 import yaml
 import sqlite3
 from copy import copy
+import os
+import gevent
+from gevent import Timeout
+import logging
 
-configs = [
+logger = logging.getLogger('app')
+
+project_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.realpath(__file__))))
+base_href = os.environ.get('APP_BASE_HREF', 'http://localhost:5000/')
+
+contests = [
     {
         "id": "no",
         "name": "Ukens konkurranse",
+        "url": "https://no.wikipedia.org/wiki/WP:UK",
     },
     {
         "id": "fi",
         "name": "Viikon kilpailu",
+        "url": "https://fi.wikipedia.org/wiki/WP:VK",
     },
     {
-        "id": "fi-100",
-        "name": "Suomi 100",
+        "id": "eu",
+        "name": "Atari:Hezkuntza/Lehiaketak",
+        "url": "https://eu.wikipedia.org/wiki/Atari:Hezkuntza/Lehiaketak",
     },
 ]
 
@@ -35,15 +47,19 @@ class MyConverter(mysql.connector.conversion.MySQLConverter):
         row = super(MyConverter, self).row_to_python(row, fields)
 
         def to_unicode(col):
-            if type(col) == bytearray:
+            if isinstance(col, bytearray):
+                return col.decode('utf-8')
+            elif isinstance(col, bytes):
                 return col.decode('utf-8')
             return col
 
         return[to_unicode(col) for col in row]
 
+
 @contextmanager
 def db_cursor():
-    config = yaml.load(open('/data/project/ukbot/config/config.no.yml', 'r'))
+    config_file = os.path.join(project_dir, 'config', 'config.no.yml')
+    config = yaml.load(open(config_file, encoding='utf-8'))
     db = mysql.connector.connect(converter_class=MyConverter, **config['db'])
     cur = db.cursor()
     yield cur
@@ -52,7 +68,7 @@ def db_cursor():
 
 
 app = Flask(__name__)
-socketio = SocketIO(app)
+sockets = Sockets(app)
 
 def error_404():
     return '404'
@@ -61,11 +77,11 @@ def error_404():
     return response
 
 def read_status(fname):
-    stat = open(fname).read().decode('utf-8')
+    stat = open(fname, encoding='utf-8').read()
     statspl = stat.split()
 
     if statspl[0] == 'running':
-        stat = 'Updating now... started %d secs ago.' % (int(time()) - int(statspl[1])) 
+        stat = 'Updating now... started %d secs ago.' % (int(time()) - int(statspl[1]))
     elif statspl[0] == '0':
         stat = 'Last successful run: ' + ' '.join(statspl[2:]) + '. Runtime was ' + statspl[1] + ' seconds.'
     else:
@@ -75,91 +91,101 @@ def read_status(fname):
 @app.route('/')
 def show_index():
 
-    cf = copy(configs)
+    cf = copy(contests)
     for c in cf:
-        c['status'] = read_status('/data/project/ukbot/logs/%s.status' % c['id'])
+        status_file = os.path.join(project_dir, 'logs', '%s.status' % c['id'])
+        c['status'] = read_status(status_file)
 
     return render_template('main.html',
-        configs=cf
+        contests=cf,
+        base_href=base_href
     )
 
-@app.route('/<conf>/')
-def show_uk_list(conf):
-    if conf not in [c['id'] for c in configs]:
-        return error_404()
-    konk = []
-    points = []
+# @app.route('/<contest>/')
+# def show_contest(contest):
+#     if contest not in [c['id'] for c in contests]:
+#         return error_404()
+#     konk = []
+#     points = []
 
-    with db_cursor() as cur:
-        cur.execute(u'SELECT C.name, U.user, U.points, T.summedPoints FROM (SELECT users.contest, users.user, MAX(users.points) usersPoints, SUM(users.points) summedPoints FROM users GROUP BY users.contest) as T JOIN users as U ON U.points=T.usersPoints JOIN contests as C on C.name=U.contest WHERE U.lang = %s', [conf])
-        for row in cur.fetchall():
-            s = row[0].split()[-1]
-            konk.append({'id': s, 'name': row[0], 'winner': {'name': row[1], 'points': row[2]}, 'sum': {'points': row[3]}})
-            points.append('%s' % row[3])
+#     with db_cursor() as cur:
+#         cur.execute(u'SELECT C.name, U.user, U.points, T.summedPoints FROM (SELECT users.contest, users.user, MAX(users.points) usersPoints, SUM(users.points) summedPoints FROM users GROUP BY users.contest) as T JOIN users as U ON U.points=T.usersPoints JOIN contests as C on C.name=U.contest WHERE U.lang = %s', [contest])
+#         for row in cur.fetchall():
+#             s = row[0].split()[-1]
+#             konk.append({'id': s, 'name': row[0], 'winner': {'name': row[1], 'points': row[2]}, 'sum': {'points': row[3]}})
+#             points.append('%s' % row[3])
 
-    return render_template('uk.html',
-            lang=conf,
-            points=','.join(points),
-            contests=konk
-        )
-
-@sockets.route('/<conf>/status.sock')
-def show_uk_log_sock(ws, conf):
-    if conf not in [c['id'] for c in configs]:
-        return error_404()
-    
-    data = open('/data/project/ukbot/logs/%s.run.log' % conf).read().decode('utf-8')
-    while not ws.closed:
-        # message = ws.receive()
-        ws.send(data)
+#     return render_template('uk.html',
+#             lang=contest,
+#             points=','.join(points),
+#             contests=konk
+#         )
 
 
-@app.route('/<conf>/status')
-def show_uk_log(conf):
-    if conf not in [c['id'] for c in configs]:
+@app.route('/<contest>/status')
+def show_uk_log(contest):
+    if contest not in [c['id'] for c in contests]:
         return error_404()
 
-    return render_template('status.html',
-            data=''
-        )
+    return render_template('status.html', base_href=base_href, contest=contest)
 
 
-@app.route('/<lang>/contest/<week>/')
-def show_uk_contest_details(lang, week):
-    if lang not in ['no', 'fi']:
-        return error_404()
-    sql = sqlite3.connect('/data/project/ukbot/storage/%s.db' % lang)
-    cur = sql.cursor()
-    konk = []
-    cur.execute(u'SELECT name FROM contests WHERE name LIKE ?', ['%' + week])
-
-    row = cur.fetchone()
-    if row:
-        name = row[0]
-        users = []
-        for row2 in cur.execute(u'select user, points, bytes, newpages from users where contest=? ORDER BY points DESC', [name]):
-            users.append({ 'name': row2[0], 'points': row2[1], 'bytes': row2[2], 'newpages': row2[3]})
-        return render_template('uk_contest_details.html',
-                               lang=lang, name=name, users=users)
-    else:
+@sockets.route('/<contest>/status.sock')
+def show_contest_status_sock(socket, contest):
+    if contest not in [c['id'] for c in contests]:
         return error_404()
 
-@app.route('/<lang>/user/<user>/')
-def show_uk_user_details(lang, user):
-    if lang not in ['no', 'fi']:
-        return error_404()
-    sql = sqlite3.connect('/data/project/ukbot/storage/%s.db' % lang)
-    cur = sql.cursor()
-    konk = []
-    for row in cur.execute(u'SELECT U.contest, U.points, U.bytes, U.newpages, (SELECT COUNT(DISTINCT(users.points)) FROM users WHERE users.contest=U.contest AND users.points >= U.points) AS place, (SELECT COUNT(DISTINCT(points)) FROM users WHERE users.contest=U.contest) AS npart FROM users AS U WHERE U.user=?', [user]):
-        s = row[0].split()[-1]
-        konk.append({'id': s, 'name': row[0], 'points': row[1], 'bytes': row[2], 'newpages': row[3], 'pos': row[4], 'cnt': row[5] })
+    run_log_file = os.path.join(project_dir, 'logs', '%s.run.log' % contest)
+    app.logger.info('Opened websocket for %s', run_log_file)
 
-    return render_template('uk_user_details.html',
-        lang=lang,
-        name=user,
-        contests=konk
-        )
+    with open(run_log_file, encoding='utf-8') as run_file:
+        while not socket.closed:
+            new_data = run_file.read()
+            if new_data:
+                socket.send(new_data)
+            with Timeout(1.0, False):
+                socket.receive()
+    app.logger.info('Closed websocket for %s', run_log_file)
+
+
+# @app.route('/<lang>/contest/<week>/')
+# def show_uk_contest_details(lang, week):
+#     if lang not in ['no', 'fi']:
+#         return error_404()
+
+#     # TODO: Migrate to MYSQL!
+#     sql = db.connect()
+#     cur = sql.cursor()
+#     konk = []
+#     cur.execute(u'SELECT name FROM contests WHERE name LIKE ?', ['%' + week])
+
+#     row = cur.fetchone()
+#     if row:
+#         name = row[0]
+#         users = []
+#         for row2 in cur.execute(u'select user, points, bytes, newpages from users where contest=? ORDER BY points DESC', [name]):
+#             users.append({ 'name': row2[0], 'points': row2[1], 'bytes': row2[2], 'newpages': row2[3]})
+#         return render_template('uk_contest_details.html',
+#                                lang=lang, name=name, users=users)
+#     else:
+#         return error_404()
+
+# @app.route('/<lang>/user/<user>/')
+# def show_uk_user_details(lang, user):
+#     if lang not in ['no', 'fi']:
+#         return error_404()
+#     sql = db.connect() # TODO: Migrate to MySQL
+#     cur = sql.cursor()
+#     konk = []
+#     for row in cur.execute(u'SELECT U.contest, U.points, U.bytes, U.newpages, (SELECT COUNT(DISTINCT(users.points)) FROM users WHERE users.contest=U.contest AND users.points >= U.points) AS place, (SELECT COUNT(DISTINCT(points)) FROM users WHERE users.contest=U.contest) AS npart FROM users AS U WHERE U.user=?', [user]):
+#         s = row[0].split()[-1]
+#         konk.append({'id': s, 'name': row[0], 'points': row[1], 'bytes': row[2], 'newpages': row[3], 'pos': row[4], 'cnt': row[5] })
+
+#     return render_template('uk_user_details.html',
+#         lang=lang,
+#         name=user,
+#         contests=konk
+#         )
 
 def validate(data):
     errors = []
@@ -191,20 +217,24 @@ def show_wordcount():
     if len(errors) != 0:
         return render_template('wordcount.html',
             errors=errors, **args)
-    
+
     if revision == '':
         revision = mwpage.revision
         args['revision'] = revision
-    
+
     rev = next(mwpage.revisions(revision, prop='ids|content', limit=1))
     txt = rev['*']
     body = get_body_text(txt)
     return render_template('wordcount.html',
             body=body,
+            base_href=base_href,
             word_count=len(body.split()),
             **args
     )
 
 if __name__ == "__main__":
     # app.run()
-    socketio.run(app)
+    from gevent import pywsgi
+    from geventwebsocket.handler import WebSocketHandler
+    server = pywsgi.WSGIServer(('', 5000), app, handler_class=WebSocketHandler)
+    server.serve_forever()

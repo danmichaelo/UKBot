@@ -4,16 +4,16 @@
 {% block body %}
 
 <p>
-    Wonder how ukbot counts words? 
-    <a href="/ukbot/wordcount">Test it here</a>
+    Wonder how ukbot counts words?
+    <a href="wordcount">Test it here</a>
 </p>
 
-{% for conf in configs %}
+{% for conf in contests %}
 
 <section style="clear:both;">
-  <img src="/ukbot/plots/{{ conf.id }}.mem.png" style="width:400px; float:right;">
+  <img src="static/plots/{{ conf.id }}.mem.png" style="width:400px; float:right;">
   <h2>
-      <a href="./{{ conf.id }}/">{{ conf.name }}</a>
+      <a href="./{{ conf.url }}/">{{ conf.name }}</a>
   </h2>
   <a href="./{{ conf.id }}/status">{{ conf.status | safe }}</a>
 </section>
@@ -27,7 +27,7 @@
 
 $(document).ready(function() {
 
-  $.getJSON('/ukbot/plots/fi-ek.json', function(response) {
+  $.getJSON('static/plots/fi-ek.json', function(response) {
 
       var data = [];
       for (key in response) {
@@ -40,7 +40,7 @@ $(document).ready(function() {
         }
       }
 
-      nv.addGraph(function() {  
+      nv.addGraph(function() {
           var chart = nv.models.lineChart();
 
           chart.xAxis
@@ -61,7 +61,7 @@ $(document).ready(function() {
           nv.utils.windowResize(function() { d3.select('#chart_fi-hl svg').call(chart) });
 
           return chart;
-      });    
+      });
 
   });
 

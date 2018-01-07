@@ -477,7 +477,6 @@ class User(object):
             args['namespace'] = kwargs['namespace']
             logger.debug('Limiting to namespaces: %s', args['namespace'])
 
-        #new_articles = []
         new_revisions = []
         t0 = time.time()
         t1 = time.time()
@@ -490,8 +489,8 @@ class User(object):
             if dt1 > 10:
                 dt0 = time.time() - t0
                 t1 = time.time()
-                logger.info('Found %d new revisions, %d new articles from API so far (%.0f secs elapsed)',
-                            len(new_revisions), new_articles, dt0)
+                logger.info('Found %d new revisions from API so far (%.0f secs elapsed)',
+                            len(new_revisions), dt0)
 
 
             #pageid = c['pageid']
@@ -1500,7 +1499,21 @@ class Contest(object):
 
         return rules, filters
 
-    def plot(self, results):
+    def prepare_plotdata(self, results):
+        plotdata = []
+        for result in results:
+            tmp = {'name': result['name'], 'values': []}
+            for point in result['plotdata']:
+                tmp.append({'x': point[0], 'y': point[1]})
+            plotdata.append(tmp)
+
+        datafile = os.path.join(self.project_dir, 'plots', '%s.json' % self.contest_name)
+        with open(datafile, 'w+') as f:
+            json.dump(plotdata, f)
+
+        return plotdata
+
+    def plot(self, plotdata):
         import matplotlib.pyplot as plt
 
         w = 20 / 2.54
@@ -1525,16 +1538,12 @@ class Contest(object):
         yall = []
         cnt = 0
 
-        alldata = {}
+        x = [t['x'] for t in plotdata['values']]
+        y = [t['y'] for t in plotdata['values']]
 
-        for u in results:
-            alldata[u['name']] = []
-            for point in u['plotdata']:
-                alldata[u['name']].append({'x': point[0], 'y': point[1]})
-            if u['plotdata'].shape[0] > 0:
+        for result in plotdata:
+            if len(x) > 0:
                 cnt += 1
-                x = list(u['plotdata'][:, 0])
-                y = list(u['plotdata'][:, 1])
                 yall.extend(y)
                 x.insert(0, xt[0])
                 y.insert(0, 0)
@@ -1544,15 +1553,11 @@ class Contest(object):
                 else:
                     x.append(xt[-1])
                     y.append(y[-1])
-                l = ax.plot(x, y, linewidth=1.2, label=u['name'])  # markerfacecolor='#FF8C00', markeredgecolor='#888888', label = u['name'])
+                l = ax.plot(x, y, linewidth=1.2, label=result['name'])  # markerfacecolor='#FF8C00', markeredgecolor='#888888', label = u['name'])
                 c = l[0].get_color()
                 #ax.plot(x[1:-1], y[1:-1], marker='.', markersize=4, markerfacecolor=c, markeredgecolor=c, linewidth=0., alpha=0.5)  # markerfacecolor='#FF8C00', markeredgecolor='#888888', label = u['name'])
                 if cnt >= 15:
                     break
-
-        datafile = os.path.join(self.project_dir, 'plots', '%s.json' % self.contest_name)
-        with open(datafile, 'w+') as f:
-            json.dump(alldata, f)
 
         if now < xt[-1]:   # showing vertical line telling day when plot was updated
             ax.axvline(now, color='black', alpha=0.5)
@@ -1578,7 +1583,7 @@ class Contest(object):
             ax.axvspan(xt[i], xt[i + 1], facecolor='#000099', linewidth=0., alpha=0.07)
 
         for line in ax.xaxis.get_ticklines(minor=False):
-            line.set_markersize(0)
+            line.set_markersize(3)
 
         for line in ax.xaxis.get_ticklines(minor=True):
             line.set_markersize(0)
@@ -1610,6 +1615,7 @@ class Contest(object):
             )
             figname = os.path.join(self.project_dir, 'plots', self.config['plot']['figname'] % {'year': self.year, 'week': self.startweek, 'month': self.month})
             plt.savefig(figname, dpi=200)
+            logger.info('Wrote plot: %s', figname)
 
     def format_msg(self, template, award):
         tpl = self.config['award_message']
@@ -2214,7 +2220,62 @@ class Contest(object):
         # Make a nice plot
 
         if 'plot' in config:
-            self.plot(results)
+            plotdata = self.prepare_plotdata(results)
+            self.plot(plotdata)
+
+    def uploadplot(self, simulate=False, output=''):
+        if not self.page.exists:
+            logger.error('Contest page [[%s]] does not exist! Exiting', self.page.name)
+            return
+
+        if not 'plot' in self.config:
+            return
+
+        figname = self.config['plot']['figname'] % {
+            'year': self.year,
+            'week': self.startweek,
+            'month': self.month,
+        }
+        remote_filename = figname.replace(' ', '_')
+        local_filename = os.path.join(self.project_dir, 'plots', figname)
+
+        if not os.path.isfile(local_filename):
+            logger.error('File "%s" was not found', local_filename)
+            sys.exit(1)
+
+        weeks = '%d' % self.startweek
+        if self.startweek != self.endweek:
+            weeks += '-%s' % self.endweek
+
+        pagetext = self.config['plot']['description'] % {
+            'pagename': self.name,
+            'week': weeks,
+            'year': self.year,
+            'month': self.month,
+            'start': self.start.strftime('%F')
+        }
+
+        logger.info('Uploading: %s', figname)
+        commons = mwclient.Site('commons.wikimedia.org', **self.config['account'])
+        file_page = commons.pages['File:' + remote_filename]
+
+        if simulate:
+            return
+
+        with open(local_filename.encode('utf-8'), 'rb') as file_buf:
+            if not file_page.exists:
+                logger.info('Adding plot')
+                res = commons.upload(file_buf, remote_filename,
+                                     comment='Bot: Uploading new plot',
+                                     description=pagetext,
+                                     ignore=True)
+                logger.info(res)
+            else:
+                logger.info('Updating plot')
+                res = commons.upload(file_buf, remote_filename,
+                                     comment='Bot: Updating plot',
+                                     ignore=True)
+                logger.info(res)
 
 
 def get_contest_page_titles(sql, homesite, config, wiki_tz, server_tz):
@@ -2392,6 +2453,7 @@ if __name__ == '__main__':
     parser.add_argument('--verbose', action='store_true', default=False, help='More verbose logging')
     parser.add_argument('--close', action='store_true', help='Close contest')
     parser.add_argument('--contest', help='Contest name')
+    parser.add_argument('--action', nargs='?', default='', help='"uploadplot" or "run"')
     args = parser.parse_args()
 
     if args.verbose:
@@ -2451,7 +2513,14 @@ if __name__ == '__main__':
                 kpage.save('dummy', summary=_('UKBot encountered a problem'), appendtext=out)
             raise
 
-        contest.run(args.simulate, args.output)
+        if args.action == 'uploadplot':
+            contest.uploadplot(args.simulate, args.output)
+        elif args.action == 'plot':
+            datafile = os.path.join(contest.project_dir, 'plots', '%s.json' % contest.contest_name)
+            plotdata = json.load(open(datafile, 'r'))
+            contest.plot(plotdata)
+        else:
+            contest.run(args.simulate, args.output)
 
     runend = server_tz.localize(datetime.now())
     runend_s = time.time()

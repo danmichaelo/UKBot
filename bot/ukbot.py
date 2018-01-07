@@ -1521,8 +1521,8 @@ class Contest(object):
         h = w / goldenratio
         fig = plt.figure(figsize=(w, h))
 
-        ax = fig.add_subplot(1, 1, 1, frame_on=False)
-        ax.grid(True, which='major', color='gray', alpha=0.5)
+        ax = fig.add_subplot(1, 1, 1, frame_on=True)
+        # ax.grid(True, which='major', color='gray', alpha=0.5)
         fig.subplots_adjust(left=0.10, bottom=0.09, right=0.65, top=0.94)
 
         t0 = float(unix_time(self.start))
@@ -1559,22 +1559,48 @@ class Contest(object):
                 if cnt >= 15:
                     break
 
-        if now < xt[-1]:   # showing vertical line telling day when plot was updated
+        if now < xt[-1]:   # showing vertical line indicating when the plot was updated
             ax.axvline(now, color='black', alpha=0.5)
 
-        ax.set_xticks(xt, minor=False)
-        ax.set_xticklabels([], minor=False)
-
-        ax.set_xticks(xt_mid, minor=True)
         abday = map(lambda x: calendar.day_abbr[x], [0, 1, 2, 3, 4, 5, 6])
+
+        x_ticks_major_size = 5
+        x_ticks_minor_size = 0
+
         if ndays == 7:
+            # Tick marker every midnight
+            ax.set_xticks(xt, minor=False)
+            ax.set_xticklabels([], minor=False)
+
+            # Tick labels at the middle of every day
+            ax.set_xticks(xt_mid, minor=True)
             ax.set_xticklabels(abday, minor=True)
         elif ndays == 14:
+            # Tick marker every midnight
+            ax.set_xticks(xt, minor=False)
+            ax.set_xticklabels([], minor=False)
+
+            # Tick labels at the middle of every day
+            ax.set_xticks(xt_mid, minor=True)
             ax.set_xticklabels([abday[0], '', abday[2], '', abday[4], '', abday[6], '', abday[1], '', abday[3], '', abday[5], ''], minor=True)
-        elif ndays == 30:   # for longer contest show numeral ticks
-            ax.set_xticklabels(['1', '', '', '', '5', '', '', '', '', '10', '', '', '', '', '15', '', '', '', '', '20', '', '', '', '', '25', '', '', '', '', '30'], minor=True)
-        elif ndays == 31:
-            ax.set_xticklabels(['1', '', '', '', '5', '', '', '', '', '10', '', '', '', '', '15', '', '', '', '', '20', '', '', '', '', '25', '', '', '', '', '', '31'], minor=True)
+        elif ndays > 14:
+
+            # Tick marker every week
+            x_ticks_major_labels = np.arange(0, ndays + 1, 7)
+            x_ticks_major = t0 + x_ticks_major_labels * 86400
+            ax.set_xticks(x_ticks_major, minor=False)
+            ax.set_xticklabels(x_ticks_major_labels, minor=False)
+
+            # Tick every day
+            x_ticks_minor = t0 + np.arange(ndays + 1) * 86400
+            ax.set_xticks(x_ticks_minor, minor=True)
+            x_ticks_minor_size = 3
+
+            # ax.set_xticklabels(['1', '', '', '', '5', '', '', '', '', '10', '', '', '', '', '15', '', '', '', '', '20', '', '', '', '', '25', '', '', '', '', '30'], minor=True)
+        # elif ndays == 31:
+        #     ax.set_xticklabels(['1', '', '', '', '5', '', '', '', '', '10', '', '', '', '', '15', '', '', '', '', '20', '', '', '', '', '25', '', '', '', '', '', '31'], minor=True)
+
+
 
         for i in range(1, ndays, 2):
             ax.axvspan(xt[i], xt[i + 1], facecolor='#000099', linewidth=0., alpha=0.03)
@@ -1583,13 +1609,13 @@ class Contest(object):
             ax.axvspan(xt[i], xt[i + 1], facecolor='#000099', linewidth=0., alpha=0.07)
 
         for line in ax.xaxis.get_ticklines(minor=False):
-            line.set_markersize(3)
+            line.set_markersize(x_ticks_major_size)
 
         for line in ax.xaxis.get_ticklines(minor=True):
-            line.set_markersize(0)
+            line.set_markersize(x_ticks_minor_size)
 
         for line in ax.yaxis.get_ticklines(minor=False):
-            line.set_markersize(0)
+            line.set_markersize(x_ticks_major_size)
 
         if len(yall) > 0:
             ax.set_xlim(t0, xt[-1])

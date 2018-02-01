@@ -290,7 +290,7 @@ class Revision(object):
                 if v is not None:
                     self.parenttext = v
             else:
-                raise StandardError('add_revision got unknown argument %s' % k)
+                raise Exception('add_revision got unknown argument %s' % k)
 
         for pd in self.article().user().point_deductions:
             if pd['revid'] == self.revid and (pd['site'] == '' or pd['site'] == self.article().site().key):
@@ -592,7 +592,7 @@ class User(object):
                         len(revs), len(parentids), dt)
 
         if len(revs) != len(new_revisions):
-            raise StandardError('Expected %d revisions, but got %d' % (len(new_revisions), len(revs)))
+            raise Exception('Expected %d revisions, but got %d' % (len(new_revisions), len(revs)))
 
         # 4) Fetch info about the parent revisions: diff size, possibly content
 
@@ -1775,7 +1775,7 @@ class Contest(object):
             if 'organizer' in award:
                 oaward = key
         if oaward == '':
-            raise StandardError('No organizer award found in config')
+            raise Exception('No organizer award found in config')
         for u in self.ledere:
             if self.startweek == self.endweek:
                 mld = '{{%(template)s|%(yeararg)s=%(year)d|%(weekarg)s=%(week)02d|%(organizeraward)s=%(yes)s%(extraargs)s}}\n' % {
@@ -2129,7 +2129,7 @@ class Contest(object):
                         secend = s.start()
                         break
             if secstart == -1:
-                raise StandardError("Error: secstart=%d,secend=%d" % (secstart, secend))
+                raise Exception("Error: secstart=%d,secend=%d" % (secstart, secend))
             else:
                 if secend == -1:
                     txt = txt[:secstart] + out
@@ -2225,7 +2225,7 @@ class Contest(object):
             dp = TemplateEditor(txt)
             ntempl = len(dp.templates[tplname])
             if ntempl != 1:
-                raise StandardError('Feil: Fant %d %s-maler i %s' % (ntempl, tplname, boardname))
+                raise Exception('Feil: Fant %d %s-maler i %s' % (ntempl, tplname, boardname))
 
             tpl = dp.templates[tplname][0]
             now2 = now.astimezone(self.wiki_tz)

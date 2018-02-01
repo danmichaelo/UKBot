@@ -1677,7 +1677,7 @@ class Contest(object):
         prefixed = prefix + ':' + username
 
         flinfo = self.homesite.api(action='query', prop='flowinfo', titles=prefixed)
-        flow_enabled = ('enabled' in flinfo['query']['pages'].values()[0]['flowinfo']['flow'])
+        flow_enabled = ('enabled' in list(flinfo['query']['pages'].values())[0]['flowinfo']['flow'])
 
         pagename = '%s:%s' % (prefix, username)
 
@@ -1766,7 +1766,7 @@ class Contest(object):
         args = {
             'prefix': self.homesite.site['server'] + self.homesite.site['script'],
             'page': self.config['awardstatus']['pagename'],
-            'title': urllib.quote(self.config['awardstatus']['send'])
+            'title': urllib.parse.quote(self.config['awardstatus']['send'])
         }
         link = '%(prefix)s?title=%(page)s&action=edit&section=new&preload=%(page)s/Preload&preloadtitle=%(title)s' % args
         usertalkprefix = self.homesite.namespaces[3]
@@ -2317,15 +2317,17 @@ def get_contest_page_titles(sql, homesite, config, wiki_tz, server_tz):
     closing_contests = cursor.fetchall()
     if len(closing_contests) != 0:
         page_title = closing_contests[0][0]
-        lastrev = homesite.pages[config['awardstatus']['pagename']].revisions(prop='user|comment').next()
-        closeuser = lastrev['user']
-        revc = lastrev['comment']
-        if revc.find('/* ' + config['awardstatus']['send'] + ' */') == -1:
-            logger.info('Contest [[%s]] is to be closed, but award delivery has not been confirmed yet', page_title)
-        else:
-            logger.info('Will close contest [[%s]], award delivery has been confirmed', page_title)
-            contests.add(page_title)
-            yield ('closing', page_title)
+        award_statuspage = homesite.pages[config['awardstatus']['pagename']]
+        if award_statuspage.exists:
+            lastrev = award_statuspage.revisions(prop='user|comment').next()
+            closeuser = lastrev['user']
+            revc = lastrev['comment']
+            if revc.find('/* ' + config['awardstatus']['send'] + ' */') == -1:
+                logger.info('Contest [[%s]] is to be closed, but award delivery has not been confirmed yet', page_title)
+            else:
+                logger.info('Will close contest [[%s]], award delivery has been confirmed', page_title)
+                contests.add(page_title)
+                yield ('closing', page_title)
 
     # 2) Check if there is a contest to end
     now = server_tz.localize(datetime.now())

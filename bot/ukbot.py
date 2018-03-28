@@ -1562,7 +1562,7 @@ class Contest(object):
         if now < xt[-1]:   # showing vertical line indicating when the plot was updated
             ax.axvline(now, color='black', alpha=0.5)
 
-        abday = map(lambda x: calendar.day_abbr[x], [0, 1, 2, 3, 4, 5, 6])
+        abday = [calendar.day_abbr[x] for x in [0, 1, 2, 3, 4, 5, 6]]
 
         x_ticks_major_size = 5
         x_ticks_minor_size = 0

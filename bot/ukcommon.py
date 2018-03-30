@@ -84,3 +84,11 @@ process = psutil.Process(os.getpid())
 def get_mem_usage():
     """ Returns memory usage in MBs """
     return process.memory_info().rss / 1024.**2
+
+
+class InvalidContestPage(Exception):
+    """Raised when wikitext input is not on the expected form, so we don't find what we're looking for"""
+
+    def __init__(self, msg):
+        self.msg = msg
+

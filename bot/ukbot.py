@@ -54,7 +54,7 @@ from mwtemplates import TemplateEditor
 from mwtextextractor import get_body_text
 import ukcommon
 
-from ukcommon import get_mem_usage, Localization, t, _
+from ukcommon import get_mem_usage, Localization, t, _, InvalidContestPage
 import locale
 from ukrules import *
 from ukfilters import *
@@ -126,13 +126,6 @@ def unix_time(dt):
     epoch = pytz.utc.localize(datetime.utcfromtimestamp(0))
     delta = dt - epoch
     return delta.total_seconds()
-
-
-class ParseError(Exception):
-    """Raised when wikitext input is not on the expected form, so we don't find what we're looking for"""
-
-    def __init__(self, msg):
-        self.msg = msg
 
 
 class Site(mwclient.Site):
@@ -1037,15 +1030,7 @@ class Contest(object):
         self.homesite = homesite
         self.project_dir = project_dir
         self.contest_name = contest_name
-        resultsSection = config['contestPages']['resultsSection']
         txt = page.text()
-        m = re.search('==\s*' + resultsSection + '\s*==', txt)
-        if not m:
-            logger.warning(_('Found no "%(section)s" sections in the page "%(page)s"') % {'section': resultsSection, 'page': self.page.name})
-        else:
-            txt = txt[:m.end()]
-            sections = [s.strip() for s in re.findall('^[\s]*==([^=]+)==', txt, flags=re.M)]
-            self.results_section = sections.index(resultsSection) + 1
 
         self.sql = sql
         self.wiki_tz = wiki_tz
@@ -1070,11 +1055,11 @@ class Contest(object):
         lst = []
         m = re.search('==\s*' + self.config['contestPages']['participantsSection'] + '\s*==', txt)
         if not m:
-            raise ParseError(_("Couldn't find the list of participants!"))
+            raise InvalidContestPage(_("Couldn't find the list of participants!"))
         deltakerliste = txt[m.end():]
         m = re.search('==[^=]+==', deltakerliste)
         if not m:
-            raise ParseError('Fant ingen overskrift etter deltakerlisten!')
+            raise InvalidContestPage('Fant ingen overskrift etter deltakerlisten!')
         deltakerliste = deltakerliste[:m.start()]
         for d in deltakerliste.split('\n'):
             q = re.search(r'\[\[(?:[^|\]]+):([^|\]]+)', d)
@@ -1101,22 +1086,17 @@ class Contest(object):
             catignore = []
             logger.info('Note: catignore page is empty or does not exist')
         else:
-
-            if not config['templates']['rule']['name'] in dp.templates:
-                raise ParseError(_('There are no point rules defined for this contest. Point rules are defined by {{tl|%(template)s}}.') % {'template': config['templates']['rule']['name']})
-
-            #if not 'ukens konkurranse kriterium' in dp.templates.keys():
-            #    raise ParseError('Denne konkurransen har ingen bidragskriterier. Kriterier defineres med {{tl|ukens konkurranse kriterium}}.')
-
-            infobox = config['templates']['infobox']
-            if not infobox['name'] in dp.templates:
-                raise ParseError(_('This contest is missing a {{tl|%(template)s}} template.') % {'template': infobox['name']})
-
             try:
                 m = re.search(r'<pre>(.*?)</pre>', catignore_txt, flags=re.DOTALL)
                 catignore = m.group(1).strip().splitlines()
             except (IndexError, KeyError):
                 raise ParseError(_('Could not parse the catignore page'))
+
+        if config['templates']['rule']['name'] not in dp.templates:
+            raise InvalidContestPage(_('There are no point rules defined for this contest. Point rules are defined by {{tl|%(template)s}}.') % {'template': config['templates']['rule']['name']})
+
+        #if not 'ukens konkurranse kriterium' in dp.templates.keys():
+        #    raise InvalidContestPage('Denne konkurransen har ingen bidragskriterier. Kriterier defineres med {{tl|ukens konkurranse kriterium}}.')
 
         ######################## Read filters ########################
 
@@ -1148,7 +1128,7 @@ class Contest(object):
 
                 elif key == filtercfg['template']:
                     if len(anon) < 3:
-                        raise ParseError(_('No template (second argument) given to {{tlx|%(template)s|%(firstarg)s}}') % {'template': filtercfg['name'], 'firstarg': filtercfg['template']})
+                        raise InvalidContestPage(_('No template (second argument) given to {{tlx|%(template)s|%(firstarg)s}}') % {'template': filtercfg['name'], 'firstarg': filtercfg['template']})
                 
                     params['templates'] = anon[2:]
                     params['aliases'] = []
@@ -1161,13 +1141,13 @@ class Contest(object):
 
                 elif key == filtercfg['bytes']:
                     if len(anon) < 3:
-                        raise ParseError(_('No byte limit (second argument) given to {{tlx|%(template)s|%(firstarg)s}}') % {'template': filtercfg['name'], 'firstarg': filtercfg['bytes']})
+                        raise InvalidContestPage(_('No byte limit (second argument) given to {{tlx|%(template)s|%(firstarg)s}}') % {'template': filtercfg['name'], 'firstarg': filtercfg['bytes']})
                     params['bytelimit'] = anon[2]
                     filt = ByteFilter(**params)
 
                 elif key == filtercfg['category']:
                     if len(anon) < 3:
-                        raise ParseError(_('No categories given to {{tlx|%(template)s|%(firstarg)s}}') % {'template': filtercfg['name'], 'firstarg': filtercfg['bytes']})
+                        raise InvalidContestPage(_('No categories given to {{tlx|%(template)s|%(firstarg)s}}') % {'template': filtercfg['name'], 'firstarg': filtercfg['bytes']})
                     params['ignore'] = catignore
                     if templ.has_param(filtercfg['ignore']):
                         params['ignore'].extend([a.strip() for a in par[filtercfg['ignore']].split(',')])
@@ -1218,7 +1198,7 @@ class Contest(object):
                     filt = PageFilter(**params)
 
                 else:
-                    raise ParseError(_('Unknown argument given to {{tl|%(template)s}}: %(argument)s') % {'template': filtercfg['name'], 'argument': key})
+                    raise InvalidContestPage(_('Unknown argument given to {{tl|%(template)s}}: %(argument)s') % {'template': filtercfg['name'], 'argument': key})
 
                 foundfilter = False
                 #for f in filters:
@@ -1310,18 +1290,16 @@ class Contest(object):
                 rules.append(WordBonusRule(key, anon[2], anon[3]))
 
             else:
-                raise ParseError(_('Unkown argument given to {{tl|%(template)s}}: %(argument)s') % {'template': rulecfg['name'], 'argument': key})
+                raise InvalidContestPage(_('Unkown argument given to {{tl|%(template)s}}: %(argument)s') % {'template': rulecfg['name'], 'argument': key})
 
         ######################## Read infobox ########################
 
-        ibcfg = config['templates']['infobox']
         commonargs = config['templates']['commonargs']
+        ibcfg = config['templates']['infobox']
+        if ibcfg['name'] not in dp.templates:
+            raise InvalidContestPage(_('This contest is missing a {{tl|%(template)s}} template.') % {'template': ibcfg['name']})
 
-        try:
-            infoboks = dp.templates[ibcfg['name']][0]
-        except:
-            raise ParseError(_('Could not parse the {{tl|%(template)s}} template.') % {'template': ibcfg['name']})
-
+        infoboks = dp.templates[ibcfg['name']][0]
         utc = pytz.utc
 
         if infoboks.has_param(commonargs['year']) and infoboks.has_param(commonargs['week']):
@@ -1346,7 +1324,7 @@ class Contest(object):
             self.end = self.wiki_tz.localize(datetime.strptime(enddt + ' 23 59 59', '%Y-%m-%d %H %M %S'))
         else:
             args = {'week': commonargs['week'], 'year': commonargs['year'], 'start': ibcfg['start'], 'end': ibcfg['end'], 'template': ibcfg['name']}
-            raise ParseError(_('Did not find %(week)s+%(year)s or %(start)s+%(end)s in {{tl|%(templates)s}}.') % args)
+            raise InvalidContestPage(_('Did not find %(week)s+%(year)s or %(start)s+%(end)s in {{tl|%(templates)s}}.') % args)
 
         self.year = self.start.isocalendar()[0]
 
@@ -1376,11 +1354,11 @@ class Contest(object):
                             self.prices.append([col, 'pointlimit', int(r)])
                         except ValueError:
                             pass
-                            #raise ParseError('Klarte ikke tolke verdien til parameteren %s gitt til {{tl|infoboks ukens konkurranse}}.' % col)
+                            #raise InvalidContestPage('Klarte ikke tolke verdien til parameteren %s gitt til {{tl|infoboks ukens konkurranse}}.' % col)
 
         if not 'winner' in [r[1] for r in self.prices]:
             winnerawards = ', '.join(['{{para|%s|vinner}}' % k for k, v in awards.items() if 'winner' in v])
-            #raise ParseError(_('Found no winner award in {{tl|%(template)s}}. Winner award is set by one of the following: %(awards)s.') % {'template': ibcfg['name'], 'awards': winnerawards})
+            #raise InvalidContestPage(_('Found no winner award in {{tl|%(template)s}}. Winner award is set by one of the following: %(awards)s.') % {'template': ibcfg['name'], 'awards': winnerawards})
             logger.warning('Found no winner award in {{tl|%s}}. Winner award is set by one of the following: %s.', ibcfg['name'], winnerawards)
 
         self.prices.sort(key=lambda x: x[2], reverse=True)
@@ -1404,7 +1382,7 @@ class Contest(object):
                 try:
                     sdate = self.wiki_tz.localize(datetime.strptime(templ.parameters[2].value, '%Y-%m-%d %H:%M'))
                 except ValueError:
-                    raise ParseError(_("Couldn't parse the date given to the {{tl|%(template)s}} template.") % sucfg['name'])
+                    raise InvalidContestPage(_("Couldn't parse the date given to the {{tl|%(template)s}} template.") % sucfg['name'])
 
                 #print 'Suspendert bruker:',uname,sdate
                 ufound = False
@@ -1416,7 +1394,7 @@ class Contest(object):
                 if not ufound:
                     pass
                     # TODO: logging.warning
-                    #raise ParseError('Fant ikke brukeren %s gitt til {{tl|UK bruker suspendert}}-malen.' % uname)
+                    #raise InvalidContestPage('Fant ikke brukeren %s gitt til {{tl|UK bruker suspendert}}-malen.' % uname)
 
         dicfg = self.config['templates']['disqualified']
         if dicfg['name'] in dp.templates:
@@ -1434,7 +1412,7 @@ class Contest(object):
                                 u.disqualified_articles.append(aname)
                                 ufound = True
                         if not ufound:
-                            raise ParseError(_('Could not find the user %(user)s given to the {{tl|%(template)s}} template.') % {'user': uname, 'template': dicfg['name']})
+                            raise InvalidContestPage(_('Could not find the user %(user)s given to the {{tl|%(template)s}} template.') % {'user': uname, 'template': dicfg['name']})
 
         pocfg = self.config['templates']['penalty']
         if pocfg['name'] in dp.templates:
@@ -1462,7 +1440,7 @@ class Contest(object):
                         })
                         ufound = True
                 if not ufound:
-                    raise ParseError(_("Couldn't find the user %(user)s given to the {{tl|%(template)s}} template.") % {'user': uname, 'template': dicfg['name']})
+                    raise InvalidContestPage(_("Couldn't find the user %(user)s given to the {{tl|%(template)s}} template.") % {'user': uname, 'template': dicfg['name']})
 
         pocfg = self.config['templates']['bonus']
         if pocfg['name'] in dp.templates:
@@ -1490,12 +1468,12 @@ class Contest(object):
                         })
                         ufound = True
                 if not ufound:
-                    raise ParseError(_("Couldn't find the user %(user)s given to the {{tl|%(template)s}} template.") % {'user': uname, 'template': dicfg['name']})
+                    raise InvalidContestPage(_("Couldn't find the user %(user)s given to the {{tl|%(template)s}} template.") % {'user': uname, 'template': dicfg['name']})
 
         # try:
         #     infoboks = dp.templates['infoboks ukens konkurranse'][0]
         # except:
-        #     raise ParseError('Klarte ikke å tolke innholdet i {{tl|infoboks ukens konkurranse}}-malen.')
+        #     raise InvalidContestPage('Klarte ikke å tolke innholdet i {{tl|infoboks ukens konkurranse}}-malen.')
 
         return rules, filters
 
@@ -1996,7 +1974,7 @@ class Contest(object):
                     'plotdata': user.plotdata,
                 })
 
-            except ParseError as e:
+            except InvalidContestPage as e:
                 err = "\n* '''%s'''" % e.msg
                 out = '\n{{%s | error | %s }}' % (config['templates']['botinfo'], err)
                 if simulate:
@@ -2122,6 +2100,11 @@ class Contest(object):
                 secend = trs2.start()
 
             except StopIteration:
+                if 'resultsSection' not in config['contestPages']:
+                    raise InvalidContestPage(_('Results markers %(start_marker)s and %(end_marker)s not found') % {
+                        'start_marker': '<!-- Begin:ResultsSection -->', 
+                        'end_marker': '<!-- End:ResultsSection -->',
+                    })
                 for s in re.finditer(r'^[\s]*==([^=]+)==[\s]*\n', txt, flags=re.M):
                     if s.group(1).strip() == config['contestPages']['resultsSection']:
                         secstart = s.end()
@@ -2129,20 +2112,21 @@ class Contest(object):
                         secend = s.start()
                         break
             if secstart == -1:
-                raise Exception("Error: secstart=%d,secend=%d" % (secstart, secend))
+                raise InvalidContestPage(_('No "%(section_name)s" section found.') % {
+                    'section_name': config['contestPages']['resultsSection'], 
+                })
+            if secend == -1:
+                txt = txt[:secstart] + out
             else:
-                if secend == -1:
-                    txt = txt[:secstart] + out
-                else:
-                    txt = txt[:secstart] + out + txt[secend:]
+                txt = txt[:secstart] + out + txt[secend:]
 
-                logger.info('Updating wiki')
-                if kstatus == 'ending':
-                    self.page.save(txt, summary=_('Updating with final results, the contest is now closed.'))
-                elif kstatus == 'closing':
-                    self.page.save(txt, summary=_('Checking results and handing out awards'))
-                else:
-                    self.page.save(txt, summary=_('Updating'))
+            logger.info('Updating wiki')
+            if kstatus == 'ending':
+                self.page.save(txt, summary=_('Updating with final results, the contest is now closed.'))
+            elif kstatus == 'closing':
+                self.page.save(txt, summary=_('Checking results and handing out awards'))
+            else:
+                self.page.save(txt, summary=_('Updating'))
 
         if output != '':
             logger.info("Writing output to file")
@@ -2514,15 +2498,17 @@ if __name__ == '__main__':
                 mainstart.astimezone(wiki_tz).strftime('%F %T'))
     logger.info('Running on %s %s %s', *platform.linux_distribution())
 
+    status_template = config['templates']['botinfo']
+
     homesite, sites, sql = init_sites(config)
 
     # Determine what to work with
     active_contests = list(get_contest_pages(sql, homesite, config, wiki_tz, server_tz, args.page))
 
     logger.info('Number of active contests: %d', len(active_contests))
-    for kstatus, kpage in active_contests:
+    for kstatus, contest_page in active_contests:
         try:
-            contest = Contest(kpage,
+            contest = Contest(contest_page,
                               sites=sites,
                               homesite=homesite,
                               sql=sql,
@@ -2531,14 +2517,21 @@ if __name__ == '__main__':
                               server_tz=server_tz,
                               project_dir=project_dir,
                               contest_name=contest)
-        except ParseError as e:
-            err = "\n* '''%s'''" % e.msg
-            out = '\n{{%s | error | %s }}' % (config['templates']['botinfo'], err)
+        except InvalidContestPage as e:
             if args.simulate:
-                logger.error(out)
+                logger.error(e.msg)
                 sys.exit(1)
+            
+            error_msg = "\n* '''%s'''" % e.msg
+
+            te = TemplateEditor(contest_page.text())
+            if status_template in te.templates:
+                te.templates[status_template][0].parameters[1] = 'error'
+                te.templates[status_template][0].parameters[2] = error_msg
+                contest_page.save(te.wikitext(), summary=_('UKBot encountered a problem'))
             else:
-                kpage.save('dummy', summary=_('UKBot encountered a problem'), appendtext=out)
+                out = '\n{{%s | error | %s }}' % (config['templates']['botinfo'], error_msg)
+                contest_page.save('dummy', summary=_('UKBot encountered a problem'), appendtext=out)
             raise
 
         if args.action == 'uploadplot':

@@ -4,7 +4,7 @@ import sys
 import re
 from copy import copy
 from odict import odict
-from ukcommon import t, _
+from ukcommon import t, _, InvalidContestPage
 import logging
 
 logger = logging.getLogger(__name__)
@@ -400,6 +400,7 @@ class BackLinkFilter(Filter):
         for page_param in self.articles:
             page_found = False
             for site_key, site in self.sites.items():
+                logger.info('Checking %s', site.host)
                 page_name = page_param
                 kv = page_param.split(':', 1)
                 if len(kv) == 2 and len(kv[0]) == 2:
@@ -410,6 +411,7 @@ class BackLinkFilter(Filter):
                 try:
                     page = site.pages[page_name]
                     if page.exists:
+                        logger.info('Page %s found at %s', page_name, site.host)
                         page_found = True
                         for linked_article in page.links(namespace=0, redirects=True):
                             link = site_key + ':' + linked_article.name.replace('_', ' ')
@@ -419,10 +421,12 @@ class BackLinkFilter(Filter):
                                 link = langlink[0] + ':' + langlink[1].replace('_', ' ')
                                 logger.debug(' - Include: %s', link)
                                 self.links.add(link)
+                    else:
+                        logger.info('Page %s not found at %s', page_name, site.host)
                 except KeyError:
-                    pass
+                    raise
             if not page_found:
-                logger.error('BackLink filter: Page "%s" not found', page_param)
+                raise InvalidContestPage(_('BackLinkFilter encountered a problem: Page "%(pagename)s" not found') % { 'pagename': page_param })
 
         logger.info('BackLink filter includes %d links (after having expanded langlinks)',
                     len(self.links))

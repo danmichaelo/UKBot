@@ -130,16 +130,17 @@ def unix_time(dt):
 
 class Site(mwclient.Site):
 
-    def __init__(self, host, **kwargs):
+    def __init__(self, host, prefixes, **kwargs):
 
         self.errors = []
         self.name = host
-        self.key = host.split('.')[0]
+        self.key = host
+        self.prefixes = prefixes
         logger.debug('Initializing site: %s', host)
         ua = 'UKBot. Run by User:Danmichaelo. Using mwclient/' + mwclient.__ver__
         mwclient.Site.__init__(self, host, clients_useragent=ua, **kwargs)
 
-        res = self.api('query', meta='siteinfo', siprop='magicwords|namespaces|namespacealiases')['query']
+        res = self.api('query', meta='siteinfo', siprop='magicwords|namespaces|namespacealiases|interwikimap')['query']
 
         self.file_prefixes = [res['namespaces']['6']['*'], res['namespaces']['6']['canonical']] + [x['*'] for x in res['namespacealiases'] if x['id'] == 6]
         logger.debug('File prefixes: %s', '|'.join(self.file_prefixes))
@@ -148,10 +149,19 @@ class Site(mwclient.Site):
         logger.debug('Redirect words: %s', '|'.join(redirect_words))
         self.redirect_regexp = re.compile(u'(?:%s)' % u'|'.join(redirect_words), re.I)
 
+        self.interwikimap = {x['prefix']: x['url'].split('//')[1].split('/')[0].split('?')[0] for x in res['interwikimap']}
+
     def get_revertpage_regexp(self):
         msg = self.pages['MediaWiki:Revertpage'].text()
         msg = re.sub('\[\[[^\]]+\]\]', '.*?', msg)
         return msg
+
+    def match_prefix(self, prefix):
+        return prefix in self.prefixes or prefix == self.key
+
+    def link_to(self, page):
+        link = '%s:%s' % (self.page.site.prefixes[0], page.name)
+        return link.lstrip(':')
 
 
 class Article(object):
@@ -162,7 +172,6 @@ class Article(object):
         """
         self.site = weakref.ref(site)
         self.user = weakref.ref(user)
-        #self.site_key = site.host.split('.')[0]
         self.name = name
         self.disqualified = False
 
@@ -286,7 +295,7 @@ class Revision(object):
                 raise Exception('add_revision got unknown argument %s' % k)
 
         for pd in self.article().user().point_deductions:
-            if pd['revid'] == self.revid and (pd['site'] == '' or pd['site'] == self.article().site().key):
+            if pd['revid'] == self.revid and self.article().site().match_prefix(pd['site']):
                 self.add_point_deduction(pd['points'], pd['reason'])
 
     def te_text(self):
@@ -319,10 +328,10 @@ class Revision(object):
         mt1 = get_body_text(re.sub('<nowiki ?/>', '', self.text))
         mt0 = get_body_text(re.sub('<nowiki ?/>', '', self.parenttext))
 
-        if self.article().site().key == 'ja':
+        if self.article().site().key == 'ja.wikipedia.org':
             words1 = len(mt1) / 3.0
             words0 = len(mt0) / 3.0
-        elif self.article().site().key == 'zh':
+        elif self.article().site().key == 'zh.wikipedia.org':
             words1 = len(mt1) / 2.0
             words0 = len(mt0) / 2.0
         else:
@@ -458,7 +467,7 @@ class User(object):
         if 'bot' in site.rights:
             apilim = site.api_limit         # API limit, should be 500
 
-        site_key = site.host.split('.')[0]
+        site_key = site.host
 
         ts_start = start.astimezone(pytz.utc).strftime('%FT%TZ')
         ts_end = end.astimezone(pytz.utc).strftime('%FT%TZ')
@@ -1051,6 +1060,51 @@ class Contest(object):
         # else:
         #     logger.info(' - Week %d–%d', self.startweek, self.endweek)
 
+    def site_from_prefix(self, key, raise_on_error=False):
+        for site in self.sites.values():
+            if site.match_prefix(key):
+                return site
+        if raise_on_error:
+            raise InvalidContestPage(_('Could not found a site matching the prefix "%(key)s"') % {
+                'key': key
+            })
+
+    def resolve_page(self, value, default_ns=0):
+        logger.debug('Resolving: %s', value)
+        values = value.split(':')
+        site = self.homesite
+        ns = site.namespaces[default_ns]
+
+        # check all prefixes
+        for val in values[:-1]:
+            if val == '':
+                continue
+            elif val in self.homesite.namespaces.values():
+                # reverse namespace lookup
+                ns = val  # [k for k, v in self.homesite.namespaces.items() if v == val][0]
+            else:
+                tmp = self.site_from_prefix(val)
+                if tmp is not None:
+                    site = tmp
+                else:
+                    raise InvalidContestPage(_('Failed to parse prefix "%(element)s" as namespace or site, from title "%(value)s"') % {
+                        'element': val,
+                        'value': value,
+                    })
+
+        value = values[-1]
+        value = value[0].upper() + value[1:]
+
+        value = '%s:%s' % (ns, value)
+        logger.debug('proceed: %s', value)
+
+        page = site.pages[value]
+        if not page.exists:
+            raise InvalidContestPage(_('Page does not exist: [[%(pagename)s]]') % {
+                'pagename': site.link_to(page)
+            })
+        return page
+
     def extract_userlist(self, txt):
         lst = []
         m = re.search('==\s*' + self.config['contestPages']['participantsSection'] + '\s*==', txt)
@@ -1129,11 +1183,11 @@ class Contest(object):
                 elif key == filtercfg['template']:
                     if len(anon) < 3:
                         raise InvalidContestPage(_('No template (second argument) given to {{tlx|%(template)s|%(firstarg)s}}') % {'template': filtercfg['name'], 'firstarg': filtercfg['template']})
-                
+
                     params['templates'] = anon[2:]
                     params['aliases'] = []
                     for tp in params['templates']:
-                        tplpage = self.homesite.pages['Template:' + tp] 
+                        tplpage = self.homesite.pages['Template:' + tp]
                         if tplpage.exists:
                             params['aliases'].extend([x.page_title for x in tplpage.backlinks(filterredir='redirects')])
 
@@ -1148,35 +1202,26 @@ class Contest(object):
                 elif key == filtercfg['category']:
                     if len(anon) < 3:
                         raise InvalidContestPage(_('No categories given to {{tlx|%(template)s|%(firstarg)s}}') % {'template': filtercfg['name'], 'firstarg': filtercfg['bytes']})
+
                     params['ignore'] = catignore
                     if templ.has_param(filtercfg['ignore']):
                         params['ignore'].extend([a.strip() for a in par[filtercfg['ignore']].split(',')])
+
                     params['sites'] = self.sites
-                    params['catnames'] = []
-                    for x in anon[2:]:
-                        xx = x.split(':')
-                        if len(xx) == 1:
-                            prefix = self.config['default_prefix']
-                            val = xx[0]
-                        else:
-                            prefix = xx[0]
-                            val = xx[1]
-                        if len(val) > 0:
-                            ns = self.sites[prefix].namespaces[14]
-                            valn = val[0].upper() + val[1:]
-                            params['catnames'].append('%s:%s:%s' % (prefix, ns, valn))
+                    params['categories'] = [self.resolve_page(x, default_ns=14) for x in anon[2:] if x.strip() is not '']
+
                     if templ.has_param(filtercfg['maxdepth']):
                         params['maxdepth'] = int(par[filtercfg['maxdepth']])
                     filt = CatFilter(**params)
 
                 elif key == filtercfg['backlink']:
-                    params['sites'] = self.sites
-                    params['articles'] = anon[2:]
+                    params['pages'] = [self.resolve_page(x) for x in anon[2:] if x.strip() is not '']
+                    params['site_from_prefix'] = self.site_from_prefix
                     filt = BackLinkFilter(**params)
 
                 elif key == filtercfg['forwardlink']:
-                    params['sites'] = self.sites
-                    params['articles'] = anon[2:]
+                    params['pages'] = [self.resolve_page(x) for x in anon[2:] if x.strip() is not '']
+                    params['site_from_prefix'] = self.site_from_prefix
                     filt = ForwardLinkFilter(**params)
 
                 elif key == filtercfg['namespace']:
@@ -1186,15 +1231,7 @@ class Contest(object):
                     filt = NamespaceFilter(**params)
 
                 elif key == filtercfg['pages']:
-                    homesiteprefix = self.homesite.site['servername'].split('.')[0]
-                    params['sites'] = self.sites
-                    params['pages'] = []
-                    for x in anon[2:]:
-                        y = x.split(':')
-                        if len(y) == 1:
-                            params['pages'].append('%s:%s' % (homesiteprefix, x))
-                        else:
-                            params['pages'].append(x)
+                    params['pages'] = [self.resolve_page(x) for x in anon[2:] if x.strip() is not '']
                     filt = PageFilter(**params)
 
                 else:
@@ -1366,10 +1403,10 @@ class Contest(object):
         ####################### Check if contest is in DB yet ##################
 
         cur = self.sql.cursor()
-        cur.execute('SELECT contest_id FROM contests WHERE site=%s AND name=%s', [self.config['default_prefix'], self.name])
+        cur.execute('SELECT contest_id FROM contests WHERE site=%s AND name=%s', [self.homesite.key, self.name])
         rows = cur.fetchall()
         if len(rows) == 0:
-            cur.execute('INSERT INTO contests (site, name, start_date, end_date) VALUES (%s,%s,%s,%s)', [self.config['default_prefix'], self.name, self.start.strftime('%F %T'), self.end.strftime('%F %T')])
+            cur.execute('INSERT INTO contests (site, name, start_date, end_date) VALUES (%s,%s,%s,%s)', [self.homesite.key, self.name, self.start.strftime('%F %T'), self.end.strftime('%F %T')])
             self.sql.commit()
         cur.close()
 
@@ -1423,24 +1460,31 @@ class Contest(object):
                 if 'site' in templ.parameters:
                     site_key = templ.parameters['site'].value
 
-                #if not re.match('^[a-z]{2,3}:', aname):
-                #    aname = config['default_prefix'] + ':' + aname
+                site = self.site_from_prefix(site_key)
+                if site is None:
+                    raise InvalidContestPage(_('Failed to parse the %(template)s template: Did not find a site matching the site prefix %(prefix)s') % {
+                        'template': pocfg['name'],
+                        'prefix': site_key,
+                    })
 
                 points = float(templ.parameters[3].value.replace(',', '.'))
                 reason = templ.parameters[4].value
                 ufound = False
-                logger.info('Point deduction: %d points to %s for revision %s:%s. Reason: %s', points, uname, site_key, revid, reason)
+                logger.info('Point deduction: %d points to %s for revision %s:%s. Reason: %s', points, uname, site.key, revid, reason)
                 for u in self.users:
                     if u.name == uname:
                         u.point_deductions.append({
-                            'site': site_key,
+                            'site': site.key,
                             'revid': revid,
                             'points': points,
                             'reason': reason,
                         })
                         ufound = True
                 if not ufound:
-                    raise InvalidContestPage(_("Couldn't find the user %(user)s given to the {{tl|%(template)s}} template.") % {'user': uname, 'template': dicfg['name']})
+                    raise InvalidContestPage(_("Couldn't find the user %(user)s given to the {{tl|%(template)s}} template.") % {
+                        'user': uname,
+                        'template': pocfg['name'],
+                    })
 
         pocfg = self.config['templates']['bonus']
         if pocfg['name'] in dp.templates:
@@ -1451,24 +1495,36 @@ class Contest(object):
                 if 'site' in templ.parameters:
                     site_key = templ.parameters['site'].value
 
-                #if not re.match('^[a-z]{2,3}:', aname):
-                #    aname = config['default_prefix'] + ':' + aname
+                site = None
+                for s in self.sites.values():
+                    if s.match_prefix(site_key):
+                        site = s
+                        break
+
+                if site is None:
+                    raise InvalidContestPage(_('Failed to parse the %(template)s template: Did not find a site matching the site prefix %(prefix)s') % {
+                        'template': pocfg['name'],
+                        'prefix': site_key,
+                    })
 
                 points = float(templ.parameters[3].value.replace(',', '.'))
                 reason = templ.parameters[4].value
                 ufound = False
-                logger.info('Point addition: %d points to %s for revision %s:%s. Reason: %s', points, uname, site_key, revid, reason)
+                logger.info('Point addition: %d points to %s for revision %s:%s. Reason: %s', points, uname, site.key, revid, reason)
                 for u in self.users:
                     if u.name == uname:
                         u.point_deductions.append({
-                            'site': site_key,
+                            'site': site.key,
                             'revid': revid,
                             'points': -points,
                             'reason': reason
                         })
                         ufound = True
                 if not ufound:
-                    raise InvalidContestPage(_("Couldn't find the user %(user)s given to the {{tl|%(template)s}} template.") % {'user': uname, 'template': dicfg['name']})
+                    raise InvalidContestPage(_("Couldn't find the user %(user)s given to the {{tl|%(template)s}} template.") % {
+                        'user': uname,
+                        'template': pocfg['name'],
+                    })
 
         # try:
         #     infoboks = dp.templates['infoboks ukens konkurranse'][0]
@@ -1679,7 +1735,7 @@ class Contest(object):
         heading = self.format_heading()
 
         cur = self.sql.cursor()
-        cur.execute('SELECT contest_id FROM contests WHERE site=%s AND name=%s', [config['default_prefix'], self.name])
+        cur.execute('SELECT contest_id FROM contests WHERE site=%s AND name=%s', [self.homesite.key, self.name])
         contest_id = cur.fetchall()[0][0]
 
         logger.info('Delivering prices for contest %d' % (contest_id,))
@@ -1846,7 +1902,7 @@ class Contest(object):
         for u in self.users:
             msgs = []
             if u.suspended_since is not None:
-                d = [self.config['default_prefix'], self.name, u.name, 'suspension', '']
+                d = [self.homesite.key, self.name, u.name, 'suspension', '']
                 cur.execute('SELECT id FROM notifications WHERE site=%s AND contest=%s AND user=%s AND class=%s AND args=%s', d)
                 if len(cur.fetchall()) == 0:
                     msgs.append('Du er inntil videre suspendert fra konkurransen med virkning fra %s. Dette innebærer at dine bidrag gjort etter dette tidspunkt ikke teller i konkurransen, men alle bidrag blir registrert og skulle suspenderingen oppheves i løpet av konkurranseperioden vil også bidrag gjort i suspenderingsperioden telle med. Vi oppfordrer deg derfor til å arbeide med problemene som førte til suspenderingen slik at den kan oppheves.' % u.suspended_since.strftime(_('%e. %B %Y, %H:%M')))
@@ -1855,7 +1911,7 @@ class Contest(object):
             discs = []
             for article_key, article in u.articles.items():
                 if article.disqualified:
-                    d = [self.config['default_prefix'], self.name, u.name, 'disqualified', article_key]
+                    d = [self.homesite.key, self.name, u.name, 'disqualified', article_key]
                     cur.execute('SELECT id FROM notifications WHERE site=%s AND contest=%s AND user=%s AND class=%s AND args=%s', d)
                     if len(cur.fetchall()) == 0:
                         discs.append('[[:%s|%s]]' % (article_key, article.name))
@@ -2144,7 +2200,7 @@ class Contest(object):
                 page.save(text=aws['wait'], summary=aws['wait'], bot=True)
 
                 cur = self.sql.cursor()
-                cur.execute('UPDATE contests SET ended=1 WHERE site=%s AND name=%s', [config['default_prefix'], self.name])
+                cur.execute('UPDATE contests SET ended=1 WHERE site=%s AND name=%s', [self.homesite.key, self.name])
                 self.sql.commit()
                 cur.close()
 
@@ -2156,7 +2212,7 @@ class Contest(object):
             cur = self.sql.cursor()
 
             for result in results:
-                arg = [config['default_prefix'], self.name, result['name'], int(self.startweek), result['points'], result['bytes'], result['newpages'], 0]
+                arg = [self.homesite.key, self.name, result['name'], int(self.startweek), result['points'], result['bytes'], result['newpages'], 0]
                 if self.startweek != self.endweek:
                     arg[-1] = int(self.endweek)
                 #print arg
@@ -2164,7 +2220,7 @@ class Contest(object):
                     cur.execute(u"INSERT INTO users (site, contest, user, week, points, bytes, newpages, week2) VALUES (%s,%s,%s,%s,%s,%s,%s,%s)", arg)
 
             if not simulate:
-                cur.execute('UPDATE contests SET closed=1 WHERE site=%s AND name=%s', [config['default_prefix'], self.name])
+                cur.execute('UPDATE contests SET closed=1 WHERE site=%s AND name=%s', [self.homesite.key, self.name])
                 self.sql.commit()
 
             cur.close()
@@ -2295,7 +2351,7 @@ def get_contest_page_titles(sql, homesite, config, wiki_tz, server_tz):
     # 1) Check if there is a contest to close
 
     cursor.execute('SELECT name FROM contests WHERE site=%s AND name LIKE %s AND ended=1 AND closed=0 LIMIT 1', [
-        config['default_prefix'],
+        homesite.key,
         config['pages']['base'] + '%',
     ])
     closing_contests = cursor.fetchall()
@@ -2318,7 +2374,7 @@ def get_contest_page_titles(sql, homesite, config, wiki_tz, server_tz):
     now_w = now.astimezone(wiki_tz)
     now_s = now_w.strftime('%F %T')
     cursor.execute('SELECT name FROM contests WHERE site=%s AND name LIKE %s AND ended=0 AND closed=0 AND end_date < %s LIMIT 1', [
-        config['default_prefix'],
+        homesite.key,
         config['pages']['base'] + '%',
         now_s,
     ])
@@ -2431,20 +2487,21 @@ def init_sites(config):
 
     # Configure home site (where the contests live)
     host = config['homesite']
-    homesite = Site(host, **config['account'])
+    homesite = Site(host, prefixes=[''], **config['account'])
 
     assert homesite.logged_in
+
+    iwmap = homesite.interwikimap
 
     # Connect to DB
     sql = SQL(config['db'])
     logger.debug('Connected to database')
 
-    prefix = homesite.host.split('.')[0]
-    sites = {prefix: homesite}
+    sites = {homesite.host: homesite}
     if 'othersites' in config:
         for host in config['othersites']:
-            prefix = host.split('.')[0]
-            sites[prefix] = Site(host, **config['account'])
+            prefixes = [k for k, v in iwmap.items() if v == host]
+            sites[host] = Site(host, prefixes=prefixes, **config['account'])
 
     for site in sites.values():
         msg = site.get_revertpage_regexp()

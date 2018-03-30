@@ -137,19 +137,19 @@ class TemplateFilter(Filter):
 class CatFilter(Filter):
     """ Filters articles that belong to a given overcategory """
 
-    def __init__(self, sites, catnames, maxdepth=5, ignore=[]):
+    def __init__(self, sites, categories, maxdepth=5, ignore=[]):
         """
         Arguments:
-            sites     : dict { 'no': <mwclient.client.Site>, ... }
-            catnames  : list of category names
-            maxdepth  : number of subcategory levels to traverse
-            ignore    : list of categories to ignore
+            sites      : dict { 'no': <mwclient.client.Site>, ... }
+            categories : list of Page objects
+            maxdepth   : number of subcategory levels to traverse
+            ignore     : list of categories to ignore
         """
         Filter.__init__(self)
 
         self.ignore = ignore
         self.sites = sites
-        self.include = catnames
+        self.include = ['%s:%s' % (x.site.key, x.name) for x in categories]
         self.maxdepth = int(maxdepth)
         logger.debug("Initializing CatFilter: %s, maxdepth=%d",
                     " OR ".join(self.include), maxdepth)
@@ -384,63 +384,49 @@ class ExistingPageFilter(Filter):
 class BackLinkFilter(Filter):
     """Filters articles linked to from <self.links>"""
 
-    def __init__(self, sites, articles):
+    def __init__(self, pages, site_from_prefix):
         """
         Arguments:
-            sites     : dict { 'no': <mwclient.client.Site>, ... }
-            articles  : list of article names
+            pages  : list of Page objects
+            site_from_prefix: fn
         """
         Filter.__init__(self)
-        self.sites = sites
-        self.articles = articles
         self.links = set()
-        logger.info('Initializing BackLink filter: %s',
-                    ','.join(self.articles))
+        self.pages = pages
+        self.site_from_prefix = site_from_prefix
 
-        for page_param in self.articles:
-            page_found = False
-            for site_key, site in self.sites.items():
-                logger.info('Checking %s', site.host)
-                page_name = page_param
-                kv = page_param.split(':', 1)
-                if len(kv) == 2 and len(kv[0]) == 2:
-                    if kv[0] != site_key:
-                        continue
-                    else:
-                        page_name = kv[1]
-                try:
-                    page = site.pages[page_name]
-                    if page.exists:
-                        logger.info('Page %s found at %s', page_name, site.host)
-                        page_found = True
-                        for linked_article in page.links(namespace=0, redirects=True):
-                            link = site_key + ':' + linked_article.name.replace('_', ' ')
-                            logger.debug(' - Include: %s', link)
-                            self.links.add(link)
-                            for langlink in linked_article.langlinks():
-                                link = langlink[0] + ':' + langlink[1].replace('_', ' ')
-                                logger.debug(' - Include: %s', link)
-                                self.links.add(link)
-                    else:
-                        logger.info('Page %s not found at %s', page_name, site.host)
-                except KeyError:
-                    raise
-            if not page_found:
-                raise InvalidContestPage(_('BackLinkFilter encountered a problem: Page "%(pagename)s" not found') % { 'pagename': page_param })
+        page_names = ['%s:%s' % (x.site.key, x.name) for x in pages]
+        logger.info('Initializing BackLinkFilter: %s',
+                    ','.join(page_names))
 
-        logger.info('BackLink filter includes %d links (after having expanded langlinks)',
+        for page in self.pages:
+            for linked_page in page.links(namespace=0, redirects=True):
+                link = '%s:%s' % (linked_page.site.key, linked_page.name.replace('_', ' '))
+                logger.debug(' - Include: %s', link)
+                self.links.add(link)
+
+                # Include langlinks as well
+                for langlink in linked_page.langlinks():
+                    site = self.site_from_prefix(langlink[0])
+                    if site is not None:
+                        link = '%s:%s' % (site.host, langlink[1].replace('_', ' '))
+                        logger.debug(' - Include: %s', link)
+                        self.links.add(link)
+
+        logger.info('BackLinkFilter ready with %d links (after having expanded langlinks)',
                     len(self.links))
 
-    def extend(self, blfilter):
-        self.links.extend(blfilter.links)
-        self.articles.extend(blfilter.articles)
+    def extend(self, other_filter):
+        self.pages.extend(other_filter.pages)
+        for link in other_filter.links:
+            self.links.add(link)
 
     def filter(self, articles):
         out = odict()
         for article_key, article in articles.items():
             if article_key in self.links:
                 out[article_key] = article
-        logger.info(" - BackLinkFilter: Articles reduced from %d to %d",
+        logger.info(' - BackLinkFilter: Articles reduced from %d to %d',
                     len(articles), len(out))
         return out
 
@@ -448,29 +434,28 @@ class BackLinkFilter(Filter):
 class ForwardLinkFilter(Filter):
     """Filters articles linking to <self.links>"""
 
-    def __init__(self, sites, articles):
+    def __init__(self, pages, site_from_prefix):
         """
         Arguments:
-            sites     : dict { 'no': <mwclient.client.Site>, ... }
-            articles  : list of article names
+            pages  : list of Page objects
+            site_from_prefix: fn
         """
         Filter.__init__(self)
-        self.sites = sites
-        self.articles = articles
-        self.links = []
+        self.links = set()
+        self.pages = pages
+        self.site_from_prefix = site_from_prefix
 
-        for site_key, site in self.sites.items():
-            for aname in self.articles:
-                p = site.pages[aname]
-                if p.exists:
-                    for link in p.backlinks(redirect=True):
-                        self.links.append(site_key+':'+link.name)
+        for page in self.pages:
+            for linked_page in page.backlinks(redirect=True):
+                link = '%s:%s' % (linked_page.site.key, linked_page.name.replace('_', ' '))
+                self.links.add(link)
 
-        #print self.links
+        logger.info('ForwardLinkFilter ready with %d links', len(self.links))
 
-    def extend(self, flfilter):
-        self.links.extend(flfilter.links)
-        self.articles.extend(flfilter.articles)
+    def extend(self, other_filter):
+        self.pages.extend(other_filter.pages)
+        for link in other_filter.links:
+            self.links.add(link)
 
     def filter(self, articles):
         out = odict()
@@ -485,23 +470,23 @@ class ForwardLinkFilter(Filter):
 class PageFilter(Filter):
     """Filters articles with forwardlinks to <name>"""
 
-    def __init__(self, sites, pages):
+    def __init__(self, pages):
         """
         Arguments:
-            sites     : dict { 'no': <mwclient.client.Site>, ... }
-            pages     : list of page names
+            pages     : list of Page objects
         """
         Filter.__init__(self)
-        self.sites = sites
         self.pages = pages
+        logger.info('PageFilter ready with %d links', len(self.pages))
 
-    def extend(self, flfilter):
-        self.pages.extend(flfilter.pages)
+    def extend(self, other_filter):
+        self.pages.extend(other_filter.pages)
 
     def filter(self, articles):
+        page_keys = ['%s:%s' % (page.site.key, page.name) for page in self.pages]
         out = odict()
         for article_key, article in articles.items():
-            if article_key in self.pages:
+            if article_key in page_keys:
                 out[article_key] = article
         logger.info(' - PageFilter: Articles reduced from %d to %d',
                     len(articles), len(out))

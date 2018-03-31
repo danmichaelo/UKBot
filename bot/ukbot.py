@@ -1214,6 +1214,17 @@ class Contest(object):
                         params['maxdepth'] = int(par[filtercfg['maxdepth']])
                     filt = CatFilter(**params)
 
+                elif key == filtercfg['sparql']:
+                    if not templ.has_param(filtercfg['query']):
+                        raise InvalidContestPage(_('No "%(query)s" parameter given to {{tlx|%(template)s|%(firstarg)s}}') % {
+                            'query': filtercfg['query'],
+                            'template': filtercfg['name'],
+                            'firstarg': filtercfg['sparql']
+                        })
+                    params['query'] = par[filtercfg['query']]
+                    params['sites'] = self.sites.keys()
+                    filt = SparqlFilter(**params)
+
                 elif key == filtercfg['backlink']:
                     params['pages'] = [self.resolve_page(x) for x in anon[2:] if x.strip() is not '']
                     params['site_from_prefix'] = self.site_from_prefix

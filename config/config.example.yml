@@ -112,6 +112,8 @@ templates:
         maxdepth: maksdybde
         redirects: omdirigeringer 
         ignore: utelat
+        sparql: sparql  # as in {{ ukb criterion | sparql }}
+        query: query    # as in {{ ukb criterion | sparql | query=... }}
 pages:
     catignore: Bruker:UKBot/cat-ignore
     base: Wikipedia:Ukens konkurranse/Ukens konkurranse

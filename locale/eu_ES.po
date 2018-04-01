@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: UKBot\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2018-01-07 17:51+0100\n"
+"POT-Creation-Date: 2018-04-01 21:16+0200\n"
 "PO-Revision-Date: 2018-01-07 17:12+0100\n"
 "Last-Translator: Galder Gonzalez <galder158@hotmail.com>\n"
 "Language-Team: \n"
@@ -18,7 +18,7 @@ msgstr ""
 "Plural-Forms: nplurals=2; plural=(n != 1);\n"
 "X-Generator: Poedit 2.0.5\n"
 
-#: bot/ukbot.py:346
+#: ukbot/ukbot.py:351
 #, python-format
 msgid ""
 "Revision [//%(host)s/w/index.php?diff=prev&oldid=%(revid)s %(revid)s]: The "
@@ -31,7 +31,7 @@ msgstr ""
 "aurkitu aurreko berriskupenean (%(parentid)s) tamaina honekin %(size)d, "
 "ziurrenik itxi gabeko etiketa edo txantiloiak direla eta."
 
-#: bot/ukbot.py:356
+#: ukbot/ukbot.py:361
 #, python-format
 msgid ""
 "Revision [//%(host)s/w/index.php?diff=prev&oldid=%(revid)s %(revid)s]: The "
@@ -44,20 +44,20 @@ msgstr ""
 "(%(words)d) handiagoa delako byte kontaketaren aldea baino (%(bytes)d)."
 "Gaizki egindako hitz kontaketa wiki testu okerra dela eta gerta daiteke."
 
-#: bot/ukbot.py:960 bot/ukbot.py:1010
+#: ukbot/ukbot.py:965 ukbot/ukbot.py:1015
 msgid "%A, %H:%M"
 msgstr "%A, %H.%M"
 
-#: bot/ukbot.py:971
+#: ukbot/ukbot.py:976
 msgid "Category hit"
 msgstr "Kategoria"
 
-#: bot/ukbot.py:981
+#: ukbot/ukbot.py:986
 #, python-format
 msgid "Total: {{formatnum:%(bytecount)d}} bytes, %(wordcount)d words"
 msgstr "Guztira: {{formatnum:%(bytecount)d}} byte, %(wordcount)d hitzetan"
 
-#: bot/ukbot.py:992
+#: ukbot/ukbot.py:997
 msgid ""
 "<strong>Note:</strong> The contributions to this article are currently "
 "disqualified."
@@ -65,36 +65,52 @@ msgstr ""
 "<strong>Oharra:</strong> Artikulu honi egindako ekarpenak oraintxe "
 "deskalifikaturik daude."
 
-#: bot/ukbot.py:997
+#: ukbot/ukbot.py:1002
 msgid "<abbr class=\"newpage\" title=\"New page\">N</abbr>"
 msgstr "<abbr class=\"newpage\" title=\"Orrialde beria\">B</abbr>"
 
-#: bot/ukbot.py:1010
+#: ukbot/ukbot.py:1015
 msgid "suspended since"
 msgstr "noiztik suspenditua"
 
-#: bot/ukbot.py:1014
+#: ukbot/ukbot.py:1019
 msgid "No qualifying contributions registered yet"
 msgstr "Ez du egin lehiaketa honetarako ekarpen baliagarririk oraindik"
 
-#: bot/ukbot.py:1016
+#: ukbot/ukbot.py:1021
 msgid "articles"
 msgstr "artikulu"
 
-#: bot/ukbot.py:1018
+#: ukbot/ukbot.py:1023
 msgid "{{Kolonner}}\n"
 msgstr "{{Multicol}}\n"
 
-#: bot/ukbot.py:1044
+#: ukbot/ukbot.py:1071
 #, python-format
-msgid "Found no \"%(section)s\" sections in the page \"%(page)s\""
-msgstr "Ez da \"%(section)s\" sekziorik aurkitu \"%(page)s\" orrialdean"
+msgid "Could not found a site matching the prefix \"%(key)s\""
+msgstr ""
 
-#: bot/ukbot.py:1073
+#: ukbot/ukbot.py:1093
+#, python-format
+msgid ""
+"Failed to parse prefix \"%(element)s\" as namespace or site, from title "
+"\"%(value)s\""
+msgstr ""
+
+#: ukbot/ukbot.py:1106
+#, python-format
+msgid "Page does not exist: [[%(pagename)s]]"
+msgstr ""
+
+#: ukbot/ukbot.py:1115
 msgid "Couldn't find the list of participants!"
 msgstr "Ezin izan da parte-hartzaileen zerrendarik aurkitu!"
 
-#: bot/ukbot.py:1106
+#: ukbot/ukbot.py:1150
+msgid "Could not parse the catignore page"
+msgstr "Ezin izan da catignore orrialdea kargatu"
+
+#: ukbot/ukbot.py:1153
 #, python-format
 msgid ""
 "There are no point rules defined for this contest. Point rules are defined "
@@ -103,16 +119,7 @@ msgstr ""
 "Ez dago puntuazio araurik lehiaketa honetan. Puntuak {{tx|%(template)s}}."
 "txantiloiak definitzen ditu."
 
-#: bot/ukbot.py:1113
-#, python-format
-msgid "This contest is missing a {{tl|%(template)s}} template."
-msgstr "Lehiaketa honek ez du {{tx|%(template)s}} txantiloia."
-
-#: bot/ukbot.py:1119
-msgid "Could not parse the catignore page"
-msgstr "Ezin izan da catignore orrialdea kargatu"
-
-#: bot/ukbot.py:1151
+#: ukbot/ukbot.py:1188
 #, python-format
 msgid ""
 "No template (second argument) given to {{tlx|%(template)s|%(firstarg)s}}"
@@ -120,7 +127,7 @@ msgstr ""
 "Ez zaio bigarren argumentudun txantiloirik eman {{tx|%(template)s|"
 "%(firstarg)s}}"
 
-#: bot/ukbot.py:1164
+#: ukbot/ukbot.py:1201
 #, python-format
 msgid ""
 "No byte limit (second argument) given to {{tlx|%(template)s|%(firstarg)s}}"
@@ -128,27 +135,32 @@ msgstr ""
 "Ez zaio byte mugarik eman (bigarren argumentua) {tx|%(template)s|"
 "%(firstarg)s}} txantiloiari"
 
-#: bot/ukbot.py:1170
+#: ukbot/ukbot.py:1207
 #, python-format
 msgid "No categories given to {{tlx|%(template)s|%(firstarg)s}}"
 msgstr "Ez zaio kategoriarik eman {{tx|%(template)s|%(firstarg)s}}"
 
-#: bot/ukbot.py:1221
+#: ukbot/ukbot.py:1222
+#, fuzzy, python-format
+msgid "No \"%(query)s\" parameter given to {{tlx|%(template)s|%(firstarg)s}}"
+msgstr "Ez zaio kategoriarik eman {{tx|%(template)s|%(firstarg)s}}"
+
+#: ukbot/ukbot.py:1252
 #, python-format
 msgid "Unknown argument given to {{tl|%(template)s}}: %(argument)s"
 msgstr "Parametro ezezaguna eman da {{tx|%(template)s}}: %(argument)s"
 
-#: bot/ukbot.py:1313
+#: ukbot/ukbot.py:1344
 #, python-format
 msgid "Unkown argument given to {{tl|%(template)s}}: %(argument)s"
 msgstr "Parametro ezezaguna eman da {{tx|%(template)s}}: %(argument)s"
 
-#: bot/ukbot.py:1323
+#: ukbot/ukbot.py:1351
 #, python-format
-msgid "Could not parse the {{tl|%(template)s}} template."
-msgstr "Ezin izan da {{tx|%(template)s}} txantiloia irakurri."
+msgid "This contest is missing a {{tl|%(template)s}} template."
+msgstr "Lehiaketa honek ez du {{tx|%(template)s}} txantiloia."
 
-#: bot/ukbot.py:1349
+#: ukbot/ukbot.py:1378
 #, python-format
 msgid ""
 "Did not find %(week)s+%(year)s or %(start)s+%(end)s in {{tl|%(templates)s}}."
@@ -156,54 +168,61 @@ msgstr ""
 "Ez da aurkitu %(week)s+%(year)s edo %(start)s+%(end)s hemen: {{tx|"
 "%(templates)s}}."
 
-#: bot/ukbot.py:1407
+#: ukbot/ukbot.py:1436
 #, python-format
 msgid "Couldn't parse the date given to the {{tl|%(template)s}} template."
 msgstr "Ezin izan da emandako data kalkulatu {{tx|%(template)s}} txantiloian."
 
-#: bot/ukbot.py:1437
+#: ukbot/ukbot.py:1466
 #, python-format
 msgid ""
 "Could not find the user %(user)s given to the {{tl|%(template)s}} template."
 msgstr ""
 "Ezin izan da %(user)s wikilaria aurkitu {{tx|%(template)s}} txantiloian."
 
-#: bot/ukbot.py:1465 bot/ukbot.py:1493
+#: ukbot/ukbot.py:1479 ukbot/ukbot.py:1519
+#, python-format
+msgid ""
+"Failed to parse the %(template)s template: Did not find a site matching the "
+"site prefix %(prefix)s"
+msgstr ""
+
+#: ukbot/ukbot.py:1498 ukbot/ukbot.py:1538
 #, python-format
 msgid ""
 "Couldn't find the user %(user)s given to the {{tl|%(template)s}} template."
 msgstr ""
 "Ezin izan da %(user)s wikilaria aurkitu {{tx|%(template)s}} txantiloian."
 
-#: bot/ukbot.py:1620
+#: ukbot/ukbot.py:1678
 msgid "Day"
 msgstr "Eguna"
 
-#: bot/ukbot.py:1621
+#: ukbot/ukbot.py:1679
 msgid "Points"
 msgstr "Puntuak"
 
-#: bot/ukbot.py:1624 bot/ukbot.py:1870 bot/ukbot.py:2061 bot/ukbot.py:2062
-#: bot/ukbot.py:2063
+#: ukbot/ukbot.py:1682 ukbot/ukbot.py:1928 ukbot/ukbot.py:2119
+#: ukbot/ukbot.py:2120 ukbot/ukbot.py:2121
 msgid "%e. %B %Y, %H:%M"
 msgstr "%Y %B %e, %H:%M"
 
-#: bot/ukbot.py:1625
+#: ukbot/ukbot.py:1683
 #, python-format
 msgid "Updated %(date)s"
 msgstr "Azken gaurkotzea: %(date)s"
 
-#: bot/ukbot.py:1665
+#: ukbot/ukbot.py:1723
 #, python-format
 msgid "Weekly contest for week %(week)d"
 msgstr "Asteroko lehiaketa aste honetan: %(week)d"
 
-#: bot/ukbot.py:1667
+#: ukbot/ukbot.py:1725
 #, python-format
 msgid "Weekly contest for week %(startweek)d–%(endweek)d"
 msgstr "Asteroko lehiaketa aste honetan: %(startweek)d-%(endweek)d"
 
-#: bot/ukbot.py:1740
+#: ukbot/ukbot.py:1798
 #, python-format
 msgid ""
 "Note that the contest this week is [[%(url)s|{{%(template)s|%(weekarg)s="
@@ -212,15 +231,15 @@ msgstr ""
 "Aste honetako lehiaketa honakoa da: [[%(url)s|{{%(template)s|%(weekarg)s="
 "%(week)s}}]]. Batu!"
 
-#: bot/ukbot.py:1746
+#: ukbot/ukbot.py:1804
 msgid "Regards"
 msgstr "Ondo segi"
 
-#: bot/ukbot.py:1746
+#: ukbot/ukbot.py:1804
 msgid "and"
 msgstr "eta"
 
-#: bot/ukbot.py:1800
+#: ukbot/ukbot.py:1858
 #, python-format
 msgid ""
 "Now you must check if the results look ok. If there are error messages at "
@@ -236,20 +255,20 @@ msgstr ""
 "denak itxura ona duela, [%(link)s egin klik hemen] (eta gorde) esateko bidal "
 "ditzakedala jada sariak."
 
-#: bot/ukbot.py:1801
+#: ukbot/ukbot.py:1859
 msgid "Thanks, ~~~~"
 msgstr "Eskerrik asko, ~~~~"
 
-#: bot/ukbot.py:1813
+#: ukbot/ukbot.py:1871
 #, python-format
 msgid "Awards have been [%(link)s sent out]."
 msgstr "Sariak [%(link)s bidali dira]."
 
-#: bot/ukbot.py:2001 bot/ukbot.py:2535
+#: ukbot/ukbot.py:2059 ukbot/ukbot.py:2606 ukbot/ukbot.py:2609
 msgid "UKBot encountered a problem"
 msgstr "UKBotek arazo bat aurkitu du"
 
-#: bot/ukbot.py:2056
+#: ukbot/ukbot.py:2114
 msgid ""
 "This contest is closed – thanks to everyone who participated! Awards will be "
 "sent out as soon as the contest organizer has checked the results."
@@ -257,11 +276,11 @@ msgstr ""
 "Lehiaketa hau itxita dago - eskerrik asko parte-hartzaile guztiei! Sariak "
 "emango dira lehiaketaren antolatzaileak emaitzak berrikusten dituenean."
 
-#: bot/ukbot.py:2058
+#: ukbot/ukbot.py:2116
 msgid "This contest is closed – thanks to everyone who participated!"
 msgstr "Lehiaketa hau itxita dag - eskerrik asko parte-hartzailee guztiei!"
 
-#: bot/ukbot.py:2065
+#: ukbot/ukbot.py:2123
 #, python-format
 msgid ""
 "Last updated %(lastupdate)s. The contest is open from %(startdate)s to "
@@ -270,39 +289,49 @@ msgstr ""
 "Azken gaurkotzea: %(lastupdate)s. Lehiaketa hau %(startdate)s eta "
 "%(enddate)s bitarte irekita dago."
 
-#: bot/ukbot.py:2086
+#: ukbot/ukbot.py:2144
 #, python-format
 msgid "UKBot encountered the following problems with the article [[:%s]]"
 msgstr "UKBotek honako akatsa aurkitu du artikuluan: [[:%s]]"
 
-#: bot/ukbot.py:2137
+#: ukbot/ukbot.py:2180
+#, python-format
+msgid "Results markers %(start_marker)s and %(end_marker)s not found"
+msgstr ""
+
+#: ukbot/ukbot.py:2191
+#, python-format
+msgid "No \"%(section_name)s\" section found."
+msgstr ""
+
+#: ukbot/ukbot.py:2201
 msgid "Updating with final results, the contest is now closed."
 msgstr "Azken emaitzekin gaurkotzen, lehiaketa itxiko da."
 
-#: bot/ukbot.py:2139
+#: ukbot/ukbot.py:2203
 msgid "Checking results and handing out awards"
 msgstr "Emaitzak konprobatzen eta sariak ematen"
 
-#: bot/ukbot.py:2141
+#: ukbot/ukbot.py:2205
 msgid "Updating"
 msgstr "Gaurkotzen"
 
-#: bot/ukbot.py:2206
+#: ukbot/ukbot.py:2270
 #, python-format
 msgid "#REDIRECT [[%s]]"
 msgstr "#BIRZUZENDU [[%s]]"
 
-#: bot/ukbot.py:2209
+#: ukbot/ukbot.py:2273
 #, python-format
 msgid "Redirecting to %s"
 msgstr "%s orrialdera birzuzentzen"
 
-#: bot/ukbot.py:2240
+#: ukbot/ukbot.py:2304
 #, python-format
 msgid "The weekly contest is: %(link)s"
 msgstr "Aste honetako lehiaketa: %(link)s"
 
-#: bot/ukfilters.py:130
+#: ukbot/filters.py:132
 #, python-format
 msgid ""
 "Could not analyze the article %(article)s because one of the revisions "
@@ -311,71 +340,85 @@ msgstr ""
 "Ezin izan da %(article)s artikulua aztertu berrikuspenetako bat %(prevrev)d "
 "edo %(rev)d ezin izan delako ikusi: %(error)s"
 
-#: bot/ukfilters.py:324
+#: ukbot/filters.py:326
 msgid "Encountered an infinite category loop: "
 msgstr "Kategoria infinitu lotuar bat aurkitu da: "
 
-#: bot/ukrules.py:39
+#: ukbot/filters.py:544
+msgid "SPARQL query invalid or timed out"
+msgstr ""
+
+#: ukbot/filters.py:548
+msgid "SPARQL query returned zero results"
+msgstr ""
+
+#: ukbot/rules.py:39
 msgid "max"
 msgstr "gehienez"
 
-#: bot/ukrules.py:59 bot/ukrules.py:62
+#: ukbot/rules.py:59
 msgid "new page"
 msgstr "orrialde berria"
 
-#: bot/ukrules.py:73
+#: ukbot/rules.py:70
 msgid "redirect"
 msgstr "birzuzeneketa"
 
-#: bot/ukrules.py:148
+#: ukbot/rules.py:145
 #, python-format
 msgid "removal of {{tl|%(template)s}}"
 msgstr "{{tx|%(template)s}} txantiloia kentzea"
 
-#: bot/ukrules.py:160
+#: ukbot/rules.py:157
 msgid "qualified"
 msgstr "kalifikatua"
 
-#: bot/ukrules.py:170
+#: ukbot/rules.py:167
 msgid "contribution"
 msgstr "ekarpena"
 
-#: bot/ukrules.py:184
+#: ukbot/rules.py:181
 #, python-format
 msgid "%(bytes).f bytes"
 msgstr "%(bytes).f byte"
 
-#: bot/ukrules.py:201
+#: ukbot/rules.py:198
 #, python-format
 msgid "%(words).f words"
 msgstr "%(words).f hitz"
 
-#: bot/ukrules.py:305
+#: ukbot/rules.py:302
 msgid "images"
 msgstr "%(images).f irudi"
 
-#: bot/ukrules.py:327
+#: ukbot/rules.py:324
 msgid "links"
 msgstr "%(links).f lotura"
 
-#: bot/ukrules.py:394
+#: ukbot/rules.py:391
 msgid "references"
 msgstr "erreferentziak"
 
-#: bot/ukrules.py:397
+#: ukbot/rules.py:394
 msgid "reference pointers"
 msgstr "erreferentzia berrerabilpena"
 
-#: bot/ukrules.py:430
+#: ukbot/rules.py:427
 msgid "added reference section"
 msgstr "erreferentzia atala gehitu du"
 
-#: bot/ukrules.py:455
+#: ukbot/rules.py:452
 #, python-format
 msgid "bonus %(bytes).f bytes"
 msgstr "bonus %(bytes).f byte"
 
-#: bot/ukrules.py:482
+#: ukbot/rules.py:479
 #, python-format
 msgid "bonus %(words)d words"
 msgstr "bonus %(words)d hitz"
+
+#~ msgid "Found no \"%(section)s\" sections in the page \"%(page)s\""
+#~ msgstr "Ez da \"%(section)s\" sekziorik aurkitu \"%(page)s\" orrialdean"
+
+#~ msgid "Could not parse the {{tl|%(template)s}} template."
+#~ msgstr "Ezin izan da {{tx|%(template)s}} txantiloia irakurri."

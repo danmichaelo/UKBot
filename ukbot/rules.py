@@ -4,9 +4,9 @@ import re
 from lxml.html import fromstring
 import lxml
 from mwtextextractor import condition_for_lxml
-from ukcommon import t, _
 import urllib
 import logging
+from .common import t, _
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.DEBUG)

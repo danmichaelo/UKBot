@@ -6,11 +6,16 @@ import gettext
 import yaml
 import os
 import psutil
-
+import pkg_resources
 import logging
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.DEBUG)
+
+# LOCALE_PATH = pkg_resources.resource_filename('ukbot', 'locale/')
+LOCALE_PATH = os.path.join(os.path.dirname(os.path.dirname(__file__)), "locale")
+
+logger.info('Locale path: %s', LOCALE_PATH)
 
 
 # Singleton
@@ -20,7 +25,7 @@ class Localization:
             self.t = lambda x: x
             self._ = lambda x: x
 
-        def init(self, cl, project_dir):
+        def init(self, cl):
             '''prepare i18n'''
             if not isinstance(cl, list):
                 cl = [cl]
@@ -46,8 +51,7 @@ class Localization:
             if lang == None:
                 raise StandardError('Failed to set locale!')
 
-            localedir = os.path.join(project_dir, 'locale')
-            t = gettext.translation('messages', localedir, fallback=True, languages=[lang])
+            t = gettext.translation('messages', LOCALE_PATH, fallback=True, languages=[lang])
 
             self.t = t
             self._ = t.gettext

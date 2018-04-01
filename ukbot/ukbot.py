@@ -52,12 +52,15 @@ import mwclient
 import mwtemplates
 from mwtemplates import TemplateEditor
 from mwtextextractor import get_body_text
-import ukcommon
-
-from ukcommon import get_mem_usage, Localization, t, _, InvalidContestPage
 import locale
-from ukrules import *
-from ukfilters import *
+
+from .common import get_mem_usage, Localization, t, _, InvalidContestPage, logfile
+from .rules import *
+from .filters import *
+
+STATE_NORMAL='normal'
+STATE_ENDING = 'ending'
+STATE_CLOSING = 'closing'
 
 
 class AppFilter(logging.Filter):
@@ -160,8 +163,10 @@ class Site(mwclient.Site):
         return prefix in self.prefixes or prefix == self.key
 
     def link_to(self, page):
-        link = '%s:%s' % (self.page.site.prefixes[0], page.name)
-        return link.lstrip(':')
+        if self.prefixes[0] == '':
+            return ':%s' % page.name
+        else:
+            return ':%s:%s' % (self.prefixes[0], page.name)
 
 
 class Article(object):
@@ -206,6 +211,9 @@ class Article(object):
         self.revisions[revid] = rev
         self.user().revisions[revid] = rev
         return rev
+
+    def link(self):
+        return self.site().link_to(self)
 
     @property
     def bytes(self):
@@ -988,7 +996,7 @@ class User(object):
                     if netto != 0.:
                         p += '%.1f p' % netto
 
-                out = '[[:%s|%s]]' % (article_key, article.name)
+                out = '[[%s|%s]]' % (article.link(), article.name)
                 if article_key in self.disqualified_articles:
                     out = '[[File:Qsicon Achtung.png|14px]] <s>' + out + '</s>'
                     titletxt += '<div style="border-top:1px solid red; background:#ffcccc;">' + _('<strong>Note:</strong> The contributions to this article are currently disqualified.') + '</div>'
@@ -1026,7 +1034,7 @@ class User(object):
 
 class Contest(object):
 
-    def __init__(self, page, sites, homesite, sql, config, wiki_tz, server_tz, project_dir, contest_name):
+    def __init__(self, page, state, sites, homesite, sql, config, wiki_tz, server_tz, project_dir):
         """
             page: mwclient.Page object
             sites: list
@@ -1034,11 +1042,11 @@ class Contest(object):
         """
         logger.info('Initializing contest [[%s]]', page.name)
         self.page = page
+        self.state = state
         self.name = self.page.name
         self.config = config
         self.homesite = homesite
         self.project_dir = project_dir
-        self.contest_name = contest_name
         txt = page.text()
 
         self.sql = sql
@@ -1073,15 +1081,15 @@ class Contest(object):
         logger.debug('Resolving: %s', value)
         values = value.split(':')
         site = self.homesite
-        ns = site.namespaces[default_ns]
+        ns = None
 
         # check all prefixes
         for val in values[:-1]:
             if val == '':
                 continue
-            elif val in self.homesite.namespaces.values():
+            elif val in site.namespaces.values():
                 # reverse namespace lookup
-                ns = val  # [k for k, v in self.homesite.namespaces.items() if v == val][0]
+                ns = val  # [k for k, v in site.namespaces.items() if v == val][0]
             else:
                 tmp = self.site_from_prefix(val)
                 if tmp is not None:
@@ -1091,6 +1099,9 @@ class Contest(object):
                         'element': val,
                         'value': value,
                     })
+
+        if ns is None:
+            ns = site.namespaces[default_ns]
 
         value = values[-1]
         value = value[0].upper() + value[1:]
@@ -1545,6 +1556,9 @@ class Contest(object):
         return rules, filters
 
     def prepare_plotdata(self, results):
+        if 'plot' not in self.config:
+            return
+
         plotdata = []
         for result in results:
             tmp = {'name': result['name'], 'values': []}
@@ -1552,13 +1566,16 @@ class Contest(object):
                 tmp['values'].append({'x': point[0], 'y': point[1]})
             plotdata.append(tmp)
 
-        datafile = os.path.join(self.project_dir, 'plots', '%s.json' % self.contest_name)
-        with open(datafile, 'w+') as f:
-            json.dump(plotdata, f)
+        if 'datafile' in self.config['plot']:
+            filename = os.path.join(self.project_dir, self.config['plot']['datafile'] % {'year': self.year, 'week': self.startweek, 'month': self.month})
+            with open(filename, 'w') as fp:
+                json.dump(plotdata, fp)
 
         return plotdata
 
     def plot(self, plotdata):
+        if 'plot' not in self.config:
+            return
         import matplotlib.pyplot as plt
 
         w = 20 / 2.54
@@ -1684,7 +1701,7 @@ class Contest(object):
                 # ncol = 4, loc = 3, bbox_to_anchor = (0., 1.02, 1., .102), mode = "expand", borderaxespad = 0.
                 loc=2, bbox_to_anchor=(1.0, 1.0), borderaxespad=0., frameon=0.
             )
-            figname = os.path.join(self.project_dir, 'plots', self.config['plot']['figname'] % {'year': self.year, 'week': self.startweek, 'month': self.month})
+            figname = os.path.join(self.project_dir, self.config['plot']['figname'] % {'year': self.year, 'week': self.startweek, 'month': self.month})
             plt.savefig(figname, dpi=200)
             logger.info('Wrote plot: %s', figname)
 
@@ -2100,10 +2117,10 @@ class Contest(object):
         #out += sammen + '\n'
 
         now = self.server_tz.localize(datetime.now())
-        if kstatus == 'ending':
+        if self.state == STATE_ENDING:
             # Konkurransen er nå avsluttet – takk til alle som deltok! Rosetter vil bli delt ut så snart konkurransearrangøren(e) har sjekket resultatene.
             out += "''" + _('This contest is closed – thanks to everyone who participated! Awards will be sent out as soon as the contest organizer has checked the results.') + "''\n\n"
-        elif kstatus == 'closing':
+        elif self.state == STATE_CLOSING:
             out += "''" + _('This contest is closed – thanks to everyone who participated!') + "''\n\n"
         else:
             oargs = {
@@ -2115,7 +2132,7 @@ class Contest(object):
 
         for i, result in enumerate(results):
             awards = ''
-            if kstatus == 'closing':
+            if self.state == STATE_CLOSING:
                 if i == 0:
                     for price in self.prices:
                         if price[1] == 'winner':
@@ -2188,9 +2205,9 @@ class Contest(object):
                 txt = txt[:secstart] + out + txt[secend:]
 
             logger.info('Updating wiki')
-            if kstatus == 'ending':
+            if self.state == STATE_ENDING:
                 self.page.save(txt, summary=_('Updating with final results, the contest is now closed.'))
-            elif kstatus == 'closing':
+            elif self.state == STATE_CLOSING:
                 self.page.save(txt, summary=_('Checking results and handing out awards'))
             else:
                 self.page.save(txt, summary=_('Updating'))
@@ -2201,7 +2218,7 @@ class Contest(object):
             f.write(out)
             f.close()
 
-        if kstatus == 'ending':
+        if self.state == STATE_ENDING:
             logger.info('Ending contest')
             if not simulate:
                 self.deliver_leader_notification()
@@ -2215,7 +2232,7 @@ class Contest(object):
                 self.sql.commit()
                 cur.close()
 
-        if kstatus == 'closing':
+        if self.state == STATE_CLOSING:
             logger.info('Delivering prices')
 
             self.deliver_prices(results, simulate)
@@ -2256,7 +2273,7 @@ class Contest(object):
         # Update WP:UK
 
         if 'redirect' in config['pages']:
-            if re.match('^' + config['pages']['base'], self.name) and not simulate and kstatus == 'normal':
+            if re.match('^' + config['pages']['base'], self.name) and not simulate and self.state == STATE_NORMAL:
                 page = self.homesite.pages[config['pages']['redirect']]
                 txt = _('#REDIRECT [[%s]]') % self.name
                 if page.text() != txt:
@@ -2313,8 +2330,8 @@ class Contest(object):
             'week': self.startweek,
             'month': self.month,
         }
-        remote_filename = figname.replace(' ', '_')
-        local_filename = os.path.join(self.project_dir, 'plots', figname)
+        remote_filename = os.path.basename(figname).replace(' ', '_')
+        local_filename = os.path.join(self.project_dir, figname)
 
         if not os.path.isfile(local_filename):
             logger.error('File "%s" was not found', local_filename)
@@ -2378,7 +2395,7 @@ def get_contest_page_titles(sql, homesite, config, wiki_tz, server_tz):
             else:
                 logger.info('Will close contest [[%s]], award delivery has been confirmed', page_title)
                 contests.add(page_title)
-                yield ('closing', page_title)
+                yield (STATE_CLOSING, page_title)
 
     # 2) Check if there is a contest to end
     now = server_tz.localize(datetime.now())
@@ -2394,7 +2411,7 @@ def get_contest_page_titles(sql, homesite, config, wiki_tz, server_tz):
         page_title = ending_contests[0][0]
         logger.info('Contest [[%s]] just ended', page_title)
         contests.add(page_title)
-        yield ('ending', page_title)
+        yield (STATE_ENDING, page_title)
 
     # 3) Get contest page from current date
     if config['pages'].get('default') is not None:
@@ -2409,13 +2426,13 @@ def get_contest_page_titles(sql, homesite, config, wiki_tz, server_tz):
         #strftime(page_title.encode('utf-8'))
         if page_title not in contests:
             contests.add(page_title)
-            yield ('normal', page_title)
+            yield (STATE_NORMAL, page_title)
 
     if config['pages'].get('active_contest_category') is not None:
         for page in homesite.categories['Artikkelkonkurranser'].members(namespace=4):
             if page.name not in contests:
                 contests.add(page.name)
-                yield ('normal', page.name)
+                yield (STATE_NORMAL, page.name)
 
     cursor.close()
 
@@ -2423,7 +2440,7 @@ def get_contest_page_titles(sql, homesite, config, wiki_tz, server_tz):
 def get_contest_pages(sql, homesite, config, wiki_tz, server_tz, page_title=None):
 
     if page_title is not None:
-        pages = [('normal', page_title)]
+        pages = [(STATE_NORMAL, page_title)]
     else:
         pages = get_contest_page_titles(sql, homesite, config, wiki_tz, server_tz)
 
@@ -2431,7 +2448,7 @@ def get_contest_pages(sql, homesite, config, wiki_tz, server_tz, page_title=None
     for p in pages:
         page = homesite.pages[p[1]]
         if not page.exists:
-            log.warning('Page does not exist: %s', p[1])
+            logger.warning('Page does not exist: %s', p[1])
             continue
         page = page.resolve_redirect()
 
@@ -2523,16 +2540,15 @@ def init_sites(config):
     return homesite, sites, sql
 
 
-if __name__ == '__main__':
-
+def main():
     parser = argparse.ArgumentParser(description='The UKBot')
+    parser.add_argument('config', help='Config file', type=argparse.FileType('r', encoding='UTF-8'))
     parser.add_argument('--page', required=False, help='Name of the contest page to work with')
     parser.add_argument('--simulate', action='store_true', default=False, help='Do not write results to wiki')
     parser.add_argument('--output', nargs='?', default='', help='Write results to file')
     parser.add_argument('--log', nargs='?', default='', help='Log file')
     parser.add_argument('--verbose', action='store_true', default=False, help='More verbose logging')
     parser.add_argument('--close', action='store_true', help='Close contest')
-    parser.add_argument('--contest', help='Contest name')
     parser.add_argument('--action', nargs='?', default='', help='"uploadplot" or "run"')
     args = parser.parse_args()
 
@@ -2542,21 +2558,19 @@ if __name__ == '__main__':
         syslog.setLevel(logging.INFO)
 
     if args.log != '':
-        ukcommon.logfile = open(args.log, 'a')
+        logfile = open(args.log, 'a')
 
-    project_dir = os.path.dirname(os.path.dirname(os.path.realpath(__file__)))
-    contest = args.contest
-    config_file = os.path.join(project_dir, 'config', 'config.%s.yml' % contest)
-    if not os.path.isfile(config_file):
-        logger.error('Config file not found: %s', config_file)
-        sys.exit(1)
+    config = yaml.load(args.config)
+    args.config.close()
 
-    config = yaml.load(open(config_file, 'r', encoding='utf-8'))
     # rollbar.init(config['rollbar_token'], 'production')
     wiki_tz = pytz.timezone(config['wiki_timezone'])
     server_tz = pytz.timezone(config['server_timezone'])
 
-    Localization().init(config['locale'], project_dir)
+    working_dir = os.path.realpath(os.getcwd())
+    logger.info('Working dir: %s', working_dir)
+
+    Localization().init(config['locale'])
 
     mainstart = server_tz.localize(datetime.now())
     mainstart_s = time.time()
@@ -2574,22 +2588,22 @@ if __name__ == '__main__':
     active_contests = list(get_contest_pages(sql, homesite, config, wiki_tz, server_tz, args.page))
 
     logger.info('Number of active contests: %d', len(active_contests))
-    for kstatus, contest_page in active_contests:
+    for contest_state, contest_page in active_contests:
         try:
             contest = Contest(contest_page,
+                              state=contest_state,
                               sites=sites,
                               homesite=homesite,
                               sql=sql,
                               config=config,
                               wiki_tz=wiki_tz,
                               server_tz=server_tz,
-                              project_dir=project_dir,
-                              contest_name=contest)
+                              project_dir=working_dir)
         except InvalidContestPage as e:
             if args.simulate:
                 logger.error(e.msg)
                 sys.exit(1)
-            
+
             error_msg = "\n* '''%s'''" % e.msg
 
             te = TemplateEditor(contest_page.text())
@@ -2605,8 +2619,9 @@ if __name__ == '__main__':
         if args.action == 'uploadplot':
             contest.uploadplot(args.simulate, args.output)
         elif args.action == 'plot':
-            datafile = os.path.join(contest.project_dir, 'plots', '%s.json' % contest.contest_name)
-            plotdata = json.load(open(datafile, 'r'))
+            filename = os.path.join(working_dir, config['plot']['datafile'] % {'year': contest.year, 'week': contest.startweek, 'month': contest.month})
+            with open(filename, 'r') as fp:
+                plotdata = json.load(fp)
             contest.plot(plotdata)
         else:
             contest.run(args.simulate, args.output)
@@ -2627,3 +2642,6 @@ if __name__ == '__main__':
     #except:
     #    # catch-all
     #    rollbar.report_exc_info()
+
+if __name__ == '__main__':
+    main()

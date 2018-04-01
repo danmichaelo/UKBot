@@ -10,8 +10,8 @@ db:
     user: USERNAME
     password: PASSWORD
 plot:
-    datafile: ../plots/no.json
-    figname: 'Nowp Ukens konkurranse %(year)d-%(week)02d.svg'
+    datafile: 'plots/Nowp Ukens konkurranse %(year)d-%(week)02d.json'
+    figname: 'plots/Nowp Ukens konkurranse %(year)d-%(week)02d.svg'
     description: |
         == {{int:filedesc}} ==
         {{Information

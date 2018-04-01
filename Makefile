@@ -11,6 +11,7 @@ LINGUAS = nb_NO \
 TEXTDOMAIN = messages
 
 localedir = ./locale
+targetdir = ./locale
 
 CATALOGS = $(LINGUAS)
 MO_FILES = $(addprefix $(localedir)/, $(addsuffix .mo, $(LINGUAS)))
@@ -55,11 +56,10 @@ $(TD).pot: $(POTFILES)
 	rm -f $(localedir)/$@ && mv $(localedir)/$(TD).pox $(localedir)/$@
 
 install: $(MO_FILES)
-	targetdir="$(localedir)"; \
 	languages='$(LINGUAS)'; \
 	for lang in $$languages; do \
-		mkdir -p "$$targetdir/$$lang/LC_MESSAGES" || exit 1; \
-		dest="$$targetdir/$$lang/LC_MESSAGES/$(TD).mo"; \
+		mkdir -p "$(targetdir)/$$lang/LC_MESSAGES" || exit 1; \
+		dest="$(targetdir)/$$lang/LC_MESSAGES/$(TD).mo"; \
 		cat="$(localedir)/$$lang.mo"; \
 		echo "installing $$cat as $$dest"; \
 		mv -f $$cat $$dest && chmod 644 $$dest || exit 1; \

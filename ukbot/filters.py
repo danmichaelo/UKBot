@@ -4,10 +4,10 @@ import sys
 import re
 from copy import copy
 from odict import odict
-from ukcommon import t, _, InvalidContestPage
 import logging
 import time
 import SPARQLWrapper
+from .common import t, _, InvalidContestPage
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.DEBUG)

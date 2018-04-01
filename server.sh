@@ -1,4 +1,4 @@
 #!/bin/sh
 export APP_BASE_HREF=https://tools.wmflabs.org/ukbot/
 . ENV/bin/activate
-python -m src.server
+python -m ukbot.server

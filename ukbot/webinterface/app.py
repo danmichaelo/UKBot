@@ -148,7 +148,7 @@ def show_contest_status_sock(socket, contest):
             new_data = run_file.read()
             if new_data:
                 socket.send(new_data)
-            with Timeout(1.0, False):
+            with Timeout(0.5, False):
                 socket.receive()
     app.logger.info('Closed websocket for %s', run_log_file)
 

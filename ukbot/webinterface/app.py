@@ -34,6 +34,11 @@ contests = [
         "url": "https://fi.wikipedia.org/wiki/WP:VK",
     },
     {
+        "id": "fi-pln",
+        "name": "Punaisten linkkien naiset",
+        "url": "https://fi.wikipedia.org/wiki/Wikiprojekti:Punaisten linkkien naiset",
+    },
+    {
         "id": "eu",
         "name": "Atari:Hezkuntza/Lehiaketak",
         "url": "https://eu.wikipedia.org/wiki/Atari:Hezkuntza/Lehiaketak",

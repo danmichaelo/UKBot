@@ -2317,6 +2317,9 @@ class Contest(object):
             plotdata = self.prepare_plotdata(results)
             self.plot(plotdata)
 
+            if self.state == STATE_ENDING:
+                self.uploadplot(simulate)
+
     def uploadplot(self, simulate=False, output=''):
         if not self.page.exists:
             logger.error('Contest page [[%s]] does not exist! Exiting', self.page.name)

@@ -365,7 +365,7 @@ class Revision(object):
             self.errors.append(w)
 
         elif self._wordcount > 10 and self._wordcount > self.bytes:
-            w = _('Revision [//%(host)s/w/index.php?diff=prev&oldid=%(revid)s %(revid)s]: The word count difference might be wrong, because the word count increase (%(words)d) is larger than the byte increase (%(bytes)d). Wrong word counts may occur for invalid wiki text.') % {
+            w = _('Revision [//%(host)s/w/index.php?diff=prev&oldid=%(revid)s %(revid)s]: The word count difference might be wrong, because the word count increase (%(words)d) is larger than the byte increase (%(bytes)d). Wrong word counts can occur for invalid wiki text.') % {
                 'host': self.article().site().host,
                 'revid': self.revid,
                 'words': self._wordcount,

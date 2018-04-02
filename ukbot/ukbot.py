@@ -163,6 +163,7 @@ class Site(mwclient.Site):
         return prefix in self.prefixes or prefix == self.key
 
     def link_to(self, page):
+        # Create a link to the Page or Article, including a site prefix if not the homesite
         if self.prefixes[0] == '':
             return ':%s' % page.name
         else:
@@ -213,6 +214,7 @@ class Article(object):
         return rev
 
     def link(self):
+        # Create a link to the page, including a site prefix if the site is not the homesite.
         return self.site().link_to(self)
 
     @property
@@ -2039,7 +2041,7 @@ class Contest(object):
                 logger.info('Wordcount done in %.1f secs', tp2 - tp1)
 
                 for article in user.articles.values():
-                    k = article.site().key + ':' + article.name
+                    k = article.link()
                     if len(article.errors) > 0:
                         article_errors[k] = article.errors
                     for rev in article.revisions.values():
@@ -2149,7 +2151,7 @@ class Contest(object):
             if len(err) > 8:
                 err = err[:8]
                 err.append('(...)')
-            errors.append('\n* ' + _('UKBot encountered the following problems with the article [[:%s]]') % art + ''.join(['\n** %s' % e for e in err]))
+            errors.append('\n* ' + _('UKBot encountered the following problems with the page [[%s]]') % art + ''.join(['\n** %s' % e for e in err]))
 
         for site in self.sites.values():
             for error in site.errors:

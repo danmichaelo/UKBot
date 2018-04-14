@@ -1081,34 +1081,30 @@ class Contest(object):
 
     def resolve_page(self, value, default_ns=0):
         logger.debug('Resolving: %s', value)
-        values = value.split(':')
+        values = value.lstrip(':').split(':')
         site = self.homesite
         ns = None
 
         # check all prefixes
+        article_name = ''
         for val in values[:-1]:
-            if val == '':
-                continue
-            elif val in site.namespaces.values():
+            site_from_prefix = self.site_from_prefix(val)
+            if val in site.namespaces.values():
                 # reverse namespace lookup
                 ns = val  # [k for k, v in site.namespaces.items() if v == val][0]
+            elif site_from_prefix is not None:
+                site = site_from_prefix
             else:
-                tmp = self.site_from_prefix(val)
-                if tmp is not None:
-                    site = tmp
-                else:
-                    raise InvalidContestPage(_('Failed to parse prefix "%(element)s" as namespace or site, from title "%(value)s"') % {
-                        'element': val,
-                        'value': value,
-                    })
+                article_name += '%s:' % val
+        article_name += values[-1]
 
+        # Note: we should check this *after* we know which site to use
         if ns is None:
             ns = site.namespaces[default_ns]
 
-        value = values[-1]
-        value = value[0].upper() + value[1:]
+        article_name = article_name[0].upper() + article_name[1:]
 
-        value = '%s:%s' % (ns, value)
+        value = '%s:%s' % (ns, article_name)
         logger.debug('proceed: %s', value)
 
         page = site.pages[value]
@@ -1459,18 +1455,21 @@ class Contest(object):
 
         dicfg = self.config['templates']['disqualified']
         if dicfg['name'] in dp.templates:
+            logger.info('Disqualified contributions:')
             for templ in dp.templates[dicfg['name']]:
                 uname = templ.parameters[1].value
                 anon = templ.get_anonymous_parameters()
                 uname = anon[1]
                 if not templ.has_param('s'):
-                    for aname in anon[2:]:
-                        #print 'Diskvalifiserte bidrag:',uname,aname
+                    for article_name in anon[2:]:
+                        page = self.resolve_page(article_name)
+                        article_key = page.site.key + ':' + page.name
+
                         ufound = False
                         for u in self.users:
                             if u.name == uname:
-                                #print " > funnet"
-                                u.disqualified_articles.append(aname)
+                                logger.info('- [%s] %s', uname, article_key)
+                                u.disqualified_articles.append(article_key)
                                 ufound = True
                         if not ufound:
                             raise InvalidContestPage(_('Could not find the user %(user)s given to the {{tl|%(template)s}} template.') % {'user': uname, 'template': dicfg['name']})
@@ -2525,6 +2524,8 @@ def init_sites(config):
     assert homesite.logged_in
 
     iwmap = homesite.interwikimap
+    prefixes = [''] + [k for k, v in iwmap.items() if v == host]
+    homesite.prefixes = prefixes
 
     # Connect to DB
     sql = SQL(config['db'])

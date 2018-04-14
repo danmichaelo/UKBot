@@ -3,17 +3,51 @@
 {% block title %}UKB log{% endblock %}
 {% block body %}
 
-<pre id="run_log">
-</pre>
+{% if status %}
+    <div class="alert alert-success">
+        {{ status }}
+    </div>
+{% endif %}
+
+
+<p>
+    <strong>Job #{{job_id}}</strong>
+</p>
+
+<div class="alert alert-danger" style="display:none;">
+    Failed
+</div>
+
+<div style="background: #444; padding: 2em; font-size: 80%; border-radius:4px;">
+    <div id="busy" class="lds-ripple" style="float:right;"><div></div><div></div></div>
+
+    <pre id="run_log" style="color: #ffc;"></pre>
+
+    <div style="clear:both;"></div>
+
+</div>
+
+
 
 <script>
 
 var baseHref = document.getElementsByTagName('base')[0].href.replace(/https?:/, 'wss:');
-var contest = "{{contest}}";
+var jobId = "{{job_id}}";
+var socketUrl = baseHref + 'jobs/' + jobId + '/sock';
+console.log('Socket URL: ' + socketUrl);
 
-var socket = new WebSocket(baseHref + contest + "/status.sock");
+var socket = new WebSocket(socketUrl);
 socket.onopen = function(){
     console.log("Socket has been opened!");
+}
+socket.onclose = function(){
+    console.log("Socket closed");
+    $('#busy').hide();
+}
+socket.onerror = function(){
+    $('#busy').hide();
+    $('.alert-danger').show();
+    console.log("Socket failed");
 }
 socket.onmessage = function(msg){
     $('#run_log').text( $('#run_log').text() + msg.data);

@@ -1,0 +1,80 @@
+{# -*- coding: utf-8; tab-width: 4; indent-tabs-mode: nil; c-basic-offset: 4 -*- vim:fenc=utf-8:et:sw=4:ts=4:sts=4 #}
+{% extends "layout.html" %}
+{% set active_page = "contests" %}
+{% block title %}Hello{% endblock %}
+{% block body %}
+
+{% if status %}
+    <div class="alert alert-success">
+        {{ status }}
+    </div>
+{% endif %}
+
+{% if error %}
+    <div class="alert alert-danger">
+        {{ error }}
+    </div>
+{% endif %}
+
+<table class="table table-hover">
+  <thead>
+    <tr>
+      <th>
+        Contest
+      </th>
+      <th>
+        Start date
+      </th>
+      <th>
+        End date
+      </th>
+      <th>
+        Ended
+      </th>
+      <th>
+        Closed
+      </th>
+      <th>
+        Last updated
+      </th>
+      <th>
+      </th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for contest in contests %}
+    <tr>
+      <td>
+        <a href="https://{{ contest.site }}/wiki/{{ contest.name }}">{{ contest.name }}</a>
+      </td>
+      <td class="text-nowrap">
+        {{ contest.start_date.strftime('%F') }}
+      </td>
+      <td class="text-nowrap">
+        {{ contest.end_date.strftime('%F') }}
+      </td>
+      <td>
+        {{ 'yes' if contest.ended else 'no' }}
+      </td>
+      <td>
+        {{ 'yes' if contest.closed else 'no' }}
+      </td>
+      <td class="text-nowrap">
+        {{ contest.update_date }}
+      </td>
+      <td>
+        {% if not contest.closed %}
+            <form action="/ukbot/contests" method="POST">
+                <input type="hidden" name="contest_id" value="{{ contest.id }}">
+                <button type="submit" title="Manually start UKBot" class="btn btn-sm btn-primary">Update now</button>
+            </form>
+        {% endif %}
+      </td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+
+{% endblock %}
+
+

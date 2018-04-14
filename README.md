@@ -27,4 +27,18 @@ And setup crontab:
 Forenklet flytkart:
 ![Flowchart](https://github.com/danmichaelo/UKBot/raw/master/flowchart.png)
 
+Webinterface
+------------
 
+At Tool Forge:
+```
+webservice --backend=gridengine generic start /data/project/ukbot/server.sh
+```
+
+To test the webinterface locally:
+
+```
+export FLASK_DEBUG=1
+export FLASK_APP=ukbot/server.py
+flask run
+```

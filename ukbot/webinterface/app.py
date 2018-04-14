@@ -1,28 +1,32 @@
 # vim: fenc=utf-8 et sw=4 ts=4 sts=4 ai
+import re
+import json
 from flask import Flask
 from flask import request
-from flask import render_template
+from flask import render_template, redirect
 from flask_sockets import Sockets
 from time import time
 from mwclient import Site
 from requests import ConnectionError
 from mwtextextractor import get_body_text
 import mysql.connector
-from contextlib import contextmanager
-import yaml
-import sqlite3
 from copy import copy
 import os
 import gevent
 from gevent import Timeout
+from ukbot.db import db_cursor
 import logging
+import subprocess
+import urllib.parse
+from collections import OrderedDict
+from datetime import datetime
 
 logger = logging.getLogger('app')
 
 project_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.realpath(__file__))))
-base_href = os.environ.get('APP_BASE_HREF', 'http://localhost:5000/')
+base_href = os.environ.get('APP_BASE_HREF', 'http://localhost:5000/ukbot/')
 
-contests = [
+contest_setups = [
     {
         "id": "no",
         "name": "Ukens konkurranse",
@@ -46,30 +50,10 @@ contests = [
 ]
 
 
-class MyConverter(mysql.connector.conversion.MySQLConverter):
-
-    def row_to_python(self, row, fields):
-        row = super(MyConverter, self).row_to_python(row, fields)
-
-        def to_unicode(col):
-            if isinstance(col, bytearray):
-                return col.decode('utf-8')
-            elif isinstance(col, bytes):
-                return col.decode('utf-8')
-            return col
-
-        return[to_unicode(col) for col in row]
-
-
-@contextmanager
-def db_cursor():
-    config_file = os.path.join(project_dir, 'config', 'config.no.yml')
-    config = yaml.load(open(config_file, encoding='utf-8'))
-    db = mysql.connector.connect(converter_class=MyConverter, **config['db'])
-    cur = db.cursor()
-    yield cur
-    cur.close()
-    db.close()
+def touch(fname, mode=0o664):
+    flags = os.O_CREAT | os.O_APPEND
+    with os.fdopen(os.open(fname, flags=flags, mode=mode)) as f:
+        os.utime(f.fileno())
 
 
 app = Flask(__name__, static_url_path='/ukbot/static')
@@ -82,27 +66,53 @@ def error_404():
     return response
 
 def read_status(fname):
-    stat = open(fname, encoding='utf-8').read()
-    statspl = stat.split()
+    try:
+        with open(fname) as fp:
+            status = json.load(fp)
+    except:
+        logger.error('Could not read status file: %s', fname)
+        return '<em>Could not read status</em>';
 
-    if statspl[0] == 'running':
-        stat = 'Updating now... started %d secs ago.' % (int(time()) - int(statspl[1]))
-    elif statspl[0] == '0':
-        stat = 'Last successful run: ' + ' '.join(statspl[2:]) + '. Runtime was ' + statspl[1] + ' seconds.'
+    args = {
+        'job_status': status.get('status'),
+        'job_date': datetime.fromtimestamp(int(status.get('update_date'))).strftime('%F %T'),
+        'job_id': status.get('job_id'),
+        'runtime': status.get('runtime'),
+        'time_ago': int(time()) - int(status.get('update_date')),
+    }
+
+    if args['job_status'] == 'running':
+        msg = 'Update started %(time_ago)d secs ago. Job ID: %(job_id)s' % args
+    elif args['job_status'] == '0':
+        msg = 'Last update completed %(job_date)s. Job ID: %(job_id)s. Runtime was %(runtime)s secs.' % args
     else:
-        stat = '<em>Failed</em>'
-    return stat
+        msg = '<em>Failed</em>'
+    return {
+        'msg': msg,
+        'job_id': args['job_id'],
+        'job_date': args['job_date'],
+    }
+
+
+@app.context_processor
+def inject_current_time():
+    return dict(current_time=datetime.now())
+
+@app.route('/')
+def goto_index():
+    return redirect('/ukbot/', code=302)
+
 
 @app.route('/ukbot/')
-def show_index():
+def show_home():
 
-    cf = copy(contests)
-    for c in cf:
-        status_file = os.path.join(project_dir, 'logs', '%s.status' % c['id'])
-        c['status'] = read_status(status_file)
+    cf = copy(contest_setups)
+    for contest_setup in cf:
+        status_file = os.path.join(project_dir, 'logs', '%s.status.json' % contest_setup['id'])
+        contest_setup['status'] = read_status(status_file)
 
-    return render_template('main.html',
-        contests=cf,
+    return render_template('home.html',
+        contest_setups=cf,
         base_href=base_href
     )
 
@@ -127,30 +137,43 @@ def show_index():
 #         )
 
 
-@app.route('/ukbot/<contest>/status')
-def show_uk_log(contest):
-    if contest not in [c['id'] for c in contests]:
-        return error_404()
+@sockets.route('/ukbot/jobs/<job_id>/sock')
+def show_contest_status_sock(socket, job_id):
+    contest_id, job_id = job_id.rsplit('_', 1)
+    contest_id = re.sub('[^a-z_-]', '', contest_id)
+    job_id = re.sub('[^0-9]', '', job_id)
+    log_file = os.path.join(project_dir, 'logs', '%s_%s.log' % (contest_id, job_id))
+    status_file = os.path.join(project_dir, 'logs', '%s.status.json' % contest_id)
+    app.logger.info('Opened websocket for %s', log_file)
 
-    return render_template('status.html', base_href=base_href, contest=contest)
-
-
-@sockets.route('/ukbot/<contest>/status.sock')
-def show_contest_status_sock(socket, contest):
-    if contest not in [c['id'] for c in contests]:
-        return error_404()
-
-    run_log_file = os.path.join(project_dir, 'logs', '%s.run.log' % contest)
-    app.logger.info('Opened websocket for %s', run_log_file)
-
-    with open(run_log_file, encoding='utf-8') as run_file:
+    with open(log_file, encoding='utf-8') as run_file:
+        n = 0
         while not socket.closed:
             new_data = run_file.read()
             if new_data:
                 socket.send(new_data)
             with Timeout(0.5, False):
                 socket.receive()
-    app.logger.info('Closed websocket for %s', run_log_file)
+            if n % 10 == 0:
+                try:
+                    with open(status_file) as fp:
+                        status = json.load(fp)
+                        if int(status['job_id']) == int(job_id) and status['status'] != 'running':
+                            socket.close()
+                except:
+                    pass
+            n += 1
+
+    app.logger.info('Closed websocket for %s', log_file)
+
+
+@app.route('/ukbot/jobs/<job_id>')
+def show_log(job_id):
+    # if contest_setup not in [c['id'] for c in contest_setups]:
+    #     return error_404()
+    status = request.args.get('status', '')
+
+    return render_template('status.html', base_href=base_href, job_id=job_id, status=status)
 
 
 # @app.route('/<lang>/contest/<week>/')
@@ -236,6 +259,97 @@ def show_wordcount():
             word_count=len(body.split()),
             **args
     )
+
+
+@app.route('/ukbot/contests', methods=['GET'])
+def show_contests():
+    status = request.args.get('status', '')
+    error = request.args.get('error', '')
+    config_file = os.path.join(project_dir, 'config', 'config.no.yml')
+    contests = []
+    with db_cursor(config_file) as cur:
+        cur.execute(u'SELECT C.contest_id, C.name, C.site, C.ended, C.closed, C.start_date, C.end_date, C.update_date, C.last_job_id FROM contests as C ORDER BY C.start_date DESC LIMIT 10')
+        for row in cur.fetchall():
+            contests.append({
+                'id': row[0],
+                'name': row[1],
+                'site': row[2],
+                'ended': row[3],
+                'closed': row[4],
+                'start_date': row[5],
+                'end_date': row[6],
+                'update_date': row[7],
+                'last_job_id': row[8],
+            })
+
+    return render_template('contests.html', contests=contests, status=status, error=error)
+
+
+@app.route('/ukbot/contests', methods=['POST'])
+def update_contest():
+    contest_id = request.form['contest_id']
+    config_file = os.path.join(project_dir, 'config', 'config.no.yml')
+    with db_cursor(config_file) as cur:
+        cur.execute(u'SELECT C.config, C.name, C.last_job_id FROM contests as C WHERE C.contest_id=%s', [contest_id])
+        rows = cur.fetchall()
+        if len(rows) != 1:
+            qs = urllib.parse.urlencode({'error': 'Contest not found'})
+            return redirect('/ukbot/contests?' + qs, code=302)
+
+        config_file = rows[0][0]
+        page_name = rows[0][1]
+        last_job_id = rows[0][2]
+
+
+    if config_file is None:
+        return redirect('/ukbot/contests?%s' % urllib.parse.urlencode({
+            'error': 'Unknown config file',
+        }), code=302)
+
+    try:
+        config_short_name = re.match('^config/config\.(.*)\.yml$', config_file).groups()[0]
+    except AttributeError:
+        return redirect('/ukbot/contests?%s' % urllib.parse.urlencode({
+            'error': 'Unknown config file',
+        }), code=302)
+
+    cmd = [
+        'jsub',
+        '-l', 'release=trusty',
+        '-once',
+        '-j', 'y',
+        '-cwd',
+        '-N', config_short_name,
+        '-mem', '1524m',
+        'jobs/run.sh', '--page', '\'%s\'' % page_name,
+        # Double-quoting is necessary due to a qsub bug,
+        # see <https://phabricator.wikimedia.org/T50811>
+    ]
+    proc = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    try:
+        out, errs = proc.communicate(timeout=15)
+    except TimeoutExpired:
+        proc.kill()
+        out, errs = proc.communicate()
+
+    out = out.decode('utf-8') if out is not None else ''
+    errs = errs.decode('utf-8') if errs is not None else ''
+
+    m = re.match('^Your job ([0-9]+) ', out)
+    if m:
+        job_id = m.groups()[0]
+        log_file = os.path.join(project_dir, 'logs', '%s_%s.log' % (config_short_name, job_id))
+        touch(log_file)
+        return redirect('/ukbot/jobs/%s_%s?%s' % (config_short_name, job_id, urllib.parse.urlencode({
+            'status': 'Job started',
+        })), code=302)
+
+    qs = urllib.parse.urlencode({
+        'status': out,
+        'error': errs,
+    })
+    return redirect('/ukbot/contests?%s' % qs, code=302)
+
 
 if __name__ == "__main__":
     # app.run()

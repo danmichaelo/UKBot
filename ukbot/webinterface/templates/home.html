@@ -1,22 +1,23 @@
 {# -*- coding: utf-8; tab-width: 4; indent-tabs-mode: nil; c-basic-offset: 4 -*- vim:fenc=utf-8:et:sw=4:ts=4:sts=4 #}
 {% extends "layout.html" %}
+{% set active_page = "home" %}
 {% block title %}Hello{% endblock %}
 {% block body %}
 
-<p>
-    Wonder how ukbot counts words?
-    <a href="wordcount">Test it here</a>
-</p>
 
-{% for conf in contests %}
+{% for contest_setup in contest_setups %}
 
-<section style="clear:both;">
-  <img src="static/plots/{{ conf.id }}.mem.png" style="width:400px; float:right;">
-  <h2>
-      <a href="{{ conf.url }}">{{ conf.name }}</a>
-  </h2>
-  <a href="./{{ conf.id }}/status">{{ conf.status | safe }}</a>
-</section>
+<div class="row">
+  <div class="col">
+    <h2>
+      <a href="{{ contest_setup.url }}">{{ contest_setup.name }}</a>
+    </h2>
+    <a href="./jobs/{{ contest_setup.id }}_{{ contest_setup.status['job_id'] }}">{{ contest_setup.status['msg'] | safe }}</a>
+  </div>
+  <div class="w-400">
+    <img src="static/plots/{{ contest_setup.id }}.mem.png" style="width: 100%;">
+  </div>
+</div>
 
 {% endfor %}
 

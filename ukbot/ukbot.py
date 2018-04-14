@@ -35,7 +35,6 @@ import unicodedata
 import re
 import json
 import os
-import mysql.connector
 import yaml
 from odict import odict
 import urllib
@@ -57,6 +56,7 @@ import locale
 from .common import get_mem_usage, Localization, t, _, InvalidContestPage, logfile
 from .rules import *
 from .filters import *
+from .db import SQL
 
 STATE_NORMAL='normal'
 STATE_ENDING = 'ending'
@@ -1036,7 +1036,7 @@ class User(object):
 
 class Contest(object):
 
-    def __init__(self, page, state, sites, homesite, sql, config, wiki_tz, server_tz, project_dir):
+    def __init__(self, page, state, sites, homesite, sql, config, wiki_tz, server_tz, project_dir, job_id):
         """
             page: mwclient.Page object
             sites: list
@@ -1049,6 +1049,7 @@ class Contest(object):
         self.config = config
         self.homesite = homesite
         self.project_dir = project_dir
+        self.job_id = job_id
         txt = page.text()
 
         self.sql = sql
@@ -1425,9 +1426,25 @@ class Contest(object):
         cur = self.sql.cursor()
         cur.execute('SELECT contest_id FROM contests WHERE site=%s AND name=%s', [self.homesite.key, self.name])
         rows = cur.fetchall()
+        now = datetime.now()
         if len(rows) == 0:
-            cur.execute('INSERT INTO contests (site, name, start_date, end_date) VALUES (%s,%s,%s,%s)', [self.homesite.key, self.name, self.start.strftime('%F %T'), self.end.strftime('%F %T')])
-            self.sql.commit()
+            cur.execute('INSERT INTO contests (config, site, name, start_date, end_date, update_date, last_job_id) VALUES (%s,%s,%s,%s,%s,%s,%s)', [
+                self.config['filename'],
+                self.homesite.key,
+                self.name,
+                self.start.strftime('%F %T'),
+                self.end.strftime('%F %T'),
+                now.strftime('%F %T'),
+                self.job_id,
+            ])
+        else:
+            cur.execute('UPDATE contests SET update_date=%s, last_job_id=%s WHERE site=%s AND name=%s', [
+                now.strftime('%F %T'),
+                self.job_id,
+                self.homesite.key,
+                self.name,
+            ])
+        self.sql.commit()
         cur.close()
 
         ######################## Read disqualifications ########################
@@ -2473,45 +2490,6 @@ def get_contest_pages(sql, homesite, config, wiki_tz, server_tz, page_title=None
     # trans.install(unicode = True)
 
 
-class MyConverter(mysql.connector.conversion.MySQLConverter):
-
-    def row_to_python(self, row, fields):
-        row = super(MyConverter, self).row_to_python(row, fields)
-
-        def to_unicode(col):
-            if isinstance(col, bytearray):
-                return col.decode('utf-8')
-            elif isinstance(col, bytes):
-                return col.decode('utf-8')
-            return col
-
-        return[to_unicode(col) for col in row]
-
-
-class SQL(object):
-
-    def __init__(self, config):
-        self.config = config
-        self.open_conn()
-
-    def open_conn(self):
-        self.conn = mysql.connector.connect(converter_class=MyConverter, **self.config)
-
-    def cursor(self, **kwargs):
-        try:
-            return self.conn.cursor(**kwargs)
-        except mysql.connector.errors.OperationalError:
-            # Seems like this can happen if the db connection times out
-            self.open_conn()
-            return self.conn.cursor(**kwargs)
-
-    def commit(self):
-        self.conn.commit()
-
-    def close(self):
-        self.conn.close()
-
-
 def init_sites(config):
 
     if 'ignore' not in config:
@@ -2556,6 +2534,7 @@ def main():
     parser.add_argument('--verbose', action='store_true', default=False, help='More verbose logging')
     parser.add_argument('--close', action='store_true', help='Close contest')
     parser.add_argument('--action', nargs='?', default='', help='"uploadplot" or "run"')
+    parser.add_argument('--job_id', required=False, help='Job ID')
     args = parser.parse_args()
 
     if args.verbose:
@@ -2567,6 +2546,7 @@ def main():
         logfile = open(args.log, 'a')
 
     config = yaml.load(args.config)
+    config['filename'] = args.config.name
     args.config.close()
 
     # rollbar.init(config['rollbar_token'], 'production')
@@ -2604,7 +2584,8 @@ def main():
                               config=config,
                               wiki_tz=wiki_tz,
                               server_tz=server_tz,
-                              project_dir=working_dir)
+                              project_dir=working_dir,
+                              job_id=args.job_id)
         except InvalidContestPage as e:
             if args.simulate:
                 logger.error(e.msg)

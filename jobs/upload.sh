@@ -3,7 +3,6 @@
 export CONTEST=$(echo "$JOB_NAME")  #  | cut -c7-20)
 projectdir=/data/project/ukbot
 logfile=logs/${CONTEST}.upload.log
-statusfile=logs/${CONTEST}.status
 
 echo "-----------------------------------------------------------------"
 cd "${projectdir}"

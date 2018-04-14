@@ -4,6 +4,7 @@ import re
 from lxml.html import fromstring
 import lxml
 from mwtextextractor import condition_for_lxml
+from mwclient.errors import InvalidPageTitle
 import urllib
 import logging
 from .common import t, _
@@ -247,7 +248,11 @@ class ImageRule(Rule):
         counters = {'ownwork': [], 'own': [], 'other': []}
         for filename in imgs_added:
             filename = urllib.parse.unquote(filename)
-            image = rev.article().site().images[filename]
+            try:
+                image = rev.article().site().images[filename]
+            except InvalidPageTitle:
+                logger.error('Image filename "%s" is invalid, ignoring this file', filename)
+                continue
             imageinfo = image.imageinfo
             if len(imageinfo) > 0:   # seems like image.exists only checks locally
                 try:

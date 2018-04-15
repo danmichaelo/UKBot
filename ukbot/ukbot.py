@@ -1043,7 +1043,7 @@ class Contest(object):
             sites: list
             sql: mysql Connection object
         """
-        logger.info('Initializing contest [[%s]]', page.name)
+        logger.info('Initializing contest [[%s]], state: %s', page.name, state)
         self.page = page
         self.state = state
         self.name = self.page.name
@@ -2240,8 +2240,6 @@ class Contest(object):
         if self.state == STATE_ENDING:
             logger.info('Ending contest')
             if not simulate:
-                self.deliver_leader_notification()
-
                 aws = config['awardstatus']
                 page = self.homesite.pages[aws['pagename']]
                 page.save(text=aws['wait'], summary=aws['wait'], bot=True)
@@ -2249,7 +2247,13 @@ class Contest(object):
                 cur = self.sql.cursor()
                 cur.execute('UPDATE contests SET ended=1 WHERE site=%s AND name=%s', [self.homesite.key, self.name])
                 self.sql.commit()
+                count = cur.rowcount
                 cur.close()
+
+                if count == 0:
+                    logger.info('Leader notifications have already been delivered')
+                else:
+                    self.deliver_leader_notification()
 
         if self.state == STATE_CLOSING:
             logger.info('Delivering prices')
@@ -2462,7 +2466,21 @@ def get_contest_page_titles(sql, homesite, config, wiki_tz, server_tz):
 def get_contest_pages(sql, homesite, config, wiki_tz, server_tz, page_title=None):
 
     if page_title is not None:
+        cursor = sql.cursor()
+
+        cursor.execute('SELECT ended, closed FROM contests WHERE site=%s AND name=%s', [
+            homesite.key,
+            page_title,
+        ])
+        contests = cursor.fetchall()
         pages = [(STATE_NORMAL, page_title)]
+        if len(contests) == 1:
+            if contests[0][1] == 1:
+                logger.error('Contest %s is closed, cannot be updated', page_title)
+                pages = []
+            elif contests[0][0] == 1:
+                pages = [(STATE_ENDING, page_title)]
+
     else:
         pages = get_contest_page_titles(sql, homesite, config, wiki_tz, server_tz)
 

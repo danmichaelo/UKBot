@@ -146,22 +146,26 @@ def show_contest_status_sock(socket, job_id):
     status_file = os.path.join(project_dir, 'logs', '%s.status.json' % contest_id)
     app.logger.info('Opened websocket for %s', log_file)
 
+    close_next_time = False
     with open(log_file, encoding='utf-8') as run_file:
         n = 0
         while not socket.closed:
             new_data = run_file.read()
             if new_data:
                 socket.send(new_data)
-            with Timeout(0.5, False):
-                socket.receive()
+            if close_next_time is True:
+                socket.close()
+                break
             if n % 10 == 0:
                 try:
                     with open(status_file) as fp:
                         status = json.load(fp)
                         if int(status['job_id']) == int(job_id) and status['status'] != 'running':
-                            socket.close()
+                            close_next_time = True
                 except:
                     pass
+            with Timeout(0.5, False):
+                socket.receive()
             n += 1
 
     app.logger.info('Closed websocket for %s', log_file)

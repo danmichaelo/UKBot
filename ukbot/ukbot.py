@@ -22,6 +22,7 @@ import matplotlib
 matplotlib.use('svg')
 
 import weakref
+from collections import OrderedDict
 import numpy as np
 import time
 import calendar
@@ -398,14 +399,14 @@ class Revision(object):
 
     def get_link(self):
         """ returns a link to revision """
-        q = {'title': self.article().name, 'oldid': self.revid}
+        q = OrderedDict((('title', self.article().name), ('oldid', self.revid)))
         if not self.new:
             q['diff'] = 'prev'
         return '//' + self.article().site().host + self.article().site().site['script'] + '?' + urllib.parse.urlencode(q)
 
     def get_parent_link(self):
         """ returns a link to parent revision """
-        q = {'title': self.article().name, 'oldid': self.parentid}
+        q = OrderedDict((('title', self.article().name), ('oldid', self.parentid)))
         return '//' + self.article().site().host + self.article().site().site['script'] + '?' + urllib.parse.urlencode(q)
 
     def get_points(self, ptype='', ignore_max=False, ignore_point_deductions=False):

@@ -2413,10 +2413,10 @@ def get_contest_page_titles(sql, homesite, config, wiki_tz, server_tz):
         page_title = closing_contests[0][0]
         award_statuspage = homesite.pages[config['awardstatus']['pagename']]
         if award_statuspage.exists:
-            lastrev = award_statuspage.revisions(prop='user|comment').next()
+            lastrev = award_statuspage.revisions(prop='user|comment|content').next()
             closeuser = lastrev['user']
-            revc = lastrev['comment']
-            if revc.find('/* ' + config['awardstatus']['send'] + ' */') == -1:
+            confirmation_message = config['awardstatus']['send']
+            if lastrev['comment'].find('/* %s */' % confirmation_message) == -1 and lastrev['*'].find(confirmation_message) == -1:
                 logger.info('Contest [[%s]] is to be closed, but award delivery has not been confirmed yet', page_title)
             else:
                 logger.info('Will close contest [[%s]], award delivery has been confirmed', page_title)

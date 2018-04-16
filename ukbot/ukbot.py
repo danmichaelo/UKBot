@@ -2398,6 +2398,18 @@ class Contest(object):
                 logger.info(res)
 
 
+def award_delivery_confirmed(site, config, page_title):
+    status_page = site.pages[config['pagename']]
+    confirmation_message = config['send']
+
+    if status_page.exists:
+        lastrev = status_page.revisions(prop='user|comment|content').next()
+        if lastrev['comment'].find('/* %s */' % confirmation_message) == -1 and lastrev['*'].find(confirmation_message) == -1:
+            logger.info('Contest [[%s]] is to be closed, but award delivery has not been confirmed yet', page_title)
+        else:
+            logger.info('Will close contest [[%s]], award delivery has been confirmed', page_title)
+            return True
+
 def get_contest_page_titles(sql, homesite, config, wiki_tz, server_tz):
     cursor = sql.cursor()
     contests = set()
@@ -2411,17 +2423,9 @@ def get_contest_page_titles(sql, homesite, config, wiki_tz, server_tz):
     closing_contests = cursor.fetchall()
     if len(closing_contests) != 0:
         page_title = closing_contests[0][0]
-        award_statuspage = homesite.pages[config['awardstatus']['pagename']]
-        if award_statuspage.exists:
-            lastrev = award_statuspage.revisions(prop='user|comment|content').next()
-            closeuser = lastrev['user']
-            confirmation_message = config['awardstatus']['send']
-            if lastrev['comment'].find('/* %s */' % confirmation_message) == -1 and lastrev['*'].find(confirmation_message) == -1:
-                logger.info('Contest [[%s]] is to be closed, but award delivery has not been confirmed yet', page_title)
-            else:
-                logger.info('Will close contest [[%s]], award delivery has been confirmed', page_title)
-                contests.add(page_title)
-                yield (STATE_CLOSING, page_title)
+        if award_delivery_confirmed(homesite, config['awardstatus'], page_title):
+            contests.add(page_title)
+            yield (STATE_CLOSING, page_title)
 
     # 2) Check if there is a contest to end
     now = server_tz.localize(datetime.now())
@@ -2479,7 +2483,10 @@ def get_contest_pages(sql, homesite, config, wiki_tz, server_tz, page_title=None
                 logger.error('Contest %s is closed, cannot be updated', page_title)
                 pages = []
             elif contests[0][0] == 1:
-                pages = [(STATE_ENDING, page_title)]
+                if award_delivery_confirmed(homesite, config['awardstatus'], page_title):
+                    pages = [(STATE_CLOSING, page_title)]
+                else:
+                    pages = [(STATE_ENDING, page_title)]
 
     else:
         pages = get_contest_page_titles(sql, homesite, config, wiki_tz, server_tz)

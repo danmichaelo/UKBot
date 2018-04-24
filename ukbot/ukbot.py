@@ -173,12 +173,13 @@ class Site(mwclient.Site):
 
 class Article(object):
 
-    def __init__(self, site, user, name):
+    def __init__(self, site, user, name, ns):
         """
         An article is uniquely identified by its name and its site
         """
         self.site = weakref.ref(site)
         self.user = weakref.ref(user)
+        self.ns = str(ns)
         self.name = name
         self.disqualified = False
 
@@ -452,11 +453,11 @@ class User(object):
         # sort articles by first revision id
         self.articles.sort(key=lambda x: x[1].revisions.firstkey())
 
-    def add_article_if_necessary(self, site, article_title):
+    def add_article_if_necessary(self, site, article_title, ns):
         article_key = site.key + ':' + article_title
 
         if not article_key in self.articles:
-            self.articles[article_key] = Article(site, self, article_title)
+            self.articles[article_key] = Article(site, self, article_title, ns)
             if article_key in self.disqualified_articles:
                 self.articles[article_key].disqualified = True
 
@@ -529,14 +530,14 @@ class User(object):
                         if self.revisions[rev_id].article().name != article_title:
                             rev = self.revisions[rev_id]
                             logger.info('Moving revision %d from "%s" to "%s"', rev_id, rev.article().name, article_title)
-                            article = self.add_article_if_necessary(site, article_title)
+                            article = self.add_article_if_necessary(site, article_title, c['ns'])
                             rev.article().revisions.pop(rev_id)  # remove from old article
                             article.revisions[rev_id] = rev    # add to new article
                             rev.article = weakref.ref(article)              # and update reference
 
                     else:
 
-                        article = self.add_article_if_necessary(site, article_title)
+                        article = self.add_article_if_necessary(site, article_title, c['ns'])
                         rev = article.add_revision(rev_id, timestamp=time.mktime(c['timestamp']), username=self.name)
                         rev.saved = False  # New revision that should be stored in DB
                         new_revisions.append(rev)
@@ -660,7 +661,7 @@ class User(object):
 
                 # Save revision if not already saved
                 if not rev.saved:
-                    contribs_query_params.append((revid, site_key, rev.parentid, self.name, article.name, ts, rev.size, rev.parentsize, rev.parsedcomment))
+                    contribs_query_params.append((revid, site_key, rev.parentid, self.name, article.name, ts, rev.size, rev.parentsize, rev.parsedcomment, article.ns))
                     rev.saved = True
 
                 if rev.dirty:
@@ -674,8 +675,8 @@ class User(object):
             t0 = time.time()
 
             cur.executemany("""
-                insert into contribs (revid, site, parentid, user, page, timestamp, size, parentsize, parsedcomment)
-                values (%s,%s,%s,%s,%s,%s,%s,%s,%s)
+                insert into contribs (revid, site, parentid, user, page, timestamp, size, parentsize, parsedcomment, ns)
+                values (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)
                 """, contribs_query_params
             )
 
@@ -760,7 +761,7 @@ class User(object):
         t0 = time.time()
         cur.execute(u"""
             SELECT
-                c.revid, c.site, c.parentid, c.page, c.timestamp, c.size, c.parentsize, c.parsedcomment,
+                c.revid, c.site, c.parentid, c.page, c.timestamp, c.size, c.parentsize, c.parsedcomment, c.ns,
                 ft.revtxt,
                 ft2.revtxt
             FROM contribs AS c
@@ -773,7 +774,7 @@ class User(object):
         )
         for row in cur.fetchall():
 
-            rev_id, site_key, parent_id, article_title, ts, size, parentsize, parsedcomment, rev_text, parent_rev_txt = row
+            rev_id, site_key, parent_id, article_title, ts, size, parentsize, parsedcomment, ns, rev_text, parent_rev_txt = row
             article_key = site_key + ':' + article_title
 
             ts = unix_time(pytz.utc.localize(ts))
@@ -785,7 +786,7 @@ class User(object):
             # Add article if not present
             if not article_key in self.articles:
                 narts += 1
-                self.articles[article_key] = Article(sites[site_key], self, article_title)
+                self.articles[article_key] = Article(sites[site_key], self, article_title, ns)
                 if article_key in self.disqualified_articles:
                     self.articles[article_key].disqualified = True
             article = self.articles[article_key]
@@ -825,38 +826,42 @@ class User(object):
         n0 = len(self.articles)
         t0 = time.time()
 
-        if len(filters) == 1 and isinstance(filters[0], NamespaceFilter):
-            pass
-
+        if serial:
+            serial_filters = filters
+            filters = []
         else:
-            if serial:
-                for filter in filters:
-                    logger.debug('>> Before %s (%d) : %s',
-                                type(filter).__name__,
-                                len(self.articles),
-                                ', '.join(self.articles.keys()))
+            # Extract NamespaceFilter from the other filters
+            serial_filters = [x for x in filters if isinstance(x, NamespaceFilter)]
+            filters = [x for x in filters if not isinstance(x, NamespaceFilter)]
 
-                    self.articles = filter.filter(self.articles)
+        # Apply filters that must be run in serial first
+        for filter in serial_filters:
+            logger.debug('>> Before %s (%d) : %s',
+                        type(filter).__name__,
+                        len(self.articles),
+                        ', '.join(self.articles.keys()))
 
-                    logger.debug('>> After %s (%d) : %s',
-                                type(filter).__name__,
-                                len(self.articles),
-                                ', '.join(self.articles.keys()))
-            else:
-                articles = odict([])
-                logger.debug('>> Before filtering (%d) : %s',
-                            len(self.articles),
-                            ', '.join(self.articles.keys()))
-                for filter in filters:
-                    for a in filter.filter(self.articles):
-                        if a not in articles:
-                            #print a
-                            articles[a] = self.articles[a]
-                    logger.debug('>> After %s (%d) : %s',
-                                type(filter).__name__,
-                                len(articles),
-                                ', '.join(articles.keys()))
-                self.articles = articles
+            self.articles = filter.filter(self.articles)
+
+            logger.debug('>> After %s (%d) : %s',
+                        type(filter).__name__,
+                        len(self.articles),
+                        ', '.join(self.articles.keys()))
+
+        # Apply parallel filters
+        articles = odict([])
+        logger.debug('>> Before filtering (%d) : %s',
+                    len(self.articles),
+                    ', '.join(self.articles.keys()))
+        for filter in filters:
+            for a in filter.filter(self.articles):
+                if a not in articles:
+                    articles[a] = self.articles[a]
+            logger.debug('>> After %s (%d) : %s',
+                        type(filter).__name__,
+                        len(articles),
+                        ', '.join(articles.keys()))
+        self.articles = articles
 
         # We should re-sort afterwards since not all filters preserve the order (notably the CatFilter)
         self.sort_contribs()

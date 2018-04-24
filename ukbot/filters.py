@@ -506,16 +506,16 @@ class NamespaceFilter(Filter):
         Filter.__init__(self)
         self.namespaces = namespaces
         self.site = site
+        logger.info('NamespaceFilter: namespaces: %s', ','.join(self.namespaces))
 
     def filter(self, articles):
-        # Note: The .namespace property does not yet exist on the Article object!
-        # out = odict()
-        # for article_key, article in articles.items():
-        #    if article.namespace == self.namespace:
-        #        out[article_key] = article
-        # log("  [+] Applying namespace filter (%s): %d -> %d" % (','.join(self.articles), len(articles), len(out)))
-        # return articles
-        return odict() # already filtered
+        out = odict()
+        for article_key, article in articles.items():
+            if article.ns in self.namespaces:
+                out[article_key] = article
+        logger.info(' - NamespaceFilter: Articles reduced from %d to %d',
+                    len(articles), len(out))
+        return out
 
 
 class SparqlFilter(Filter):

@@ -21,6 +21,7 @@ CREATE TABLE `contribs` (
   `size` int(8) unsigned NOT NULL,
   `parentsize` int(8) unsigned NOT NULL,
   `parsedcomment` text,
+  `ns` int(4) unsigned NOT NULL,
   PRIMARY KEY (`revid`,`site`),
   KEY `idx_parentid` (`parentid`),
   KEY `idx_user` (`user`)

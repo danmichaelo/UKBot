@@ -849,19 +849,20 @@ class User(object):
                         ', '.join(self.articles.keys()))
 
         # Apply parallel filters
-        articles = odict([])
-        logger.debug('>> Before filtering (%d) : %s',
-                    len(self.articles),
-                    ', '.join(self.articles.keys()))
-        for filter in filters:
-            for a in filter.filter(self.articles):
-                if a not in articles:
-                    articles[a] = self.articles[a]
-            logger.debug('>> After %s (%d) : %s',
-                        type(filter).__name__,
-                        len(articles),
-                        ', '.join(articles.keys()))
-        self.articles = articles
+        if len(filters) != 0:
+            articles = odict([])
+            logger.debug('>> Before filtering (%d) : %s',
+                        len(self.articles),
+                        ', '.join(self.articles.keys()))
+            for filter in filters:
+                for a in filter.filter(self.articles):
+                    if a not in articles:
+                        articles[a] = self.articles[a]
+                logger.debug('>> After %s (%d) : %s',
+                            type(filter).__name__,
+                            len(articles),
+                            ', '.join(articles.keys()))
+            self.articles = articles
 
         # We should re-sort afterwards since not all filters preserve the order (notably the CatFilter)
         self.sort_contribs()

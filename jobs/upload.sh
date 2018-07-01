@@ -1,5 +1,9 @@
 #!/bin/bash
 
+# Set some UTF-8 locale to get the UTF-8 in logs and filenames.
+export LANG=en_US.utf8
+export LC_ALL=en_US.utf8
+
 export CONTEST=$(echo "$JOB_NAME")  #  | cut -c7-20)
 projectdir=/data/project/ukbot
 logfile=logs/${CONTEST}.upload.log

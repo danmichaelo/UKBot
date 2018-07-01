@@ -1,5 +1,9 @@
 #!/bin/bash
 
+# Set some UTF-8 locale to get the UTF-8 in logs and filenames.
+export LANG=en_US.utf8
+export LC_ALL=en_US.utf8
+
 export CONTEST=$(echo "$JOB_NAME")  #  | cut -c7-20)
 projectdir=/data/project/ukbot
 logfile=logs/${CONTEST}_${JOB_ID}.log
@@ -8,6 +12,7 @@ statusfile=logs/${CONTEST}.status.json
 echo "-----------------------------------------------------------------"
 cd "${projectdir}"
 echo "$(date) : Starting '$CONTEST' job ($JOB_ID) on $HOSTNAME." | tee $logfile
+
 START=$(date +%s)
 printf '{"status": "running", "update_date": "%s", "job_id": "%s"}' "${START}" "${JOB_ID}" >| $statusfile
 

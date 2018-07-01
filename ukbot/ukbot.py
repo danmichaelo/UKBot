@@ -2593,10 +2593,10 @@ def main():
     mainstart = server_tz.localize(datetime.now())
     mainstart_s = time.time()
 
-    logger.info('UKBot starting at %s (server time), %s (wiki time)',
+    logger.info('Current server time: %s, wiki time: %s',
                 mainstart.strftime('%F %T'),
                 mainstart.astimezone(wiki_tz).strftime('%F %T'))
-    logger.info('Running on %s %s %s', *platform.linux_distribution())
+    logger.info('Platform: Python %s @ %s %s %s', platform.python_version(), *platform.linux_distribution())
 
     status_template = config['templates']['botinfo']
 

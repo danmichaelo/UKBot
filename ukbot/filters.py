@@ -402,7 +402,7 @@ class BackLinkFilter(Filter):
                     ','.join(page_names))
 
         for page in self.pages:
-            for linked_page in page.links(namespace=0, redirects=True):
+            for linked_page in page.links(redirects=True):
                 link = '%s:%s' % (linked_page.site.key, linked_page.name.replace('_', ' '))
                 logger.debug(' - Include: %s', link)
                 self.links.add(link)

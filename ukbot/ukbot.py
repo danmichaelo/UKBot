@@ -492,6 +492,8 @@ class User(object):
             logger.debug('Limiting to namespaces: %s', args['namespace'])
 
         new_revisions = []
+        stored_revisions = set(copy(self.revisions.keys()))
+        current_revisions = set()
         t0 = time.time()
         t1 = time.time()
         tnr = 0
@@ -506,8 +508,6 @@ class User(object):
                 logger.info('Found %d new revisions from API so far (%.0f secs elapsed)',
                             len(new_revisions), dt0)
 
-
-            #pageid = c['pageid']
             if 'comment' in c:
                 article_comment = c['comment']
 
@@ -522,6 +522,7 @@ class User(object):
                     rev_id = c['revid']
                     article_title = c['title']
                     article_key = site_key + ':' + article_title
+                    current_revisions.add(rev_id)
 
                     if rev_id in self.revisions:
                         # We check self.revisions instead of article.revisions, because the revision may
@@ -541,6 +542,14 @@ class User(object):
                         rev = article.add_revision(rev_id, timestamp=time.mktime(c['timestamp']), username=self.name)
                         rev.saved = False  # New revision that should be stored in DB
                         new_revisions.append(rev)
+
+        # Check if revisions have been deleted
+        deleted_revisions = stored_revisions.difference(current_revisions)
+        for deleted_revision in deleted_revisions:
+            rev = self.revisions[deleted_revision]
+            logger.info('Removing deleted revision %s from %s.', rev.revid, rev.article().name)
+            del rev.article().revisions[deleted_revision]
+            del self.revisions[deleted_revision]
 
         # If revisions were moved from one article to another, and the redirect was not created by the same user,
         # some articles may now have zero revisions. We should drop them

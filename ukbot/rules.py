@@ -219,32 +219,34 @@ class ImageRule(Rule):
             self.ownwork = float(ownwork)
         self.maxinitialcount = int(maxinitialcount)
 
-    def get_images(self, txt):
         prefixes = r'(?:%s)' % '|'.join(['%s:' % x for x in self.file_prefixes])
-        suffixes = r'(?:\.svg|\.png|\.jpg|\.jpeg|\.gif|\.tiff)'
-        imagematcher = ''.join([
-            r'(?:(?:=|\|)', prefixes, '?',     # matches "=File:" or "=" or "|File:" or "|"
-            '|', prefixes, ')',         # or "File:"
-            '(',                        # start capture
-                '[^\}\]\[\n=\|]*?',
-                suffixes,
-            ')',                        # end capture
-            ])
-        txt = re.sub(r'https?://[^ \n]*?' + suffixes, '', txt, flags=re.IGNORECASE)  # remove external links to images
-        # return len(re.findall(imagematcher, txt, flags=re.IGNORECASE))
+        suffixes = r'\.(?:svg|png|jpe?g|gif|tiff)'
+        self.extlinkmatcher = re.compile(r'https?://[^ \n]*?' + suffixes, flags=re.IGNORECASE)
+        imagematcher = r"""
+            (?:
+                (?:=|\||^)%(prefixes)s?   # "=File:", "=", "|File:", "|", ...
+                | %(prefixes)s
+            )
+            (  # start capture
+                [^\}\]\[=\|$\n]*?
+                %(suffixes)s
+            )  # end capture
+        """ % {'prefixes': prefixes, 'suffixes': suffixes}
+        logger.debug('ImageFilter regexp:')
+        logger.debug(imagematcher)
+        self.imagematcher = re.compile(imagematcher, flags=re.IGNORECASE | re.MULTILINE | re.VERBOSE)
 
-        imgs = re.findall(imagematcher, txt, flags=re.IGNORECASE)
-        imgs = [img.strip() for img in imgs]
-        return imgs
+    def get_images(self, txt):
+        txt = self.extlinkmatcher.sub('', txt)  # remove external links to images
+        # return len(re.findall(imagematcher, txt, flags=re.IGNORECASE))
+        for img in self.imagematcher.finditer(txt):
+            yield img.group(1).strip()
 
     def test(self, rev):
-        imgs0 = self.get_images(rev.parenttext)
-        imgs1 = self.get_images(rev.text)
+        imgs0 = list(self.get_images(rev.parenttext))
+        imgs1 = list(self.get_images(rev.text))
         imgs_added = set(imgs1).difference(set(imgs0))
 
-
-        #own_imgs_added = []
-        #others_imgs_added = []
         counters = {'ownwork': [], 'own': [], 'other': []}
         for filename in imgs_added:
             filename = urllib.parse.unquote(filename)
@@ -263,7 +265,7 @@ class ImageRule(Rule):
                     continue
 
                 logger.debug("File '%s' uploaded by '%s', revision made by '%s'",
-                            filename, uploader, rev.username)
+                             filename, uploader, rev.username)
                 if uploader == rev.username:
                     credit = ''
                     extrainfo = rev.article().site().api('query', prop='imageinfo', titles=u'File:{}'.format(filename), iiprop='extmetadata')
@@ -290,7 +292,6 @@ class ImageRule(Rule):
         # If an user adds both an own image and an image by someone else,
         # we should make sure to credit the own image, not the other.
         # We therefore process the own images first.
-        # imgs_added = own_imgs_added + others_imgs_added
         total_added = len(counters['own']) + len(counters['ownwork']) + len(counters['other'])
         self.totalimages += total_added
         revpoints = 0

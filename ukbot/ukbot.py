@@ -1067,9 +1067,16 @@ class Contest(object):
         self.users = [User(n, self) for n in self.extract_userlist(txt)]
         self.rules, self.filters = self.extract_rules(txt, self.config.get('catignore', ''))
 
-        logger.info(" - %d participants", len(self.users))
-        logger.info(" - %d filter(s) and %d rule(s)", len(self.filters), len(self.rules))
-        logger.info(' - Open from %s to %s',
+        logger.info("- %d participants", len(self.users))
+        logger.info("- %d filter(s):" % len(self.filters))
+        for filter in self.filters:
+            logger.info("  - %s" % filter.__class__.__name__)
+
+        logger.info("%d rule(s)" % len(self.rules))
+        for rule in self.rules:
+            logger.info("  - %s" % rule.__class__.__name__)
+
+        logger.info('- Open from %s to %s',
                     self.start.strftime('%F %T'),
                     self.end.strftime('%F %T'))
 

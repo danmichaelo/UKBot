@@ -2326,11 +2326,15 @@ class Contest(object):
 
         if 'redirect' in config['pages']:
             if re.match('^' + config['pages']['base'], self.name) and not simulate and self.state == STATE_NORMAL:
-                page = self.homesite.pages[config['pages']['redirect']]
-                txt = _('#REDIRECT [[%s]]') % self.name
-                if page.text() != txt:
-                    if not simulate:
-                        page.save(txt, summary=_('Redirecting to %s') % self.name)
+                pages = config['pages']['redirect']
+                if not isinstance(pages, list):
+                    pages = [pages]
+                for pagename in pages:
+                    page = self.homesite.pages[pagename]
+                    txt = _('#REDIRECT [[%s]]') % self.name
+                    if page.text() != txt:
+                        if not simulate:
+                            page.save(txt, summary=_('Redirecting to %s') % self.name)
 
         # Update Wikipedia:Portal/Oppslagstavle
 

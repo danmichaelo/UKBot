@@ -1105,7 +1105,7 @@ class Contest(object):
                 'key': key
             })
 
-    def resolve_page(self, value, default_ns=0):
+    def resolve_page(self, value, default_ns=0, force_ns=False):
         logger.debug('Resolving: %s', value)
         values = value.lstrip(':').split(':')
         site = self.homesite
@@ -1127,6 +1127,8 @@ class Contest(object):
         # Note: we should check this *after* we know which site to use
         if ns is None:
             ns = site.namespaces[default_ns]
+        elif force_ns:
+            ns = '%s:%s' % (site.namespaces[default_ns], ns)
 
         article_name = article_name[0].upper() + article_name[1:]
 
@@ -1243,7 +1245,10 @@ class Contest(object):
                         params['ignore'].extend([a.strip() for a in par[filtercfg['ignore']].split(',')])
 
                     params['sites'] = self.sites
-                    params['categories'] = [self.resolve_page(x, default_ns=14) for x in anon[2:] if x.strip() is not '']
+                    params['categories'] = [
+                        self.resolve_page(x, 14, True)
+                        for x in anon[2:] if x.strip() is not ''
+                    ]
 
                     if templ.has_param(filtercfg['maxdepth']):
                         params['maxdepth'] = int(par[filtercfg['maxdepth']])

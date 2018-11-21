@@ -38,9 +38,9 @@ contest_setups = [
         "url": "https://fi.wikipedia.org/wiki/WP:VK",
     },
     {
-        "id": "fi-hl",
-        "name": "Heinäkuun lähdetalkoot",
-        "url": "https://fi.wikipedia.org/wiki/Wikipedia:Heinäkuun lähdetalkoot",
+        "id": "fi-ek",
+        "name": "Elokuun kuvitustalkoot",
+        "url": "https://fi.wikipedia.org/wiki/Wikipedia:Elokuun kuvitustalkoot",
     },
     {
         "id": "eu",

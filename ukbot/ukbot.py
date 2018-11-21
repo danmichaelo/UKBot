@@ -492,7 +492,8 @@ class User(object):
             logger.debug('Limiting to namespaces: %s', args['namespace'])
 
         new_revisions = []
-        stored_revisions = set(copy(self.revisions.keys()))
+        # stored_revisions = set(copy(self.revisions.keys()))
+        stored_revisions = set([rev.revid for rev in self.revisions.values() if rev.article().site() == site])
         current_revisions = set()
         t0 = time.time()
         t1 = time.time()
@@ -544,6 +545,7 @@ class User(object):
                         new_revisions.append(rev)
 
         # Check if revisions have been deleted
+        logger.info('Site: %s, stored revisions: %d, current revisions: %d', site.key, len(stored_revisions), len(current_revisions))
         deleted_revisions = stored_revisions.difference(current_revisions)
         for deleted_revision in deleted_revisions:
             rev = self.revisions[deleted_revision]

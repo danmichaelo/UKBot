@@ -199,7 +199,7 @@ class Article(object):
         #self.redirect = False
         self.errors = []
 
-    def __eq__(other):
+    def __eq__(self, other):
         if self.site() == other.site() and self.name == other.name:
             return True
         else:
@@ -209,7 +209,7 @@ class Article(object):
         return "<Article %s:%s for user %s>" % (self.site().key, self.name, self.user().name)
 
     def __repr__(self):
-        return __str__(self)
+        return self.__str__()
 
     @property
     def new(self):
@@ -336,7 +336,7 @@ class Revision(object):
         return ("<Revision %d for %s:%s>" % (self.revid, self.article().site().key, self.article().name))
 
     def __repr__(self):
-        return __str__(self)
+        return self.__str__()
 
     @property
     def bytes(self):

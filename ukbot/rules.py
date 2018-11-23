@@ -412,9 +412,6 @@ class RefSectionFiRule(Rule):
         self.totalrefsectionsadded = 0
 
     def has_ref_section(self, txt):
-
-        refsec = False
-
         # Count list item under section heading "Kilder" or "Kjelder"
         refsection = False
         for line in txt.split('\n'):

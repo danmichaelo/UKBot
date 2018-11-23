@@ -35,13 +35,8 @@ class Filter(object):
         pass
 
     @classmethod
-    def from_template(cls, tpl, sites, cfg={}):
-        return cls(sites)
-
-    def site_from_prefix(self, key):
-        for site in self.sites.values():
-            if site.match_prefix(key):
-                return site
+    def from_template(cls, tpl, cfg={}):
+        return cls(tpl.sites)
 
 #class StubFilter(Filter):
 #    """ Filters articles that was stubs, but is no more """
@@ -101,7 +96,7 @@ class TemplateFilter(Filter):
     """ Filters articles that had any of a given set of templates (or their aliases) at a point"""
 
     @classmethod
-    def from_template(cls, tpl, sites, cfg):
+    def from_template(cls, tpl, cfg):
 
         if len(tpl.anon_params) < 3:
             raise RuntimeError(_('Too few arguments given to this template.'))
@@ -109,10 +104,10 @@ class TemplateFilter(Filter):
         params = {
             'templates': tpl.anon_params[2:],
             'aliases': [],
-            'sites': sites,
+            'sites': tpl.sites,
         }
         for tp in params['templates']:
-            tplpage = tpl.site.pages['Template:%s' % tp]
+            tplpage = tpl.sites.homesite.pages['Template:%s' % tp]
             if tplpage.exists:
                 params['aliases'].extend([x.page_title for x in tplpage.backlinks(filterredir='redirects')])
 
@@ -173,7 +168,7 @@ class CatFilter(Filter):
         if page_name is None or page_name == '':
             return []
 
-        catignore_txt = tpl.site.pages[page_name].text()
+        catignore_txt = tpl.sites.homesite.pages[page_name].text()
 
         if catignore_txt == '':
             logger.info('Note: catignore page is empty or does not exist')
@@ -186,15 +181,15 @@ class CatFilter(Filter):
             raise RuntimeError(_('Could not parse the catignore page'))
 
     @classmethod
-    def from_template(cls, tpl, sites, cfg):
+    def from_template(cls, tpl, cfg):
         if len(tpl.anon_params) < 3:
             raise RuntimeError(_('No category values given!'))
 
         params = {
             'ignore': cls.get_ignore_list(tpl, cfg.get('ignore_page')),
-            'sites': sites,
+            'sites': tpl.sites,
             'categories': [
-                tpl.site.resolve_page(cat_name, 14, True)
+                tpl.sites.resolve_page(cat_name, 14, True)
                 for cat_name in tpl.anon_params[2:] if cat_name.strip() is not ''
             ],
         }
@@ -259,7 +254,7 @@ class CatFilter(Filter):
         #for p in pages:
         #    ctree.add_child( name = p.encode('utf-8') )
 
-        for site_key, site in self.sites.items():
+        for site_key, site in self.sites.sites.items():
 
             if 'bot' in site.rights:
                 requestlimit = 500
@@ -411,7 +406,7 @@ class ByteFilter(Filter):
         if len(tpl.anon_params) < 3:
             raise RuntimeError(_('No byte limit (second argument) given'))
         params = {
-            'sites': sites,
+            'sites': tpl.sites,
             'bytelimit': tpl.anon_params[2],
         }
         return cls(**params)
@@ -434,9 +429,9 @@ class NewPageFilter(Filter):
     """Filters new articles"""
 
     @classmethod
-    def from_template(cls, tpl, sites, cfg):
+    def from_template(cls, tpl, cfg):
         params = {
-            'sites': sites,
+            'sites': tpl.sites,
         }
         if tpl.has_param('redirects'):
             params['redirects'] = True
@@ -476,10 +471,10 @@ class BackLinkFilter(Filter):
     """Filters articles linked to from <self.links>"""
 
     @classmethod
-    def from_template(cls, tpl, sites, cfg):
+    def from_template(cls, tpl, cfg):
         params = {
-            'sites': sites,
-            'pages': [tpl.site.resolve_page(x)for x in tpl.anon_params[2:] if x.strip() is not ''],
+            'sites': tpl.sites,
+            'pages': [tpl.sites.resolve_page(x) for x in tpl.anon_params[2:] if x.strip() is not ''],
         }
         return cls(**params)
 
@@ -487,7 +482,7 @@ class BackLinkFilter(Filter):
         """
         Arguments:
             pages: list of Page objects
-            sites: dict
+            sites: Sites object
         """
         Filter.__init__(self, sites)
         self.links = set()
@@ -505,7 +500,7 @@ class BackLinkFilter(Filter):
 
                 # Include langlinks as well
                 for langlink in linked_page.langlinks():
-                    site = self.site_from_prefix(langlink[0])
+                    site = self.sites.from_prefix(langlink[0])
                     if site is not None:
                         link = '%s:%s' % (site.host, langlink[1].replace('_', ' '))
                         logger.debug(' - Include: %s', link)
@@ -533,11 +528,11 @@ class ForwardLinkFilter(Filter):
     """Filters articles linking to <self.links>"""
 
     @classmethod
-    def from_template(cls, tpl, sites, cfg):
+    def from_template(cls, tpl, cfg):
 
         params = {
-            'sites': sites,
-            'pages': [tpl.site.resolve_page(x) for x in tpl.anon_params[2:] if x.strip() is not ''],
+            'sites': tpl.sites,
+            'pages': [tpl.sites.resolve_page(x) for x in tpl.anon_params[2:] if x.strip() is not ''],
         }
         return cls(**params)
 
@@ -545,7 +540,7 @@ class ForwardLinkFilter(Filter):
         """
         Arguments:
             pages: list of Page objects
-            sites: dict
+            sites: Sites object
         """
         Filter.__init__(self, sites)
         self.links = set()
@@ -577,10 +572,10 @@ class PageFilter(Filter):
     """Filters articles with forwardlinks to <name>"""
 
     @classmethod
-    def from_template(cls, tpl, sites, cfg):
+    def from_template(cls, tpl, cfg):
         params = {
-            'sites': sites,
-            'pages': [tpl.site.resolve_page(x) for x in tpl.anon_params[2:] if x.strip() is not '']
+            'sites': tpl.sites,
+            'pages': [tpl.sites.resolve_page(x) for x in tpl.anon_params[2:] if x.strip() is not '']
         }
         return cls(**params)
 
@@ -611,9 +606,9 @@ class NamespaceFilter(Filter):
     """Filters articles with a given namespaces"""
 
     @classmethod
-    def from_template(cls, tpl, sites, cfg):
+    def from_template(cls, tpl, cfg):
         params = {
-            'sites': sites,
+            'sites': tpl.sites,
             'namespaces': [x.strip() for x in tpl.anon_params[2:]],
         }
         if tpl.has_param('site'):
@@ -644,13 +639,13 @@ class SparqlFilter(Filter):
     """Filters articles matching a SPARQL query"""
 
     @classmethod
-    def from_template(cls, tpl, sites, cfg):
+    def from_template(cls, tpl, cfg):
         if not tpl.has_param('query'):
             raise RuntimeError(_('No "%s" parameter given') % cfg['params']['query'])
         
         params = {
             'query': tpl.get_param('query'),
-            'sites': sites,
+            'sites': tpl.sites,
         }
         return cls(**params)
 
@@ -658,7 +653,7 @@ class SparqlFilter(Filter):
         """
         Arguments:
             pages     : list of Page objects
-            sites     : list of site hostnames
+            sites     : Sites object
         """
         Filter.__init__(self, sites)
         self.query = query
@@ -726,7 +721,7 @@ class SparqlFilter(Filter):
         #   almost doubled for each additional site, making timeouts likely.
         # - I also tested doing two separate queries rather than one query with a subquery,
         #   but when the number of items became large it resulted in "request too large".
-        for site in self.sites.keys():
+        for site in self.sites.sites.keys():
             logger.debug('Querying site: %s', site)
             article_variable = 'article19472065'  # "random string" to avoid matching anything in the subquery
             query = """

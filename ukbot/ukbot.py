@@ -1060,7 +1060,7 @@ class User(object):
         suspended = ''
         if self.suspended_since is not None:
             suspended = ', ' + _('suspended since') + ' %s' % self.suspended_since.strftime(_('%A, %H:%M'))
-        userprefix = self.contest().homesite.namespaces[2]
+        userprefix = self.contest().sites.homesite.namespaces[2]
         out = '=== %s [[%s:%s|%s]] (%.f p%s) ===\n' % (ros, userprefix, self.name, self.name, self.points, suspended)
         if len(entries) == 0:
             out += "''" + _('No qualifying contributions registered yet') + "''"
@@ -1076,9 +1076,9 @@ class User(object):
 
 class FilterTemplate(object):
 
-    def __init__(self, template, translations, site):
+    def __init__(self, template, translations, sites):
         self.template = template
-        self.site = site
+        self.sites = sites
         self.named_params = {
             remove_control_chars(k): remove_control_chars(v.value)
             for k, v in template.parameters.items()
@@ -1103,7 +1103,7 @@ class FilterTemplate(object):
     def get_param(self, name):
         return self.named_params[self.translations['params'][self.type]['params'][name]]
 
-    def get(self, sites):
+    def get(self):
         try:
             return {
                 'new': NewPageFilter,
@@ -1118,7 +1118,6 @@ class FilterTemplate(object):
                 'pages': PageFilter,
             }[self.type].from_template(
                 self,
-                sites,
                 self.translations['params'][self.type]
             )
         except RuntimeError as exp:
@@ -1134,7 +1133,7 @@ class FilterTemplate(object):
 
 class Contest(object):
 
-    def __init__(self, page, state, sites, homesite, sql, config, wiki_tz, server_tz, project_dir, job_id):
+    def __init__(self, page, state, sites, sql, config, wiki_tz, server_tz, project_dir, job_id):
         """
             page: mwclient.Page object
             sites: list
@@ -1145,7 +1144,6 @@ class Contest(object):
         self.state = state
         self.name = self.page.name
         self.config = config
-        self.homesite = homesite
         self.project_dir = project_dir
         self.job_id = job_id
         txt = page.text()
@@ -1175,52 +1173,6 @@ class Contest(object):
         #     logger.info(' - Week %d', self.startweek)
         # else:
         #     logger.info(' - Week %d–%d', self.startweek, self.endweek)
-
-    def site_from_prefix(self, key, raise_on_error=False):
-        for site in self.sites.values():
-            if site.match_prefix(key):
-                return site
-        if raise_on_error:
-            raise InvalidContestPage(_('Could not found a site matching the prefix "%(key)s"') % {
-                'key': key
-            })
-
-    def resolve_page(self, value, default_ns=0, force_ns=False):
-        logger.debug('Resolving: %s', value)
-        values = value.lstrip(':').split(':')
-        site = self.homesite
-        ns = None
-
-        # check all prefixes
-        article_name = ''
-        for val in values[:-1]:
-            site_from_prefix = self.site_from_prefix(val)
-            if val in site.namespaces.values():
-                # reverse namespace lookup
-                ns = val  # [k for k, v in site.namespaces.items() if v == val][0]
-            elif site_from_prefix is not None:
-                site = site_from_prefix
-            else:
-                article_name += '%s:' % val
-        article_name += values[-1]
-
-        # Note: we should check this *after* we know which site to use
-        if ns is None:
-            ns = site.namespaces[default_ns]
-        elif force_ns:
-            ns = '%s:%s' % (site.namespaces[default_ns], ns)
-
-        article_name = article_name[0].upper() + article_name[1:]
-
-        value = '%s:%s' % (ns, article_name)
-        logger.debug('proceed: %s', value)
-
-        page = site.pages[value]
-        if not page.exists:
-            raise InvalidContestPage(_('Page does not exist: [[%(pagename)s]]') % {
-                'pagename': site.link_to(page)
-            })
-        return page
 
     def extract_userlist(self, txt):
         lst = []
@@ -1267,14 +1219,14 @@ class Contest(object):
         trans = config['templates']['filters']
         if trans['name'] in dp.templates:
             for templ in dp.templates[trans['name']]:
-                filter_tpl = FilterTemplate(templ, trans, self.homesite)
+                filter_tpl = FilterTemplate(templ, trans, self.sites)
 
                 if filter_tpl.type in ['new', 'existing', 'namespace']:
                     op = 'AND'
                 else:
                     op = 'OR'
 
-                filter_inst = filter_tpl.get(self.sites)
+                filter_inst = filter_tpl.get()
 
                 nfilters += 1
                 if op == 'OR':
@@ -1328,7 +1280,7 @@ class Contest(object):
                 rules.append(WordRule(**params))
 
             elif key == rulecfg['image']:
-                file_prefixes = set([prefix for site in self.sites.values() for prefix in site.file_prefixes])
+                file_prefixes = set([prefix for site in self.sites.sites.values() for prefix in site.file_prefixes])
                 params = {'key': key, 'points': anon[2], 'file_prefixes': file_prefixes}
                 if templ.has_param(maxpoints):
                     params['maxpoints'] = p[maxpoints]
@@ -1352,7 +1304,7 @@ class Contest(object):
 
             elif key == rulecfg['templateremoval']:
                 params = {'key': key, 'points': anon[2], 'template': anon[3]}
-                tplpage = self.homesite.pages['Template:' + params['template']]
+                tplpage = self.sites.homesite.pages['Template:' + params['template']]
                 if tplpage.exists:
                     params['aliases'] = [x.page_title for x in tplpage.backlinks(filterredir='redirects')]
 
@@ -1407,7 +1359,7 @@ class Contest(object):
         self.endweek = self.end.isocalendar()[1]
         self.month = self.start.month
 
-        userprefix = self.homesite.namespaces[2]
+        userprefix = self.sites.homesite.namespaces[2]
         self.ledere = []
         if ibcfg['organizer'] in infoboks.parameters:
             self.ledere = re.findall(r'\[\[(?:User|%s):([^\|\]]+)' % userprefix, infoboks.parameters[ibcfg['organizer']].value, flags=re.I)
@@ -1441,13 +1393,13 @@ class Contest(object):
         ####################### Check if contest is in DB yet ##################
 
         cur = self.sql.cursor()
-        cur.execute('SELECT contest_id FROM contests WHERE site=%s AND name=%s', [self.homesite.key, self.name])
+        cur.execute('SELECT contest_id FROM contests WHERE site=%s AND name=%s', [self.sites.homesite.key, self.name])
         rows = cur.fetchall()
         now = datetime.now()
         if len(rows) == 0:
             cur.execute('INSERT INTO contests (config, site, name, start_date, end_date, update_date, last_job_id) VALUES (%s,%s,%s,%s,%s,%s,%s)', [
                 self.config['filename'],
-                self.homesite.key,
+                self.sites.homesite.key,
                 self.name,
                 self.start.strftime('%F %T'),
                 self.end.strftime('%F %T'),
@@ -1458,7 +1410,7 @@ class Contest(object):
             cur.execute('UPDATE contests SET update_date=%s, last_job_id=%s WHERE site=%s AND name=%s', [
                 now.strftime('%F %T'),
                 self.job_id,
-                self.homesite.key,
+                self.sites.homesite.key,
                 self.name,
             ])
         self.sql.commit()
@@ -1496,7 +1448,7 @@ class Contest(object):
                 uname = anon[1]
                 if not templ.has_param('s'):
                     for article_name in anon[2:]:
-                        page = self.resolve_page(article_name)
+                        page = self.sites.resolve_page(article_name)
                         article_key = page.site.key + ':' + page.name
 
                         ufound = False
@@ -1517,7 +1469,7 @@ class Contest(object):
                 if 'site' in templ.parameters:
                     site_key = templ.parameters['site'].value
 
-                site = self.site_from_prefix(site_key)
+                site = self.sites.from_prefix(site_key)
                 if site is None:
                     raise InvalidContestPage(_('Failed to parse the %(template)s template: Did not find a site matching the site prefix %(prefix)s') % {
                         'template': pocfg['name'],
@@ -1553,7 +1505,7 @@ class Contest(object):
                     site_key = templ.parameters['site'].value
 
                 site = None
-                for s in self.sites.values():
+                for s in self.sites.sites.values():
                     if s.match_prefix(site_key):
                         site = s
                         break
@@ -1770,17 +1722,17 @@ class Contest(object):
     def deliver_message(self, username, topic, body, sig='~~~~'):
         logger.info('Delivering message to %s', username)
 
-        prefix = self.homesite.namespaces[3]
+        prefix = self.sites.homesite.namespaces[3]
         prefixed = prefix + ':' + username
 
-        flinfo = self.homesite.api(action='query', prop='flowinfo', titles=prefixed)
+        flinfo = self.sites.homesite.api(action='query', prop='flowinfo', titles=prefixed)
         flow_enabled = ('enabled' in list(flinfo['query']['pages'].values())[0]['flowinfo']['flow'])
 
         pagename = '%s:%s' % (prefix, username)
 
         if flow_enabled:
-            token = self.homesite.get_token('csrf')
-            self.homesite.api(action='flow',
+            token = self.sites.homesite.get_token('csrf')
+            self.sites.homesite.api(action='flow',
                               submodule='new-topic',
                               page=pagename,
                               nttopic=topic,
@@ -1789,7 +1741,7 @@ class Contest(object):
                               token=token)
 
         else:
-            page = self.homesite.pages[pagename]
+            page = self.sites.homesite.pages[pagename]
             page.save(text=body + ' ' + sig, bot=False, section='new', summary=topic)
 
 
@@ -1798,7 +1750,7 @@ class Contest(object):
         heading = self.format_heading()
 
         cur = self.sql.cursor()
-        cur.execute('SELECT contest_id FROM contests WHERE site=%s AND name=%s', [self.homesite.key, self.name])
+        cur.execute('SELECT contest_id FROM contests WHERE site=%s AND name=%s', [self.sites.homesite.key, self.name])
         contest_id = cur.fetchall()[0][0]
 
         logger.info('Delivering prices for contest %d' % (contest_id,))
@@ -1836,7 +1788,7 @@ class Contest(object):
 
             now = self.server_tz.localize(datetime.now())
             yearweek = now.astimezone(self.wiki_tz).strftime('%Y-%V')
-            userprefix = self.homesite.namespaces[2]
+            userprefix = self.sites.homesite.namespaces[2]
 
             mld += _("Note that the contest this week is [[%(url)s|{{%(template)s|%(weekarg)s=%(week)s}}]]. Join in!") % {
                 'url': self.config['pages']['base'] + ' ' + yearweek,
@@ -1849,11 +1801,11 @@ class Contest(object):
             if prizefound:
 
                 if not simulate:
-                    cur.execute('SELECT prize_id FROM prizes WHERE contest_id=%s AND site=%s AND user=%s', [contest_id, self.homesite.key, result['name']])
+                    cur.execute('SELECT prize_id FROM prizes WHERE contest_id=%s AND site=%s AND user=%s', [contest_id, self.sites.homesite.key, result['name']])
                     rows = cur.fetchall()
                     if len(rows) == 0:
                         self.deliver_message(result['name'], heading, mld, sig)
-                        cur.execute('INSERT INTO prizes (contest_id, site, user, timestamp) VALUES (%s,%s,%s, NOW())', [contest_id, self.homesite.key, result['name']])
+                        cur.execute('INSERT INTO prizes (contest_id, site, user, timestamp) VALUES (%s,%s,%s, NOW())', [contest_id, self.sites.homesite.key, result['name']])
                         self.sql.commit()
             else:
                 logger.info('No price for %s', result['name'])
@@ -1861,12 +1813,12 @@ class Contest(object):
     def deliver_leader_notification(self):
         heading = self.format_heading()
         args = {
-            'prefix': self.homesite.site['server'] + self.homesite.site['script'],
+            'prefix': self.sites.homesite.site['server'] + self.sites.homesite.site['script'],
             'page': self.config['awardstatus']['pagename'],
             'title': urllib.parse.quote(self.config['awardstatus']['send'])
         }
         link = '%(prefix)s?title=%(page)s&action=edit&section=new&preload=%(page)s/Preload&preloadtitle=%(title)s' % args
-        usertalkprefix = self.homesite.namespaces[3]
+        usertalkprefix = self.sites.homesite.namespaces[3]
         oaward = ''
         for key, award in self.config['awards'].items():
             if 'organizer' in award:
@@ -1907,13 +1859,13 @@ class Contest(object):
 
     def deliver_receipt_to_leaders(self):
         heading = self.format_heading()
-        usertalkprefix = self.homesite.namespaces[3]
+        usertalkprefix = self.sites.homesite.namespaces[3]
 
-        args = {'prefix': self.homesite.site['server'] + self.homesite.site['script'], 'page': 'Special:Contributions'}
+        args = {'prefix': self.sites.homesite.site['server'] + self.sites.homesite.site['script'], 'page': 'Special:Contributions'}
         link = '%(prefix)s?title=%(page)s&contribs=user&target=UKBot&namespace=3' % args
         mld = '\n:' + _('Awards have been [%(link)s sent out].') % {'link': link}
         for u in self.ledere:
-            page = self.homesite.pages['%s:%s' % (usertalkprefix, u)]
+            page = self.sites.homesite.pages['%s:%s' % (usertalkprefix, u)]
             logger.info('Leverer kvittering til %s', page.name)
 
             # Find section number
@@ -1960,12 +1912,12 @@ class Contest(object):
         """
         Inform users about problems with their contribution(s)
         """
-        usertalkprefix = self.homesite.namespaces[3]
+        usertalkprefix = self.sites.homesite.namespaces[3]
         cur = self.sql.cursor()
         for u in self.users:
             msgs = []
             if u.suspended_since is not None:
-                d = [self.homesite.key, self.name, u.name, 'suspension', '']
+                d = [self.sites.homesite.key, self.name, u.name, 'suspension', '']
                 cur.execute('SELECT id FROM notifications WHERE site=%s AND contest=%s AND user=%s AND class=%s AND args=%s', d)
                 if len(cur.fetchall()) == 0:
                     msgs.append('Du er inntil videre suspendert fra konkurransen med virkning fra %s. Dette innebærer at dine bidrag gjort etter dette tidspunkt ikke teller i konkurransen, men alle bidrag blir registrert og skulle suspenderingen oppheves i løpet av konkurranseperioden vil også bidrag gjort i suspenderingsperioden telle med. Vi oppfordrer deg derfor til å arbeide med problemene som førte til suspenderingen slik at den kan oppheves.' % u.suspended_since.strftime(_('%e. %B %Y, %H:%M')))
@@ -1974,7 +1926,7 @@ class Contest(object):
             discs = []
             for article_key, article in u.articles.items():
                 if article.disqualified:
-                    d = [self.homesite.key, self.name, u.name, 'disqualified', article_key]
+                    d = [self.sites.homesite.key, self.name, u.name, 'disqualified', article_key]
                     cur.execute('SELECT id FROM notifications WHERE site=%s AND contest=%s AND user=%s AND class=%s AND args=%s', d)
                     if len(cur.fetchall()) == 0:
                         discs.append('[[:%s|%s]]' % (article_key, article.name))
@@ -2002,7 +1954,7 @@ class Contest(object):
                 #print msg
                 #print '------------------------------'
 
-                page = self.homesite.pages['%s:%s' % (usertalkprefix, u.name)]
+                page = self.sites.homesite.pages['%s:%s' % (usertalkprefix, u.name)]
                 logger.info('Leverer advarsel til %s', page.name)
                 if simulate:
                     logger.info(msg)
@@ -2043,10 +1995,10 @@ class Contest(object):
             logger.info('=== User:%s ===', user.name)
 
             # First read contributions from db
-            user.add_contribs_from_db(self.sql, self.start, self.end, self.sites)
+            user.add_contribs_from_db(self.sql, self.start, self.end, self.sites.sites)
 
             # Then fill in new contributions from wiki
-            for site in self.sites.values():
+            for site in self.sites.sites.values():
 
                 # if host_filter is None or site.host == host_filter:
                 user.add_contribs_from_wiki(site, self.start, self.end, fulltext=True, **extraargs)
@@ -2186,7 +2138,7 @@ class Contest(object):
                 err.append('(...)')
             errors.append('\n* ' + _('UKBot encountered the following problems with the page [[%s]]') % art + ''.join(['\n** %s' % e for e in err]))
 
-        for site in self.sites.values():
+        for site in self.sites.sites.values():
             for error in site.errors:
                 errors.append('\n* %s' % error)
 
@@ -2257,11 +2209,11 @@ class Contest(object):
             logger.info('Ending contest')
             if not simulate:
                 aws = config['awardstatus']
-                page = self.homesite.pages[aws['pagename']]
+                page = self.sites.homesite.pages[aws['pagename']]
                 page.save(text=aws['wait'], summary=aws['wait'], bot=True)
 
                 cur = self.sql.cursor()
-                cur.execute('UPDATE contests SET ended=1 WHERE site=%s AND name=%s', [self.homesite.key, self.name])
+                cur.execute('UPDATE contests SET ended=1 WHERE site=%s AND name=%s', [self.sites.homesite.key, self.name])
                 self.sql.commit()
                 count = cur.rowcount
                 cur.close()
@@ -2279,7 +2231,7 @@ class Contest(object):
             cur = self.sql.cursor()
 
             for result in results:
-                arg = [self.homesite.key, self.name, result['name'], int(self.startweek), result['points'], result['bytes'], result['newpages'], 0]
+                arg = [self.sites.homesite.key, self.name, result['name'], int(self.startweek), result['points'], result['bytes'], result['newpages'], 0]
                 if self.startweek != self.endweek:
                     arg[-1] = int(self.endweek)
                 #print arg
@@ -2287,13 +2239,13 @@ class Contest(object):
                     cur.execute(u"INSERT INTO users (site, contest, user, week, points, bytes, newpages, week2) VALUES (%s,%s,%s,%s,%s,%s,%s,%s)", arg)
 
             if not simulate:
-                cur.execute('UPDATE contests SET closed=1 WHERE site=%s AND name=%s', [self.homesite.key, self.name])
+                cur.execute('UPDATE contests SET closed=1 WHERE site=%s AND name=%s', [self.sites.homesite.key, self.name])
                 self.sql.commit()
 
             cur.close()
 
             aws = config['awardstatus']
-            page = self.homesite.pages[aws['pagename']]
+            page = self.sites.homesite.pages[aws['pagename']]
             page.save(text=aws['sent'], summary=aws['sent'], bot=True)
 
             # if not simulate:
@@ -2317,7 +2269,7 @@ class Contest(object):
                 if not isinstance(pages, list):
                     pages = [pages]
                 for pagename in pages:
-                    page = self.homesite.pages[pagename]
+                    page = self.sites.homesite.pages[pagename]
                     txt = _('#REDIRECT [[%s]]') % self.name
                     if page.text() != txt:
                         if not simulate:
@@ -2330,7 +2282,7 @@ class Contest(object):
             boardtpl = config['noticeboard']['template']
             commonargs = config['templates']['commonargs']
             tplname = boardtpl['name']
-            oppslagstavle = self.homesite.pages[boardname]
+            oppslagstavle = self.sites.homesite.pages[boardname]
             txt = oppslagstavle.text()
 
             dp = TemplateEditor(txt)
@@ -2344,7 +2296,7 @@ class Contest(object):
                 logger.info('Updating noticeboard: %s', boardname)
                 tpllist = config['templates']['contestlist']
                 commonargs = config['templates']['commonargs']
-                tema = self.homesite.api('parse', text='{{subst:%s|%s=%s}}' % (tpllist['name'], commonargs['week'], now2.strftime('%Y-%V')), pst=1, onlypst=1)['parse']['text']['*']
+                tema = self.sites.homesite.api('parse', text='{{subst:%s|%s=%s}}' % (tpllist['name'], commonargs['week'], now2.strftime('%Y-%V')), pst=1, onlypst=1)['parse']['text']['*']
                 tpl.parameters[1] = tema
                 tpl.parameters[boardtpl['date']] = now2.strftime('%e. %h')
                 tpl.parameters[commonargs['year']] = now2.isocalendar()[0]
@@ -2540,6 +2492,59 @@ def get_contest_pages(sql, homesite, config, wiki_tz, server_tz, page_title=None
     # trans.install(unicode = True)
 
 
+class SiteManager(object):
+
+    def __init__(self, sites, homesite):
+        self.sites = sites
+        self.homesite = homesite
+    
+    def resolve_page(self, value, default_ns=0, force_ns=False):
+        logger.debug('Resolving: %s', value)
+        values = value.lstrip(':').split(':')
+        site = self.homesite
+        ns = None
+
+        # check all prefixes
+        article_name = ''
+        for val in values[:-1]:
+            site_from_prefix = self.from_prefix(val)
+            if val in site.namespaces.values():
+                # reverse namespace lookup
+                ns = val  # [k for k, v in site.namespaces.items() if v == val][0]
+            elif site_from_prefix is not None:
+                site = site_from_prefix
+            else:
+                article_name += '%s:' % val
+        article_name += values[-1]
+
+        # Note: we should check this *after* we know which site to use
+        if ns is None:
+            ns = site.namespaces[default_ns]
+        elif force_ns:
+            ns = '%s:%s' % (site.namespaces[default_ns], ns)
+
+        article_name = article_name[0].upper() + article_name[1:]
+
+        value = '%s:%s' % (ns, article_name)
+        logger.debug('proceed: %s', value)
+
+        page = site.pages[value]
+        if not page.exists:
+            raise InvalidContestPage(_('Page does not exist: [[%(pagename)s]]') % {
+                'pagename': site.link_to(page)
+            })
+        return page
+
+    def from_prefix(self, key, raise_on_error=False):
+        for site in self.sites.values():
+            if site.match_prefix(key):
+                return site
+        if raise_on_error:
+            raise InvalidContestPage(_('Could not found a site matching the prefix "%(key)s"') % {
+                'key': key
+            })
+
+
 def init_sites(config):
 
     if 'ignore' not in config:
@@ -2576,7 +2581,7 @@ def init_sites(config):
             logger.debug('Revert page regexp: %s', msg)
             config['ignore'].append(msg)
 
-    return homesite, sites, sql
+    return SiteManager(sites, homesite), sql
 
 
 def main():
@@ -2623,10 +2628,10 @@ def main():
 
     status_template = config['templates']['botinfo']
 
-    homesite, sites, sql = init_sites(config)
+    sites, sql = init_sites(config)
 
     # Determine what to work with
-    active_contests = list(get_contest_pages(sql, homesite, config, wiki_tz, server_tz, args.page))
+    active_contests = list(get_contest_pages(sql, sites.homesite, config, wiki_tz, server_tz, args.page))
 
     logger.info('Number of active contests: %d', len(active_contests))
     for contest_state, contest_page in active_contests:
@@ -2634,7 +2639,6 @@ def main():
             contest = Contest(contest_page,
                               state=contest_state,
                               sites=sites,
-                              homesite=homesite,
                               sql=sql,
                               config=config,
                               wiki_tz=wiki_tz,

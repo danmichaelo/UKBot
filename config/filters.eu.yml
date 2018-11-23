@@ -1,0 +1,33 @@
+---
+name: UKB irizpide
+params:
+    new:
+        name: berria
+        params:
+            redirects: redirects
+    existing:
+        name: bazegoen
+    template:
+        name: txantiloia
+    bytes:
+        name: byte
+    category:
+        name: kategoria
+        ignore_page: User:UKBot/ignored categories
+        params:
+            ignore: exclude
+            maxdepth: maxdepth
+    backlink:
+        name: lotuta dago
+    forwardlink:
+        name: lotzen du
+    pages:
+        name: orrialdeak
+    namespace:
+        name: izen-tartea
+        params:
+            site: site
+    sparql:
+        name: sparql  # as in {{ ukb criterion | sparql }}
+        params:
+            query: query    # as in {{ ukb criterion | sparql | query=... }}

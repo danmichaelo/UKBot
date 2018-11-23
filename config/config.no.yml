@@ -89,39 +89,7 @@ templates:
         own: egetbilde
         ownwork: egetverk
         maxinitialcount: maksantallinnledningsvis
-    filters:
-        name: Ukens konkurranse kriterium
-        params:
-            new: 
-                name: ny
-                params:
-                    redirects: omdirigeringer
-            existing:
-                name: eksisterende
-            template:
-                name: mal
-            bytes:
-                name: bytes
-            category:
-                name: kategori
-                ignore_page: Bruker:UKBot/cat-ignore
-                params:
-                    ignore: utelat
-                    maxdepth: maksdybde
-            backlink:
-                name: tilbakelenke
-            forwardlink:
-                name: fremlenke
-            pages:
-                name: enkeltsider
-            namespace:
-                name: navnerom
-                params:
-                    site: nettsted
-            sparql:
-                name: sparql  # as in {{ ukb criterion | sparql }}
-                params:
-                    query: spørring    # as in {{ ukb criterion | sparql | query=... }}
+    filters: !include filters.no.yml
 pages:
     base: Wikipedia:Ukens konkurranse/Ukens konkurranse
     default: Wikipedia:Ukens konkurranse/Ukens konkurranse %(year)d-%(week)02d

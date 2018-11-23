@@ -109,23 +109,7 @@ templates:
         own: oma
         ownwork: oma teos
         maxinitialcount: makskuvienmäärä
-    filter:
-        name: Viikon kilpailu kriteerit
-        new: uusi
-        existing: löytyvä
-        template: malline
-        bytes: tavut
-        category: luokka
-        backlink: takaisinlinkitys
-        forwardlink: edelleenlinkitys
-        pages: sivut
-        namespace: nimiavaruus
-        alias: alias
-        maxdepth: makssyvyys
-        redirects: ohjaukset
-        ignore: ignore
-        sparql: sparql  # as in {{ ukb criterion | sparql }}
-        query: query    # as in {{ ukb criterion | sparql | query=... }}
+    filters: !include filters.fi.yml
 pages:
     catignore: Käyttäjä:UKBot/cat-ignore
     base: "Wikiprojekti:Suomi 100"

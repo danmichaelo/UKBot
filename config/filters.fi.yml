@@ -1,0 +1,33 @@
+---
+name: Viikon kilpailu kriteerit
+params:
+    new: 
+        name: uusi
+        params:
+            redirects: ohjaukset
+    existing:
+        name: löytyvä
+    template:
+        name: malline
+    bytes:
+        name: tavut
+    category:
+        name: luokka
+        ignore_page: Käyttäjä:UKBot/cat-ignore
+        params:
+            ignore: ignore
+            maxdepth: makssyvyys
+    backlink:
+        name: takaisinlinkitys
+    forwardlink:
+        name: edelleenlinkitys
+    pages:
+        name: sivut
+    namespace: 
+        name: nimiavaruus
+        params:
+            site: site
+    sparql:
+        name: sparql  # as in {{ ukb criterion | sparql }}
+        params:
+            query: query    # as in {{ ukb criterion | sparql | query=... }}

@@ -83,25 +83,8 @@ templates:
         own: self-uploaded
         ownwork: own-work
         maxinitialcount: initial limit
-    filter:
-        name: UKB irizpide
-        new: berria
-        existing: bazegoen
-        template: txantiloia
-        bytes: byte
-        category: kategoria
-        backlink: lotuta dago
-        forwardlink: lotzen du
-        pages: orrialdeak
-        namespace: izen-tartea
-        alias: alias
-        maxdepth: maxdepth
-        redirects: redirects
-        ignore: exclude
-        sparql: sparql  # as in {{ ukb criterion | sparql }}
-        query: query    # as in {{ ukb criterion | sparql | query=... }}
+    filters: !include filters.eu.yml
 pages:
-    catignore: User:UKBot/ignored categories
     base: 'Atari:Hezkuntza/Lehiaketak'
     default: 'Atari:Hezkuntza/Lehiaketak/%(year)d/%(month)02d'
     redirect:

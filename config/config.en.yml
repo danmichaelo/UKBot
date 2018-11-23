@@ -72,23 +72,7 @@ templates:
         own: self-uploaded
         ownwork: own-work
         maxinitialcount: initial limit
-    filter:
-        name: UKB criterion
-        new: new
-        existing: existing
-        template: template
-        bytes: bytes
-        category: category
-        backlink: backlink
-        forwardlink: forwardlink
-        pages: pages
-        namespace: namespace
-        alias: alias
-        maxdepth: maxdepth
-        redirects: redirects
-        ignore: exclude
-        sparql: sparql  # as in {{ ukb criterion | sparql }}
-        query: query    # as in {{ ukb criterion | sparql | query=... }}
+    filters: !include filters.en.yml
 pages:
     catignore: User:UKBot/ignored categories
     active_contests_category: Category:UKB active contests

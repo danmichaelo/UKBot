@@ -1,0 +1,120 @@
+locale: fi_FI
+rollbar_token: 88f5bd483f7348ea8b0564449c8d77cd
+server_timezone: UTC
+wiki_timezone: Europe/Helsinki
+homesite: fi.wikipedia.org
+default_prefix: fi
+plot:
+    datafile: plots/Fiwp Viikon kilpailu %(year)d-%(week)02d.json
+    figname: plots/Fiwp Viikon kilpailu %(year)d-%(week)02d.svg
+    description: |
+        == {{int:filedesc}} ==
+        {{Information
+        |Description    = {{en|1=Results from the article writing contest [[:fi:%(pagename)s|Viikon kilpailu %(week)s, %(year)s]]}}
+        |Source         = {{own}}
+        |Date           = %(start)s
+        |Author         = [[User:UKBot|UKBot]]
+        }}
+        
+        == {{int:license-header}} ==
+        {{PD-self}}
+        
+        [[Category:Viikon kilpailu %(year)s]]
+awards:
+    sininen: { file: Article blue.svg, winner: true }
+    punainen: { file: Article red.svg, winner: true }
+    keltainen: { file: Article yellow.svg, organizer: true }
+    oranssi: { file: Article orange.svg }
+    vihreä: { file: Article green.svg }
+    hopea: { file: Article grey.svg }
+    vaaleanvioletti: { file: Article MediumPurple.svg }
+    violetti: { file: Article purple.svg }
+    ruskea: { file: Article brown.svg }
+award_message:
+    winner_template: VK voittaja         # template name
+    participant_template: VK osallistuja # template name
+    organizer_template: VK järjestäjä    # template name
+    #extraargs: "|visuk=nei"              # template argument
+templates:
+    botinfo: Viikon kilpailu robotti-info
+    status: Viikon kilpailu tilanne
+    commonargs:
+        year: vuosi
+        week: viikko
+        week2: loppuviikko
+        yes: kyllä
+        no: ei
+    infobox: 
+        name: Viikon kilpailun tietolaatikko
+        status: tilanne
+        start: alkaa
+        end: loppuu
+        organizer: järjestäjät
+        winner: voittaja
+    suspended:
+        name: VK osallistuja hylätty
+    disqualified:
+        name: VK muokkaus hylätty
+    penalty:
+        name: VK pisteidenhylkäys
+    bonus:
+        name: VK bonus
+    contestlist:
+        name: Viikon kilpailu luettelo
+    rule:
+        name: Viikon kilpailu pisteet
+        new: uusi
+        qualified: NOT-IN-USE
+        contrib: NOT-IN-USE
+        redirect: ohjaus
+        refsectionfi: refsectionfi
+        byte: tavu
+        word: sana
+        maxpoints: makspisteet
+        site: site
+        image: kuva
+        external_link: aiheesta muualla
+        ref: ref
+        templateremoval: mallineen poisto
+        bytebonus: tavubonus
+        wordbonus: sanabonus
+        alias: alias
+        own: oma
+        ownwork: oma teos
+        maxinitialcount: makskuvienmäärä
+    filter:
+        name: Viikon kilpailu kriteerit
+        new: uusi
+        existing: löytyvä
+        template: malline
+        bytes: tavut
+        category: luokka
+        backlink: takaisinlinkitys
+        forwardlink: edelleenlinkitys
+        pages: sivut
+        namespace: nimiavaruus
+        alias: alias
+        maxdepth: makssyvyys
+        redirects: ohjaukset
+        ignore: ignore
+        sparql: sparql  # as in {{ ukb criterion | sparql }}
+        query: query    # as in {{ ukb criterion | sparql | query=... }}
+pages:
+    catignore: Käyttäjä:UKBot/cat-ignore
+    base: Wikipedia:Viikon kilpailu/Viikon kilpailu
+    default: Wikipedia:Viikon kilpailu/Viikon kilpailu %(year)d-%(week)02d
+contestPages:
+    resultsSection: Tulokset
+    participantsSection: Osallistujat
+    footer: "{{Viikon kilpailut %(year)s}}\n[[Luokka:Viikon kilpailut %(year)s]]"
+awardstatus:
+    pagename: Käyttäjä:UKBot/Premieutsendelse
+    wait: Venter
+    send: Send ut
+    sent: Sendt
+ignore:
+    - muokkaukset kumottiin ja sivu palautettiin # MediaWiki:Revertpage
+    - ^Hylättiin (viimeisin tekstimuutos|viimeisimmät .* tekstimuutosta) # MediaWiki:Revreview-reject-summary-cur/fi
+    - ^Kumottu muokkaus # MediaWiki:Undo-summary/fi
+    - clientsitelink-update  # Wikidata: Page moved from .. to ..
+    - clientsitelink-remove  # Wikidata: Removed sitelink

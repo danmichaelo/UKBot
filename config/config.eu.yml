@@ -1,0 +1,127 @@
+locale: [eu_ES,en_US]
+rollbar_token: 88f5bd483f7348ea8b0564449c8d77cd
+server_timezone: UTC
+wiki_timezone: Europe/Oslo
+homesite: eu.wikipedia.org
+othersites:
+    - eu.wikibooks.org
+default_prefix: eu
+plot:
+    datafile: plots/Lehiaketak %(year)d-%(month)02d.json
+    figname: plots/Lehiaketak %(year)d-%(month)02d.svg
+    description: |
+        == {{int:filedesc}} ==
+        {{Information
+        |Description    = {{en|1=Results from the monthly article writing contest at Basque Wikipedia [[:eu:%(pagename)s|%(year)s-%(month)s]]}}
+        |Source         = {{own}}
+        |Date           = %(start)s
+        |Author         = [[User:UKBot|UKBot]]
+        }}
+        
+        == {{int:license-header}} ==
+        {{PD-self}}
+        
+        [[Category:Lehiaketak]]
+awards:
+    blå: { file: Article blue.svg, winner: true }
+    rød: { file: Article red.svg, winner: true }
+    gul: { file: Article yellow.svg, organizer: true }
+    oransj: { file: Article orange.svg, winner: true }
+    orange: { file: Article orange.svg, winner: true }
+    grønn: { file: Article green.svg }
+    grå: { file: Article grey.svg }
+    lyslilla: { file: Article MediumPurple.svg }
+    lilla: { file: Article purple.svg }
+    brun: { file: Article brown.svg }
+award_message:
+    winner_template: UK winner             # template name
+    participant_template: UK participant   # template name
+    organizer_template: UK organizer       # template name
+    extraargs: "|showuk=no"                # template argument
+templates:
+    botinfo: UKB botinfo
+    status: UKB status
+    commonargs:
+        year: year
+        week: week
+        week2: week2
+        yes: yes
+        no: no
+    infobox:
+        name: UKB infotaula
+        status: status
+        start: hasiera
+        end: amaiera
+        organizer: organizer
+        winner: winner
+    suspended:
+        name: UKB participant suspended
+    disqualified:
+        name: UKB contribution disqualified
+    penalty:
+        name: UKB puntuak kentzea
+    bonus:
+        name: UK bonus
+    rule:
+        name: UKB puntuak
+        new: berria
+        redirect: birzuzenketa
+        refsectionfi: refsectionfi
+        qualified: qualified
+        contrib: edizioa
+        byte: byte
+        word: hitza
+        maxpoints: maxpoints
+        site: site
+        image: irudia
+        external_link: kanpo lotura
+        ref: erreferentzia
+        templateremoval: txantiloia kentzea
+        bytebonus: bytebonus
+        wordbonus: hitzbonus
+        alias: alias
+        own: self-uploaded
+        ownwork: own-work
+        maxinitialcount: initial limit
+    filter:
+        name: UKB irizpide
+        new: berria
+        existing: bazegoen
+        template: txantiloia
+        bytes: byte
+        category: kategoria
+        backlink: lotuta dago
+        forwardlink: lotzen du
+        pages: orrialdeak
+        namespace: izen-tartea
+        alias: alias
+        maxdepth: maxdepth
+        redirects: redirects
+        ignore: exclude
+        sparql: sparql  # as in {{ ukb criterion | sparql }}
+        query: query    # as in {{ ukb criterion | sparql | query=... }}
+pages:
+    catignore: User:UKBot/ignored categories
+    base: 'Atari:Hezkuntza/Lehiaketak'
+    default: 'Atari:Hezkuntza/Lehiaketak/%(year)d/%(month)02d'
+    redirect:
+      - 'Atari:Hezkuntza/Lehiaketak'
+      - 'WP:L'
+contestPages:
+    participantsSection: 'Parte-hartzaileak'
+    footer: ""
+awardstatus:
+    pagename: Bruker:UKBot/Premieutsendelse
+    wait: Venter
+    send: Send ut
+    sent: Sendt
+ignore:
+    - Tilbakestilte endring # MediaWiki:Revertpage/nb
+    - Attenderulla endring  # MediaWiki:Revertpage/nn
+    - rievdadusat sihkkojuvvui ja siidu  # MediaWiki:Revertpage/se
+    - Reverted edits by  # MediaWiki:Revertpage/en
+    - Fjerner revisjon # MediaWiki:Undo-summary/nb
+    - Rullar attende versjon # MediaWiki:Undo-summary/nn
+    - Undo revision # MediaWiki:Revertpage/en
+    - clientsitelink-update  # Wikidata: Page moved from .. to ..
+    - clientsitelink-remove  # Wikidata: Removed sitelink

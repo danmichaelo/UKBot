@@ -1,0 +1,118 @@
+locale: fi_FI
+rollbar_token: 88f5bd483f7348ea8b0564449c8d77cd
+server_timezone: UTC
+wiki_timezone: Europe/Helsinki
+homesite: se.wikipedia.org
+default_prefix: se
+plot:
+    datafile: plots/se.json
+    figname: plots/Sewp Čakčamánu artihkalovttasbargu.svg
+    description: |
+        == {{int:filedesc}} ==
+        {{Information
+        |Description    = {{fi|1=[[:fi:%(pagename)s|Čakčamánu artihkalovttasbargu]]}}
+        |Source         = {{own}}
+        |Date           = %(start)s
+        |Author         = [[User:UKBot|UKBot]]
+        }}
+        
+        == {{int:license-header}} ==
+        {{PD-self}}
+        
+        [[Category:Wikipedia contests]]
+awards:
+    sininen: { file: Article blue.svg, winner: true }
+    punainen: { file: Article red.svg, winner: true }
+    keltainen: { file: Article yellow.svg, organizer: true }
+    oranssi: { file: Article orange.svg }
+    vihreä: { file: Article green.svg }
+    hopea: { file: Article grey.svg }
+    vaaleanvioletti: { file: Article MediumPurple.svg }
+    violetti: { file: Article purple.svg }
+    ruskea: { file: Article brown.svg }
+award_message:
+    winner_template: VK voittaja         # template name
+    participant_template: VK osallistuja # template name
+    organizer_template: VK järjestäjä    # template name
+    #extraargs: "|visuk=nei"              # template argument
+templates:
+    botinfo: Viikon kilpailu robotti-info
+    status: Viikon kilpailu tilanne
+    commonargs:
+        year: vuosi
+        week: viikko
+        week2: ukefler
+        yes: kyllä
+        no: ei
+    infobox:
+        name: Viikon kilpailu tietolaatikko
+        status: tilanne
+        start: alkaa
+        end: loppuu
+        organizer: järjestäjät
+        winner: voittaja
+    suspended:
+        name: UK bruker suspendert
+    disqualified:
+        name: VK muokkaus hylätty
+    bonus:
+        name: UK poeng
+    penalty:
+        name: VK pisteidenhyläys
+    contestlist:
+        name: Viikon kilpailu luettelo
+    rule:
+        name: Viikon kilpailu pisteet
+        new: uusi
+        qualified: NOT-IN-USE
+        contrib: NOT-IN-USE
+        redirect: uudelleenohjaus
+        refsectionfi: refsectionfi
+        byte: tavu
+        word: sana
+        maxpoints: makspisteet
+        site: site
+        image: kuva
+        external_link: aiheesta muualla
+        ref: ref
+        templateremoval: mallineen poisto
+        bytebonus: tavubonus
+        wordbonus: sanabonus
+        alias: alias
+        own: oma
+        ownwork: oma teos
+        maxinitialcount: makskuvienmäärä
+    filter:
+        name: Viikon kilpailu kriteerit
+        new: uusi
+        existing: löytyvä
+        template: malline
+        bytes: tavut
+        category: luokka
+        backlink: takaisinlinkitys
+        forwardlink: edelleenlinkitys
+        namespace: nimiavaruus
+        alias: alias
+        maxdepth: makssyvyys
+        redirects: redirects
+        ignore: ignore
+        sparql: sparql  # as in {{ ukb criterion | sparql }}
+        query: query    # as in {{ ukb criterion | sparql | query=... }}
+pages:
+    catignore: Käyttäjä:UKBot/cat-ignore
+    base: Wikipedia:Elokuun_kuvitustalkoot/
+    default: Wikipedia:Čakčamánu_artihkalovttasbargu
+contestPages:
+    resultsSection: Tulokset
+    participantsSection: Osallistujat
+    footer: "[[Luokka:Elokuun kuvitustalkoot|2014]]"
+awardstatus:
+    pagename: Käyttäjä:UKBot/Premieutsendelse
+    wait: Venter
+    send: Send ut
+    sent: Sendt
+ignore:
+    - rievdadusat sihkkojuvvui ja siidu  # MediaWiki:Revertpage/se
+    - Reverted edits by  # MediaWiki:Revertpage/en
+    - clientsitelink-update  # Wikidata: Page moved from .. to ..
+    - clientsitelink-remove  # Wikidata: Removed sitelink

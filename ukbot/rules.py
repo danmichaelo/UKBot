@@ -372,7 +372,7 @@ class RefRule(Rule):
                     continue
                 if re.match(r'\*', line):
                     s1 += 1
-            elif re.match('==[\s]*(Kilder|Kjelder|Gáldut)[\s]*==', line):
+            elif re.match(r'==[\s]*(Kilder|Kjelder|Gáldut)[\s]*==', line):
                 refsection = True
 
         return s1, r1
@@ -418,7 +418,7 @@ class RefSectionFiRule(Rule):
         # Count list item under section heading "Kilder" or "Kjelder"
         refsection = False
         for line in txt.split('\n'):
-            if re.match('==(=)?[\s]*(Lähteet|Viitteet)[\s]*(=?)==', line):
+            if re.match(r'==(=)?[\s]*(Lähteet|Viitteet)[\s]*(=?)==', line):
                 refsection = True
 
         return refsection

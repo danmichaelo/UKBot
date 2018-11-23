@@ -157,7 +157,7 @@ class Site(mwclient.Site):
 
     def get_revertpage_regexp(self):
         msg = self.pages['MediaWiki:Revertpage'].text()
-        msg = re.sub('\[\[[^\]]+\]\]', '.*?', msg)
+        msg = re.sub(r'\[\[[^\]]+\]\]', '.*?', msg)
         return msg
 
     def match_prefix(self, prefix):
@@ -1144,7 +1144,7 @@ class Contest(object):
 
     def extract_userlist(self, txt):
         lst = []
-        m = re.search('==\s*' + self.config['contestPages']['participantsSection'] + '\s*==', txt)
+        m = re.search(r'==\s*%s\s*==' % self.config['contestPages']['participantsSection'], txt)
         if not m:
             raise InvalidContestPage(_("Couldn't find the list of participants!"))
         deltakerliste = txt[m.end():]
@@ -1931,7 +1931,7 @@ class Contest(object):
 
             # Find section number
             txt = page.text()
-            sections = [s.strip() for s in re.findall('^[\s]*==([^=]+)==', txt, flags=re.M)]
+            sections = [s.strip() for s in re.findall(r'^[\s]*==([^=]+)==', txt, flags=re.M)]
             try:
                 csection = sections.index(heading) + 1
             except ValueError:
@@ -2226,8 +2226,8 @@ class Contest(object):
 
             # Check if <!-- Begin:ResultsSection --> exists first
             try:
-                trs1 = next(re.finditer('<!--\s*Begin:ResultsSection\s*-->', txt, re.I))
-                trs2 = next(re.finditer('<!--\s*End:ResultsSection\s*-->', txt, re.I))
+                trs1 = next(re.finditer(r'<!--\s*Begin:ResultsSection\s*-->', txt, re.I))
+                trs2 = next(re.finditer(r'<!--\s*End:ResultsSection\s*-->', txt, re.I))
                 secstart = trs1.end()
                 secend = trs2.start()
 

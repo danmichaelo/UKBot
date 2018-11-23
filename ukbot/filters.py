@@ -498,7 +498,7 @@ class PageFilter(Filter):
 
 
 class NamespaceFilter(Filter):
-    """Filters articles with forwardlinks to <name>"""
+    """Filters articles with a given namespaces"""
 
     def __init__(self, namespaces, site=None):
         """

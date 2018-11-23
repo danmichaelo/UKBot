@@ -89,25 +89,40 @@ templates:
         own: egetbilde
         ownwork: egetverk
         maxinitialcount: maksantallinnledningsvis
-    filter:
+    filters:
         name: Ukens konkurranse kriterium
-        new: ny
-        existing: eksisterende
-        template: mal
-        bytes: bytes
-        category: kategori
-        backlink: tilbakelenke
-        forwardlink: fremlenke
-        pages: enkeltsider
-        namespace: navnerom
-        alias: alias
-        maxdepth: maksdybde
-        redirects: omdirigeringer
-        ignore: utelat
-        sparql: sparql  # as in {{ ukb criterion | sparql }}
-        query: spørring    # as in {{ ukb criterion | sparql | query=... }}
+        params:
+            new: 
+                name: ny
+                params:
+                    redirects: omdirigeringer
+            existing:
+                name: eksisterende
+            template:
+                name: mal
+            bytes:
+                name: bytes
+            category:
+                name: kategori
+                ignore_page: Bruker:UKBot/cat-ignore
+                params:
+                    ignore: utelat
+                    maxdepth: maksdybde
+            backlink:
+                name: tilbakelenke
+            forwardlink:
+                name: fremlenke
+            pages:
+                name: enkeltsider
+            namespace:
+                name: navnerom
+                params:
+                    site: nettsted
+            sparql:
+                name: sparql  # as in {{ ukb criterion | sparql }}
+                params:
+                    query: spørring    # as in {{ ukb criterion | sparql | query=... }}
 pages:
-    catignore: Bruker:UKBot/cat-ignore
     base: Wikipedia:Ukens konkurranse/Ukens konkurranse
     default: Wikipedia:Ukens konkurranse/Ukens konkurranse %(year)d-%(week)02d
     redirect: WP:UK

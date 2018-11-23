@@ -28,11 +28,20 @@ class CategoryLoopError(Exception):
 
 class Filter(object):
 
-    def __init__(self):
-        pass
+    def __init__(self, sites):
+        self.sites = sites
 
     def extend(self, ffilter):
         pass
+
+    @classmethod
+    def from_template(cls, tpl, sites, cfg={}):
+        return cls(sites)
+
+    def site_from_prefix(self, key):
+        for site in self.sites.values():
+            if site.match_prefix(key):
+                return site
 
 #class StubFilter(Filter):
 #    """ Filters articles that was stubs, but is no more """
@@ -91,8 +100,26 @@ class Filter(object):
 class TemplateFilter(Filter):
     """ Filters articles that had any of a given set of templates (or their aliases) at a point"""
 
-    def __init__(self, templates, aliases=[]):
-        Filter.__init__(self)
+    @classmethod
+    def from_template(cls, tpl, sites, cfg):
+
+        if len(tpl.anon_params) < 3:
+            raise RuntimeError(_('Too few arguments given to this template.'))
+
+        params = {
+            'templates': tpl.anon_params[2:],
+            'aliases': [],
+            'sites': sites,
+        }
+        for tp in params['templates']:
+            tplpage = tpl.site.pages['Template:%s' % tp]
+            if tplpage.exists:
+                params['aliases'].extend([x.page_title for x in tplpage.backlinks(filterredir='redirects')])
+
+        return cls(**params)
+
+    def __init__(self, templates, sites, aliases=[]):
+        Filter.__init__(self, sites)
         templates.extend([a for a in aliases])
         self.templates = templates
 
@@ -141,6 +168,48 @@ class TemplateFilter(Filter):
 class CatFilter(Filter):
     """ Filters articles that belong to a given overcategory """
 
+    @staticmethod
+    def get_ignore_list(tpl, page_name):
+        if page_name is None or page_name == '':
+            return []
+
+        catignore_txt = tpl.site.pages[page_name].text()
+
+        if catignore_txt == '':
+            logger.info('Note: catignore page is empty or does not exist')
+            return []
+
+        try:
+            m = re.search(r'<pre>(.*?)</pre>', catignore_txt, flags=re.DOTALL)
+            return m.group(1).strip().splitlines()
+        except (IndexError, KeyError):
+            raise RuntimeError(_('Could not parse the catignore page'))
+
+    @classmethod
+    def from_template(cls, tpl, sites, cfg):
+        if len(tpl.anon_params) < 3:
+            raise RuntimeError(_('No category values given!'))
+
+        params = {
+            'ignore': cls.get_ignore_list(tpl, cfg.get('ignore_page')),
+            'sites': sites,
+            'categories': [
+                tpl.site.resolve_page(cat_name, 14, True)
+                for cat_name in tpl.anon_params[2:] if cat_name.strip() is not ''
+            ],
+        }
+
+        if tpl.has_param('ignore'):
+            params['ignore'].extend([
+                a.strip()
+                for a in tpl.get_param('ignore').split(',')
+            ])
+
+        if tpl.has_param('maxdepth'):
+            params['maxdepth'] = int(tpl.get_param('maxdepth'))
+
+        return cls(**params)
+
     def __init__(self, sites, categories, maxdepth=5, ignore=[]):
         """
         Arguments:
@@ -149,10 +218,9 @@ class CatFilter(Filter):
             maxdepth   : number of subcategory levels to traverse
             ignore     : list of categories to ignore
         """
-        Filter.__init__(self)
+        Filter.__init__(self, sites)
 
         self.ignore = ignore
-        self.sites = sites
         self.include = ['%s:%s' % (x.site.key, x.name) for x in categories]
         self.maxdepth = int(maxdepth)
         logger.debug("Initializing CatFilter: %s, maxdepth=%d",
@@ -338,8 +406,18 @@ class CatFilter(Filter):
 class ByteFilter(Filter):
     """Filters articles according to a byte treshold"""
 
-    def __init__(self, bytelimit):
-        Filter.__init__(self)
+    @classmethod
+    def from_template(cls, tpl, sites, cfg):
+        if len(tpl.anon_params) < 3:
+            raise RuntimeError(_('No byte limit (second argument) given'))
+        params = {
+            'sites': sites,
+            'bytelimit': tpl.anon_params[2],
+        }
+        return cls(**params)
+
+    def __init__(self, sites, bytelimit):
+        Filter.__init__(self, sites)
         self.bytelimit = int(bytelimit)
 
     def filter(self, articles):
@@ -355,8 +433,17 @@ class ByteFilter(Filter):
 class NewPageFilter(Filter):
     """Filters new articles"""
 
-    def __init__(self, redirects=False):
-        Filter.__init__(self)
+    @classmethod
+    def from_template(cls, tpl, sites, cfg):
+        params = {
+            'sites': sites,
+        }
+        if tpl.has_param('redirects'):
+            params['redirects'] = True
+        return cls(**params)
+
+    def __init__(self, sites, redirects=False):
+        Filter.__init__(self, sites)
         self.redirects = redirects
 
     def filter(self, articles):
@@ -373,8 +460,8 @@ class NewPageFilter(Filter):
 class ExistingPageFilter(Filter):
     """ Filters non-new articles """
 
-    def __init__(self):
-        Filter.__init__(self)
+    def __init__(self, sites):
+        Filter.__init__(self, sites)
 
     def filter(self, articles):
         out = odict()
@@ -388,16 +475,23 @@ class ExistingPageFilter(Filter):
 class BackLinkFilter(Filter):
     """Filters articles linked to from <self.links>"""
 
-    def __init__(self, pages, site_from_prefix):
+    @classmethod
+    def from_template(cls, tpl, sites, cfg):
+        params = {
+            'sites': sites,
+            'pages': [tpl.site.resolve_page(x)for x in tpl.anon_params[2:] if x.strip() is not ''],
+        }
+        return cls(**params)
+
+    def __init__(self, pages, sites):
         """
         Arguments:
-            pages  : list of Page objects
-            site_from_prefix: fn
+            pages: list of Page objects
+            sites: dict
         """
-        Filter.__init__(self)
+        Filter.__init__(self, sites)
         self.links = set()
         self.pages = pages
-        self.site_from_prefix = site_from_prefix
 
         page_names = ['%s:%s' % (x.site.key, x.name) for x in pages]
         logger.info('Initializing BackLinkFilter: %s',
@@ -438,16 +532,24 @@ class BackLinkFilter(Filter):
 class ForwardLinkFilter(Filter):
     """Filters articles linking to <self.links>"""
 
-    def __init__(self, pages, site_from_prefix):
+    @classmethod
+    def from_template(cls, tpl, sites, cfg):
+
+        params = {
+            'sites': sites,
+            'pages': [tpl.site.resolve_page(x) for x in tpl.anon_params[2:] if x.strip() is not ''],
+        }
+        return cls(**params)
+
+    def __init__(self, pages, sites):
         """
         Arguments:
-            pages  : list of Page objects
-            site_from_prefix: fn
+            pages: list of Page objects
+            sites: dict
         """
-        Filter.__init__(self)
+        Filter.__init__(self, sites)
         self.links = set()
         self.pages = pages
-        self.site_from_prefix = site_from_prefix
 
         for page in self.pages:
             for linked_page in page.backlinks(redirect=True):
@@ -474,12 +576,20 @@ class ForwardLinkFilter(Filter):
 class PageFilter(Filter):
     """Filters articles with forwardlinks to <name>"""
 
-    def __init__(self, pages):
+    @classmethod
+    def from_template(cls, tpl, sites, cfg):
+        params = {
+            'sites': sites,
+            'pages': [tpl.site.resolve_page(x) for x in tpl.anon_params[2:] if x.strip() is not '']
+        }
+        return cls(**params)
+
+    def __init__(self, sites, pages):
         """
         Arguments:
             pages     : list of Page objects
         """
-        Filter.__init__(self)
+        Filter.__init__(self, sites)
         self.pages = pages
         logger.info('PageFilter ready with %d links', len(self.pages))
 
@@ -500,12 +610,22 @@ class PageFilter(Filter):
 class NamespaceFilter(Filter):
     """Filters articles with a given namespaces"""
 
-    def __init__(self, namespaces, site=None):
+    @classmethod
+    def from_template(cls, tpl, sites, cfg):
+        params = {
+            'sites': sites,
+            'namespaces': [x.strip() for x in tpl.anon_params[2:]],
+        }
+        if tpl.has_param('site'):
+            params['site'] = tpl.get_param('site')
+        return cls(**params)
+
+    def __init__(self, namespaces, sites, site=None):
         """
         Arguments:
             namespaces : list
         """
-        Filter.__init__(self)
+        Filter.__init__(self, sites)
         self.namespaces = namespaces
         self.site = site
         logger.info('NamespaceFilter: namespaces: %s', ','.join(self.namespaces))
@@ -523,14 +643,24 @@ class NamespaceFilter(Filter):
 class SparqlFilter(Filter):
     """Filters articles matching a SPARQL query"""
 
+    @classmethod
+    def from_template(cls, tpl, sites, cfg):
+        if not tpl.has_param('query'):
+            raise RuntimeError(_('No "%s" parameter given') % cfg['params']['query'])
+        
+        params = {
+            'query': tpl.get_param('query'),
+            'sites': sites,
+        }
+        return cls(**params)
+
     def __init__(self, sites, query):
         """
         Arguments:
             pages     : list of Page objects
             sites     : list of site hostnames
         """
-        Filter.__init__(self)
-        self.sites = sites
+        Filter.__init__(self, sites)
         self.query = query
         self.fetch()
 
@@ -596,7 +726,7 @@ class SparqlFilter(Filter):
         #   almost doubled for each additional site, making timeouts likely.
         # - I also tested doing two separate queries rather than one query with a subquery,
         #   but when the number of items became large it resulted in "request too large".
-        for site in self.sites:
+        for site in self.sites.keys():
             logger.debug('Querying site: %s', site)
             article_variable = 'article19472065'  # "random string" to avoid matching anything in the subquery
             query = """

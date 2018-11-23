@@ -1055,6 +1055,64 @@ class User(object):
         return out
 
 
+class FilterTemplate(object):
+
+    def __init__(self, template, translations, site):
+        self.template = template
+        self.site = site
+        self.named_params = {
+            remove_control_chars(k): remove_control_chars(v.value)
+            for k, v in template.parameters.items()
+        }
+        self.anon_params = [
+            remove_control_chars(v) if v is not None else None
+            for v in template.get_anonymous_parameters()
+        ]
+        self.translations = translations
+
+        def get_type(value, translations):
+            for k, v in translations['params'].items():
+                if v['name'] == value:
+                    return k
+            raise InvalidContestPage(_('The filter name "%s" was not understood') % value)
+
+        self.type = get_type(self.anon_params[1].lower(), translations)
+
+    def has_param(self, name):
+        return self.template.has_param(self.translations['params'][self.type]['params'][name])
+
+    def get_param(self, name):
+        return self.named_params[self.translations['params'][self.type]['params'][name]]
+
+    def get(self, sites):
+        try:
+            return {
+                'new': NewPageFilter,
+                'existing': ExistingPageFilter,
+                'template': TemplateFilter,
+                'bytes': ByteFilter,
+                'category': CatFilter,
+                'sparql': SparqlFilter,
+                'backlink': BackLinkFilter,
+                'forwardlink': ForwardLinkFilter,
+                'namespace': NamespaceFilter,
+                'pages': PageFilter,
+            }[self.type].from_template(
+                self,
+                sites,
+                self.translations['params'][self.type]
+            )
+        except RuntimeError as exp:
+            raise InvalidContestPage(
+                _('Could not parse {{tlx|%(template)s|%(firstarg)s}} template: %(err)s') 
+                % {
+                    'template': self.translations['name'],
+                    'firstarg': self.anon_params[1],
+                    'err': str(exp)
+                }
+            )
+
+
 class Contest(object):
 
     def __init__(self, page, state, sites, homesite, sql, config, wiki_tz, server_tz, project_dir, job_id):
@@ -1174,23 +1232,8 @@ class Contest(object):
 
         rulecfg = config['templates']['rule']
         maxpoints = rulecfg['maxpoints']
-        site_param = rulecfg['site']
-
+        
         dp = TemplateEditor(txt)
-
-        catignore_txt = ''
-        if catignore_page != '':
-            catignore_txt = self.homesite.pages[catignore_page].text()
-
-        if catignore_txt == '':
-            catignore = []
-            logger.info('Note: catignore page is empty or does not exist')
-        else:
-            try:
-                m = re.search(r'<pre>(.*?)</pre>', catignore_txt, flags=re.DOTALL)
-                catignore = m.group(1).strip().splitlines()
-            except (IndexError, KeyError):
-                raise ParseError(_('Could not parse the catignore page'))
 
         if config['templates']['rule']['name'] not in dp.templates:
             raise InvalidContestPage(_('There are no point rules defined for this contest. Point rules are defined by {{tl|%(template)s}}.') % {'template': config['templates']['rule']['name']})
@@ -1201,113 +1244,26 @@ class Contest(object):
         ######################## Read filters ########################
 
         nfilters = 0
-        #print dp.templates.keys()
-        filtercfg = config['templates']['filter']
-        if filtercfg['name'] in dp.templates:
-            for templ in dp.templates[filtercfg['name']]:
-                filter_type = 'OR'
+        # print dp.templates.keys()
+        trans = config['templates']['filters']
+        if trans['name'] in dp.templates:
+            for templ in dp.templates[trans['name']]:
+                filter_tpl = FilterTemplate(templ, trans, self.homesite)
 
-                par = templ.parameters
-                anon = templ.get_anonymous_parameters()
-
-
-                par = {remove_control_chars(k): remove_control_chars(v.value) for k, v in par.items()}
-                anon = [remove_control_chars(v) if v is not None else None for v in anon]
-
-                key = anon[1].lower()
-                params = {}
-                if key == filtercfg['new']:
-                    filter_type = 'AND'
-                    if templ.has_param(filtercfg['redirects']):
-                        params['redirects'] = True
-                    filt = NewPageFilter(**params)
-
-                elif key == filtercfg['existing']:
-                    filter_type = 'AND'
-                    filt = ExistingPageFilter(**params)
-
-                # elif key == 'stubb':
-                #     filt = StubFilter(**params)
-
-                elif key == filtercfg['template']:
-                    if len(anon) < 3:
-                        raise InvalidContestPage(_('No template (second argument) given to {{tlx|%(template)s|%(firstarg)s}}') % {'template': filtercfg['name'], 'firstarg': filtercfg['template']})
-
-                    params['templates'] = anon[2:]
-                    params['aliases'] = []
-                    for tp in params['templates']:
-                        tplpage = self.homesite.pages['Template:' + tp]
-                        if tplpage.exists:
-                            params['aliases'].extend([x.page_title for x in tplpage.backlinks(filterredir='redirects')])
-
-                    filt = TemplateFilter(**params)
-
-                elif key == filtercfg['bytes']:
-                    if len(anon) < 3:
-                        raise InvalidContestPage(_('No byte limit (second argument) given to {{tlx|%(template)s|%(firstarg)s}}') % {'template': filtercfg['name'], 'firstarg': filtercfg['bytes']})
-                    params['bytelimit'] = anon[2]
-                    filt = ByteFilter(**params)
-
-                elif key == filtercfg['category']:
-                    if len(anon) < 3:
-                        raise InvalidContestPage(_('No categories given to {{tlx|%(template)s|%(firstarg)s}}') % {'template': filtercfg['name'], 'firstarg': filtercfg['bytes']})
-
-                    params['ignore'] = catignore
-                    if templ.has_param(filtercfg['ignore']):
-                        params['ignore'].extend([a.strip() for a in par[filtercfg['ignore']].split(',')])
-
-                    params['sites'] = self.sites
-                    params['categories'] = [
-                        self.resolve_page(x, 14, True)
-                        for x in anon[2:] if x.strip() is not ''
-                    ]
-
-                    if templ.has_param(filtercfg['maxdepth']):
-                        params['maxdepth'] = int(par[filtercfg['maxdepth']])
-                    filt = CatFilter(**params)
-
-                elif key == filtercfg['sparql']:
-                    if not templ.has_param(filtercfg['query']):
-                        raise InvalidContestPage(_('No "%(query)s" parameter given to {{tlx|%(template)s|%(firstarg)s}}') % {
-                            'query': filtercfg['query'],
-                            'template': filtercfg['name'],
-                            'firstarg': filtercfg['sparql']
-                        })
-                    params['query'] = par[filtercfg['query']]
-                    params['sites'] = self.sites.keys()
-                    filt = SparqlFilter(**params)
-
-                elif key == filtercfg['backlink']:
-                    params['pages'] = [self.resolve_page(x) for x in anon[2:] if x.strip() is not '']
-                    params['site_from_prefix'] = self.site_from_prefix
-                    filt = BackLinkFilter(**params)
-
-                elif key == filtercfg['forwardlink']:
-                    params['pages'] = [self.resolve_page(x) for x in anon[2:] if x.strip() is not '']
-                    params['site_from_prefix'] = self.site_from_prefix
-                    filt = ForwardLinkFilter(**params)
-
-                elif key == filtercfg['namespace']:
-                    filter_type = 'AND'
-                    params['namespaces'] = [x.strip() for x in anon[2:]]
-                    if templ.has_param(site_param):
-                        params['site'] = par[site_param]
-                    filt = NamespaceFilter(**params)
-
-                elif key == filtercfg['pages']:
-                    params['pages'] = [self.resolve_page(x) for x in anon[2:] if x.strip() is not '']
-                    filt = PageFilter(**params)
-
+                if filter_tpl.type in ['new', 'existing', 'namespace']:
+                    op = 'AND'
                 else:
-                    raise InvalidContestPage(_('Unknown argument given to {{tl|%(template)s}}: %(argument)s') % {'template': filtercfg['name'], 'argument': key})
+                    op = 'OR'
+
+                filter_inst = filter_tpl.get(self.sites)
 
                 nfilters += 1
-                if filter_type == 'OR':
+                if op == 'OR':
                     # Append filter to the last tuple in the filters list
-                    filters[-1] = filters[-1] + (filt,)
+                    filters[-1] = filters[-1] + (filter_inst,)
                 else:
                     # Prepend filter to the filters list
-                    filters.insert(0, filt)
+                    filters.insert(0, filter_inst)
 
         ######################## Read rules ########################
 

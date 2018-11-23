@@ -86,6 +86,9 @@ logger.info('Logger ready')
 import rollbar
 import platform
 
+from dotenv import load_dotenv
+load_dotenv()
+
 #locale.setlocale(locale.LC_TIME, 'no_NO'.encode('utf-8'))
 
 # Read args
@@ -142,7 +145,16 @@ class Site(mwclient.Site):
         self.prefixes = prefixes
         logger.debug('Initializing site: %s', host)
         ua = 'UKBot. Run by User:Danmichaelo. Using mwclient/' + mwclient.__ver__
-        mwclient.Site.__init__(self, host, clients_useragent=ua, **kwargs)
+        mwclient.Site.__init__(
+            self,
+            host,
+            clients_useragent=ua, 
+            consumer_token=os.getenv('MW_CONSUMER_TOKEN'),
+            consumer_secret=os.getenv('MW_CONSUMER_SECRET'),
+            access_token=os.getenv('MW_ACCESS_TOKEN'),
+            access_secret=os.getenv('MW_ACCESS_SECRET'),
+            **kwargs
+        )
 
         res = self.api('query', meta='siteinfo', siprop='magicwords|namespaces|namespacealiases|interwikimap')['query']
 
@@ -2409,7 +2421,11 @@ class Contest(object):
         }
 
         logger.info('Uploading: %s', figname)
-        commons = mwclient.Site('commons.wikimedia.org', **self.config['account'])
+        commons = mwclient.Site('commons.wikimedia.org',
+                                consumer_token=os.getenv('MW_CONSUMER_TOKEN'),
+                                consumer_secret=os.getenv('MW_CONSUMER_SECRET'),
+                                access_token=os.getenv('MW_ACCESS_TOKEN'),
+                                access_secret=os.getenv('MW_ACCESS_SECRET'))
         file_page = commons.pages['File:' + remote_filename]
 
         if simulate:
@@ -2556,7 +2572,7 @@ def init_sites(config):
 
     # Configure home site (where the contests live)
     host = config['homesite']
-    homesite = Site(host, prefixes=[''], **config['account'])
+    homesite = Site(host, prefixes=[''])
 
     assert homesite.logged_in
 
@@ -2565,14 +2581,19 @@ def init_sites(config):
     homesite.prefixes = prefixes
 
     # Connect to DB
-    sql = SQL(config['db'])
+    sql = SQL({
+        'host': os.getenv('DB_HOST'),
+        'db': os.getenv('DB_DB'),
+        'user': os.getenv('DB_USER'),
+        'password': os.getenv('DB_PASSWORD'),
+    })
     logger.debug('Connected to database')
 
     sites = {homesite.host: homesite}
     if 'othersites' in config:
         for host in config['othersites']:
             prefixes = [k for k, v in iwmap.items() if v == host]
-            sites[host] = Site(host, prefixes=prefixes, **config['account'])
+            sites[host] = Site(host, prefixes=prefixes)
 
     for site in sites.values():
         msg = site.get_revertpage_regexp()

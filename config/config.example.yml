@@ -4,11 +4,6 @@ server_timezone: UTC
 wiki_timezone: Europe/Oslo
 homesite: no.wikipedia.org
 default_prefix: fi
-db:
-    host: tools-db
-    db: SOME-USERNAME__uk
-    user: USERNAME
-    password: PASSWORD
 plot:
     datafile: 'plots/Nowp Ukens konkurranse %(year)d-%(week)02d.json'
     figname: 'plots/Nowp Ukens konkurranse %(year)d-%(week)02d.svg'
@@ -29,11 +24,6 @@ plot:
 # othersites:
 #     - nn.wikipedia.org
 #     - se.wikipedia.org
-account:
-    consumer_token:
-    consumer_secret:
-    access_token:
-    access_secret:
 awards:
     blå: { file: Article blue.svg, winner: true }
     rød: { file: Article red.svg, winner: true }
@@ -59,7 +49,7 @@ templates:
         week2: ukefler
         yes: ja
         no: nei
-    infobox: 
+    infobox:
         name: Infoboks ukens konkurranse
         status: status
         start: start
@@ -94,7 +84,7 @@ templates:
         bytebonus: bytebonus
         wordbonus: ordbonus
         alias: alias
-        own: own 
+        own: own
         ownwork: ownwork
         maxinitialcount: maxinitialcount
     filter:
@@ -106,11 +96,11 @@ templates:
         category: kategori
         backlink: tilbakelenke
         forwardlink: fremlenke
-        pages: enkeltsider 
+        pages: enkeltsider
         namespace: navnerom
         alias: alias
         maxdepth: maksdybde
-        redirects: omdirigeringer 
+        redirects: omdirigeringer
         ignore: utelat
         sparql: sparql  # as in {{ ukb criterion | sparql }}
         query: query    # as in {{ ukb criterion | sparql | query=... }}
@@ -124,14 +114,14 @@ contestPages:
     resultsSection: Resultater
     participantsSection: 'Delta[kg]ere'
     footer: "{{ukens konkurranse %(year)s}}\n[[Kategori:Artikkelkonkurranser]]"
-awardstatus: 
+awardstatus:
     pagename: Bruker:UKBot/Premieutsendelse
     wait: Venter
     send: Send ut
     sent: Sendt
-noticeboard: 
+noticeboard:
     name: Wikipedia:Portal/Oppslagstavle
-    template: 
+    template:
         name: la stå/uk
         date: dato
 ignore:

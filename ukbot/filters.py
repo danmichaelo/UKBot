@@ -5,8 +5,10 @@ import re
 from copy import copy
 from odict import odict
 import logging
+import json
 import time
-import SPARQLWrapper
+import urllib
+import requests
 from .common import t, _, InvalidContestPage
 
 logger = logging.getLogger(__name__)
@@ -532,24 +534,59 @@ class SparqlFilter(Filter):
         self.query = query
         self.fetch()
 
+    def do_query(self, querystring):
+        response = requests.get(
+            'https://query.wikidata.org/sparql',
+            params={
+                'query': querystring,
+            },
+            headers={
+                'accept': 'application/sparql-results+json',
+                'accept-encoding': 'gzip, deflate, br',
+                'user-agent': 'UKBot/1.0, run by User:Danmichaelo',
+            }
+        )
+        if not response.ok:
+            raise IOError('SPARQL query returned status %s', res.status_code)
+
+        expected_length = response.headers.get('Content-Length')
+        if expected_length is not None and 'tell' in dir(response.raw):
+            actual_length = response.raw.tell()
+            expected_length = int(expected_length)
+            if actual_length < expected_length:
+                raise IOError(
+                    'Incomplete read ({} bytes read, {} more expected)'.format(
+                        actual_length,
+                        expected_length - actual_length
+                    )
+                )
+
+        res = response.json()
+        query_var = res['head']['vars'][0]
+        logger.debug('SPARQL query var is: %s', query_var)
+
+        return {
+            'var': query_var,
+            'rows': [x[query_var]['value'] for x in res['results']['bindings']],
+        }
+
     def fetch(self):
-        sparql = SPARQLWrapper.SPARQLWrapper2('http://query.wikidata.org/bigdata/namespace/wdq/sparql')
         logger.debug('SparqlFilter: %s', self.query)
 
-        sparql.setQuery(self.query)
         t0 = time.time()
+        result = self.do_query(self.query)
         try:
-            result = sparql.query()
+            result = self.do_query(self.query)
         except:
             raise InvalidContestPage(_('SPARQL query invalid or timed out'))
         dt = time.time() - t0
 
-        if len(result.bindings) == 0:
+        if len(result['rows']) == 0:
             raise InvalidContestPage(_('SPARQL query returned zero results'))
 
-        query_variable = result.variables[0]
+        query_variable = result['var']
 
-        logger.info('SparqlFilter: Got %d results in %.1f secs', len(result.bindings), dt)
+        logger.info('SparqlFilter: Got %d results in %.1f secs', len(result['rows']), dt)
 
         articles = set()
 
@@ -560,6 +597,7 @@ class SparqlFilter(Filter):
         # - I also tested doing two separate queries rather than one query with a subquery,
         #   but when the number of items became large it resulted in "request too large".
         for site in self.sites:
+            logger.debug('Querying site: %s', site)
             article_variable = 'article19472065'  # "random string" to avoid matching anything in the subquery
             query = """
                 SELECT ?%(article_variable)s
@@ -575,16 +613,15 @@ class SparqlFilter(Filter):
                 'site': site,
             }
             logger.debug('SparqlFilter: %s', query)
-            sparql.setQuery(query)
 
             t0 = time.time()
             n = 0
-            for res in sparql.query().bindings:
+            for res in self.do_query(query)['rows']:
                 n += 1
-                article = '/'.join(res[article_variable].value.split('/')[4:])
+                article = '/'.join(res.split('/')[4:])
+                article = urllib.parse.unquote(article).replace('_', ' ')
                 page_key = '%s:%s' % (site, article)
                 articles.add(page_key)
-                # logger.debug(page_key)
 
             dt = time.time() - t0
             logger.info('SparqlFilter: Got %d results for %s in %.1f secs', n, site, dt)

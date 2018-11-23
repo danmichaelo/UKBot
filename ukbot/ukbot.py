@@ -831,49 +831,40 @@ class User(object):
         dt = time.time() - t0
         logger.info('Read %d revisions, %d pages from database in %.2f secs', nrevs, narts, dt)
 
-    def filter(self, filters, serial=False):
+    def filter(self, filters):
 
         logger.info('Filtering user contributions')
         n0 = len(self.articles)
         t0 = time.time()
 
-        if serial:
-            serial_filters = filters
-            filters = []
-        else:
-            # Extract NamespaceFilter from the other filters
-            serial_filters = [x for x in filters if isinstance(x, NamespaceFilter)]
-            filters = [x for x in filters if not isinstance(x, NamespaceFilter)]
+        def apply_filters(articles, filters, depth):
+            if isinstance(filters, list):
+                # Apply filters in serial (AND)
+                res = copy(articles)
+                logger.debug('%s Intersection of %d filters (AND):', '>' * depth, len(filters))
+                for f in filters:
+                    res = apply_filters(res, f, depth + 1)
+                return res
 
-        # Apply filters that must be run in serial first
-        for filter in serial_filters:
-            logger.debug('>> Before %s (%d) : %s',
-                        type(filter).__name__,
-                        len(self.articles),
-                        ', '.join(self.articles.keys()))
+            elif isinstance(filters, tuple):
+                # Apply filters in parallel (OR)
+                res = odict([])
+                logger.debug('%s Union of %d filters (OR):', '>' * depth, len(filters))
+                for f in filters:
+                    for o in apply_filters(articles, f, depth + 1):
+                        if o not in res:
+                            res[o] = articles[o]
+                return res
+            else:
+                # Apply single filter
+                logger.debug('%s Applying %s filter', '>' * depth, type(filters).__name__)
+                return filters.filter(articles)
 
-            self.articles = filter.filter(self.articles)
-
-            logger.debug('>> After %s (%d) : %s',
-                        type(filter).__name__,
-                        len(self.articles),
-                        ', '.join(self.articles.keys()))
-
-        # Apply parallel filters
-        if len(filters) != 0:
-            articles = odict([])
-            logger.debug('>> Before filtering (%d) : %s',
-                        len(self.articles),
-                        ', '.join(self.articles.keys()))
-            for filter in filters:
-                for a in filter.filter(self.articles):
-                    if a not in articles:
-                        articles[a] = self.articles[a]
-                logger.debug('>> After %s (%d) : %s',
-                            type(filter).__name__,
-                            len(articles),
-                            ', '.join(articles.keys()))
-            self.articles = articles
+        logger.debug('Before filtering : %d articles',
+                     len(self.articles))
+        self.articles = apply_filters(self.articles, filters, 1)
+        logger.debug('After filtering : %d articles',
+                     len(self.articles))
 
         # We should re-sort afterwards since not all filters preserve the order (notably the CatFilter)
         self.sort_contribs()
@@ -1079,9 +1070,9 @@ class Contest(object):
         self.rules, self.filters = self.extract_rules(txt, self.config.get('catignore', ''))
 
         logger.info("- %d participants", len(self.users))
-        logger.info("- %d filter(s):" % len(self.filters))
-        for filter in self.filters:
-            logger.info("  - %s" % filter.__class__.__name__)
+        # logger.info("- %d filter(s):" % len(self.filters))
+        # for filter in self.filters:
+        #     logger.info("  - %s" % filter.__class__.__name__)
 
         logger.info("%d rule(s)" % len(self.rules))
         for rule in self.rules:
@@ -1160,7 +1151,13 @@ class Contest(object):
 
     def extract_rules(self, txt, catignore_page=''):
         rules = []
-        filters = []
+
+        # Syntax is compatible with https://stackoverflow.com/questions/6875361/using-lepl-to-parse-a-boolean-search-query
+        # In the future we could also support a boolean string input from the criterion template.        
+        filters = [
+            ()
+        ]
+
         config = self.config
 
         rulecfg = config['templates']['rule']
@@ -1196,6 +1193,7 @@ class Contest(object):
         filtercfg = config['templates']['filter']
         if filtercfg['name'] in dp.templates:
             for templ in dp.templates[filtercfg['name']]:
+                filter_type = 'OR'
 
                 par = templ.parameters
                 anon = templ.get_anonymous_parameters()
@@ -1207,11 +1205,13 @@ class Contest(object):
                 key = anon[1].lower()
                 params = {}
                 if key == filtercfg['new']:
+                    filter_type = 'AND'
                     if templ.has_param(filtercfg['redirects']):
                         params['redirects'] = True
                     filt = NewPageFilter(**params)
 
                 elif key == filtercfg['existing']:
+                    filter_type = 'AND'
                     filt = ExistingPageFilter(**params)
 
                 # elif key == 'stubb':
@@ -1276,6 +1276,7 @@ class Contest(object):
                     filt = ForwardLinkFilter(**params)
 
                 elif key == filtercfg['namespace']:
+                    filter_type = 'AND'
                     params['namespaces'] = [x.strip() for x in anon[2:]]
                     if templ.has_param(site_param):
                         params['site'] = par[site_param]
@@ -1288,14 +1289,13 @@ class Contest(object):
                 else:
                     raise InvalidContestPage(_('Unknown argument given to {{tl|%(template)s}}: %(argument)s') % {'template': filtercfg['name'], 'argument': key})
 
-                foundfilter = False
-                #for f in filters:
-                #    if type(f) == type(filt):
-                #        foundfilter = True
-                #        f.extend(filt)
-                if not foundfilter:
-                    nfilters += 1
-                    filters.append(filt)
+                nfilters += 1
+                if filter_type == 'OR':
+                    # Append filter to the last tuple in the filters list
+                    filters[-1] = filters[-1] + (filt,)
+                else:
+                    # Prepend filter to the filters list
+                    filters.insert(0, filt)
 
         ######################## Read rules ########################
 
@@ -2039,11 +2039,11 @@ class Contest(object):
 
         # extraargs = {'namespace': 0}
         extraargs = {}
-        host_filter = None
-        for f in self.filters:
-            if isinstance(f, NamespaceFilter):
-                extraargs['namespace'] = '|'.join(f.namespaces)
-                host_filter = f.site
+        # host_filter = None
+        # for f in self.filters:
+        #     if isinstance(f, NamespaceFilter):
+        #         extraargs['namespace'] = '|'.join(f.namespaces)
+        #         host_filter = f.site
 
         article_errors = {}
         results = []
@@ -2061,8 +2061,8 @@ class Contest(object):
             # Then fill in new contributions from wiki
             for site in self.sites.values():
 
-                if host_filter is None or site.host == host_filter:
-                    user.add_contribs_from_wiki(site, self.start, self.end, fulltext=True, **extraargs)
+                # if host_filter is None or site.host == host_filter:
+                user.add_contribs_from_wiki(site, self.start, self.end, fulltext=True, **extraargs)
 
             # And update db
             user.save_contribs_to_db(self.sql)
@@ -2132,8 +2132,8 @@ class Contest(object):
         if 'status' in config['templates']:
             sammen = '{{%s' % config['templates']['status']
 
-            ft = [type(f) for f in self.filters]
-            rt = [type(r) for r in self.rules]
+            # ft = [type(f) for f in self.filters]
+            # rt = [type(r) for r in self.rules]
 
             #if StubFilter in ft:
             #    sammen += '|avstubbet=%d' % narticles

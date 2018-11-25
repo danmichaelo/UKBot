@@ -27,6 +27,15 @@ CREATE TABLE `contribs` (
   KEY `idx_user` (`user`)
 ) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin;
 
+CREATE TABLE `articles` (
+  `id` int(11) unsigned NOT NULL AUTO_INCREMENT,
+  `site` varchar(50) COLLATE utf8mb4_bin NOT NULL,
+  `name` varchar(255) COLLATE utf8mb4_bin NOT NULL,
+  `created_at` datetime NOT NULL,
+  PRIMARY KEY (`id`),
+  KEY `articles_site_name` (`site`,`name`(50))
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin;
+
 CREATE TABLE `fulltexts` (
   `revid` int(11) unsigned NOT NULL,
   `site` varchar(50) COLLATE utf8mb4_bin NOT NULL,

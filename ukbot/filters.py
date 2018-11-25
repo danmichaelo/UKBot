@@ -429,25 +429,37 @@ class NewPageFilter(Filter):
     """Filters new articles"""
 
     @classmethod
-    def from_template(cls, tpl, cfg):
+    def make(cls, tpl, contest, **kwargs):
         params = {
             'sites': tpl.sites,
+            'contest': contest,
         }
         if tpl.has_param('redirects'):
             params['redirects'] = True
         return cls(**params)
 
-    def __init__(self, sites, redirects=False):
+    def __init__(self, sites, contest, redirects=False):
+        """
+        The NewPageFilter keeps pages that was created within the timeframe of a contest.
+        In order to encourage collaboration on articles, the filter does not discriminate
+        on which user created the page. 
+
+        Args:
+            sites (SiteManager): References to the sites part of this contest
+            contest (Contest): The current contest
+            redirects (bool): Whether to include redirect pages, defaults to False
+        """
         Filter.__init__(self, sites)
+        self.contest_start = contest.start
+        self.contest_end = contest.end
         self.redirects = redirects
 
     def filter(self, articles):
         out = odict()
-        for a, aa in articles.items():
-            if not self.redirects and aa.new_non_redirect:
-                out[a] = aa
-            elif self.redirects and aa.new:
-                out[a] = aa
+        for article_key, article in articles.items():
+            if article.created_at >= self.contest_start and article.created_at < self.contest_end:
+                if self.redirects or not article.redirect:
+                    out[article_key] = article
         logger.info(" - NewPageFilter: Articles reduced from %d to %d", len(articles), len(out))
         return out
 
@@ -455,14 +467,31 @@ class NewPageFilter(Filter):
 class ExistingPageFilter(Filter):
     """ Filters non-new articles """
 
-    def __init__(self, sites):
+    @classmethod
+    def make(cls, tpl, contest, **kwargs):
+        params = {
+            'sites': tpl.sites,
+            'contest': contest,
+        }
+        return cls(**params)
+
+    def __init__(self, sites, contest):
+        """
+        The ExistingPageFilter keeps pages that was created before the start of a contest.
+        This is useful in contests that are about improving existing content.
+
+        Args:
+            sites (SiteManager): References to the sites part of this contest
+            contest (Contest): The current contest
+        """
         Filter.__init__(self, sites)
+        self.contest_start = contest.start
 
     def filter(self, articles):
         out = odict()
-        for aname, article in articles.items():
-            if not article.new:
-                out[aname] = article
+        for article_key, article in articles.items():
+            if article.created_at < self.contest_start:
+                out[article_key] = article
         logger.info(" - ExistingPageFilter: Articles reduced from %d -> %d", len(articles), len(out))
         return out
 

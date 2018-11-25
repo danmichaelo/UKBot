@@ -213,6 +213,7 @@ class Article(object):
         self.ns = str(ns)
         self.name = name
         self.disqualified = False
+        self._created_at = None
 
         self.revisions = odict()
         #self.redirect = False
@@ -231,12 +232,36 @@ class Article(object):
         return self.__str__()
 
     @property
+    def created_at(self):
+        if self._created_at is None:
+            sql = self.user().contest().sql
+            cur = sql.cursor()
+            res = self.site().pages[self.name].revisions(prop='timestamp', limit=1, dir='newer')
+            ts = next(res)['timestamp']
+            self._created_at = datetime.fromtimestamp(time.mktime(ts))
+            # self._created = time.strftime('%Y-%m-%d %H:%M:%S', ts)
+            # datetime.fromtimestamp(rev.timestamp).strftime('%F %T')
+            cur.execute(
+                'INSERT INTO articles (site, name, created_at) VALUES (%s, %s, %s)',
+                [site.name, article_key, self._created_at.strftime('%Y-%m-%d %H:%M:%S')]
+            )
+            sql.commit()
+        return self._created_at
+
+    @property
+    def redirect(self):
+        lastrev = self.revisions[self.revisions.lastkey()]
+        return lastrev.redirect
+
+    @property
     def new(self):
+        # Deprecated, compare created_at with contest start date instead!
         firstrev = self.revisions[self.revisions.firstkey()]
         return firstrev.new
 
     @property
     def new_non_redirect(self):
+        # Deprecated, compare created_at with contest start date instead!
         firstrev = self.revisions[self.revisions.firstkey()]
         return firstrev.new and not firstrev.redirect
 
@@ -686,6 +711,46 @@ class User(object):
         if nr > 0:
             dt = time.time() - t0
             logger.info('Checked %d parent revisions in %.2f secs', nr, dt)
+
+    def backfill_article_creation_dates(self, sql):
+        cur = sql.cursor()
+
+        logger.debug('Reading and backfilling article creation dates')
+
+        # Group articles by site
+        articles_by_site = {}
+        for article in self.articles.values():
+            if article.site() not in articles_by_site:
+                articles_by_site[article.site()] = {}
+            articles_by_site[article.site()][article.name] = article
+
+        for site, articles in articles_by_site.items():
+            article_keys = list(articles.keys())
+            cur.execute(
+                'SELECT name, created_at FROM articles WHERE site=%s AND name IN (' + ','.join(['%s' for x in range(len(article_keys))]) + ')',
+                [site.name, *article_keys]
+            )
+            for row in cur.fetchall():
+                article = articles_by_site[site][row[0]]
+                article._created_at = row[1]
+
+            # n = 0
+            # for article_key, article in articles.items():
+            #     if article.created_at is None:
+            #         res = site.pages[article.name].revisions(prop='timestamp', limit=1, dir='newer')
+            #         ts = article.created_at = next(res)['timestamp']
+            #         ts = time.strftime('%Y-%m-%d %H:%M:%S', ts)
+            #         # datetime.fromtimestamp(rev.timestamp).strftime('%F %T')
+            #         cur.execute(
+            #             'INSERT INTO articles (site, name, created_at) VALUES (%s, %s, %s)',
+            #             [site.name, article_key, ts]
+            #         )
+            #         n += 1
+            # sql.commit()
+            # if n > 0:
+            #     logger.debug('Backfilled %d article creation dates from %s', n, site.name)
+
+        cur.close()
 
     def save_contribs_to_db(self, sql):
         """ Save self.articles to DB so it can be read by add_contribs_from_db """
@@ -2005,6 +2070,8 @@ class Contest(object):
 
             # And update db
             user.save_contribs_to_db(self.sql)
+
+            user.backfill_article_creation_dates(self.sql)
 
             try:
 

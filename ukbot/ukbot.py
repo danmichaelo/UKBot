@@ -732,7 +732,7 @@ class User(object):
             article_keys = list(articles.keys())
             cur.execute(
                 'SELECT name, created_at FROM articles WHERE site=%s AND name IN (' + ','.join(['%s' for x in range(len(article_keys))]) + ')',
-                [site.name, *article_keys]
+                [site.name] + article_keys
             )
             for row in cur.fetchall():
                 article = articles_by_site[site][row[0]]

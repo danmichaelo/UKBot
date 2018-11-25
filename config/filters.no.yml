@@ -19,6 +19,8 @@ params:
             maxdepth: maksdybde
     backlink:
         name: tilbakelenke
+        params:
+            include_langlinks: true
     forwardlink:
         name: fremlenke
     pages:

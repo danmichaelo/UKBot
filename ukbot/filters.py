@@ -9,6 +9,8 @@ import json
 import time
 import urllib
 import requests
+from mwtemplates.templateeditor2 import TemplateParseError
+
 from .common import t, _, InvalidContestPage
 
 logger = logging.getLogger(__name__)
@@ -16,12 +18,12 @@ logger.setLevel(logging.DEBUG)
 
 
 class CategoryLoopError(Exception):
-    """Raised when a category loop is found.
-
-    Attributes:
-        catpath -- category path followed while getting lost in the loop
-    """
+    """Raised when a category loop is found."""
     def __init__(self, catpath):
+        """
+        Args:
+            catpath -- category path followed while getting lost in the loop
+        """
         self.catpath = catpath
         self.msg = 'Entered a category loop'
 
@@ -29,14 +31,31 @@ class CategoryLoopError(Exception):
 class Filter(object):
 
     def __init__(self, sites):
+        """
+        Args:
+            sites (SiteManager): References to the sites part of this contest
+        """
         self.sites = sites
-
-    def extend(self, ffilter):
-        pass
+        self.page_keys = set()
 
     @classmethod
-    def from_template(cls, tpl, cfg={}):
+    def make(cls, tpl, **kwargs):
         return cls(tpl.sites)
+
+    def test_page(self, page):
+        """
+        Return True if the page matches the current filter, False otherwise.
+        """
+        return page.key in self.page_keys
+
+    def filter(self, articles):
+        out = odict()
+        for article_key, article in articles.items():
+            if self.test_page(article):
+                out[article_key] = article
+        logger.info(' - %s: Articles reduced from %d to %d',
+                    type(self).__name__, len(articles), len(out))
+        return out
 
 #class StubFilter(Filter):
 #    """ Filters articles that was stubs, but is no more """
@@ -96,32 +115,39 @@ class TemplateFilter(Filter):
     """ Filters articles that had any of a given set of templates (or their aliases) at a point"""
 
     @classmethod
-    def from_template(cls, tpl, cfg):
-
+    def make(cls, tpl, **kwargs):
         if len(tpl.anon_params) < 3:
             raise RuntimeError(_('Too few arguments given to this template.'))
 
         params = {
-            'templates': tpl.anon_params[2:],
-            'aliases': [],
             'sites': tpl.sites,
+            'templates': tpl.anon_params[2:],
         }
-        for tp in params['templates']:
-            tplpage = tpl.sites.homesite.pages['Template:%s' % tp]
-            if tplpage.exists:
-                params['aliases'].extend([x.page_title for x in tplpage.backlinks(filterredir='redirects')])
 
         return cls(**params)
 
-    def __init__(self, templates, sites, aliases=[]):
+    def __init__(self, sites, templates, include_aliases=True):
+        """
+        The TemplateFilter keeps pages that had any of a given set of templates
+        (or their aliases) when the user made their first edit during the
+        timeframe of this contest.
+
+        Args:
+            sites (SiteManager): References to the sites part of this contest
+            templates (list): List of templates to include
+            include_aliases (bool): Whether to include aliases, defaults to True
+        """
         Filter.__init__(self, sites)
-        templates.extend([a for a in aliases])
-        self.templates = templates
 
-    def extend(self, templatefilter):
-        self.templates.extend(templatefilter.templates)
+        aliases = []
+        for template_name in templates:
+            template_page = self.sites.homesite.pages['Template:%s' % template_name]
+            if template_page.exists:
+                aliases.extend([x.page_title for x in template_page.backlinks(filterredir='redirects')])
 
-    def has_template(self, text):
+        self.templates = templates + aliases
+
+    def text_contains_template(self, text):
         """ Checks if a given text contains the template"""
 
         tpls = [x.replace('*', '[^}]*?') for x in self.templates]
@@ -130,34 +156,26 @@ class TemplateFilter(Filter):
             return m.group(1)
         return None
 
-    def filter(self, articles):
+    def test_page(self, page):
+        rev_id = page.revisions.firstkey()
+        rev = page.revisions[rev_id]
 
-        out = odict()
-        for article_key, article in articles.items():
+        try:
+            template_name = self.text_contains_template(rev.parenttext)
+        except TemplateParseError as e:
+            logger.warning('TemplateParser failed to parse %s', page.key)
+            page.site().errors.append(
+                _('Could not analyze page %(article)s because the revision %(rev)d could not be parsed: %(error)s') % {
+                    'article': page.key,
+                    'rev': rev.parentid,
+                    'error': str(e),
+                }
+            )
 
-            firstrevid = article.revisions.firstkey()
-            firstrev = article.revisions[firstrevid]
-
-            try:
-
-                #if article.new == False and article.redirect == False:
-
-                # Check if first revision is a stub
-                t = self.has_template(firstrev.parenttext)
-                if t:
-                    logger.debug('Found template {{%s}} in [[%s]] @ %d',
-                                 t, article_key, firstrevid)
-                    out[article_key] = article
-
-            except DanmicholoParseError as e:
-                logger.warning(" >> DanmicholoParser failed to parse %s", article_key)
-                parentid = firstrev.parentid
-                args = {'article': article_key, 'prevrev': firstrev.parentid, 'rev': lastrev.revid, 'error': e.msg}
-                article.site().errors.append(_('Could not analyze the article %(article)s because one of the revisions %(prevrev)d or %(rev)d could not be parsed: %(error)s') % args)
-
-        logger.info(" - TemplateFilter: Articles reduced from %d to %d", len(articles), len(out))
-
-        return out
+        if template_name is None:
+            return False
+        logger.debug('Found template {{%s}} in [[%s]] @ %d', template_name, page.key, rev.parentid)
+        return True
 
 
 class CatFilter(Filter):
@@ -181,13 +199,13 @@ class CatFilter(Filter):
             raise RuntimeError(_('Could not parse the catignore page'))
 
     @classmethod
-    def from_template(cls, tpl, cfg):
+    def make(cls, tpl, cfg, **kwargs):
         if len(tpl.anon_params) < 3:
             raise RuntimeError(_('No category values given!'))
 
         params = {
-            'ignore': cls.get_ignore_list(tpl, cfg.get('ignore_page')),
             'sites': tpl.sites,
+            'ignore': cls.get_ignore_list(tpl, cfg.get('ignore_page')),
             'categories': [
                 tpl.sites.resolve_page(cat_name, 14, True)
                 for cat_name in tpl.anon_params[2:] if cat_name.strip() is not ''
@@ -208,10 +226,10 @@ class CatFilter(Filter):
     def __init__(self, sites, categories, maxdepth=5, ignore=[]):
         """
         Arguments:
-            sites      : dict { 'no': <mwclient.client.Site>, ... }
-            categories : list of Page objects
-            maxdepth   : number of subcategory levels to traverse
-            ignore     : list of categories to ignore
+            sites (SiteManager): References to the sites part of this contest
+            categories (list): Page objects
+            maxdepth (int):  number of subcategory levels to traverse
+            ignore (list): list of categories to ignore
         """
         Filter.__init__(self, sites)
 
@@ -220,9 +238,6 @@ class CatFilter(Filter):
         self.maxdepth = int(maxdepth)
         logger.debug("Initializing CatFilter: %s, maxdepth=%d",
                     " OR ".join(self.include), maxdepth)
-
-    def extend(self, catfilter):
-        self.include.extend(catfilter.include)
 
     def fetchcats(self, articles, debug=False):
         """ Fetches categories an overcategories for a set of articles """
@@ -290,7 +305,7 @@ class CatFilter(Filter):
                             q = site.api('query', **args)
 
                             if 'warnings' in q:
-                                raise StandardError(q['warnings']['query']['*'])
+                                raise RuntimeError(q['warnings']['query']['*'])
 
                             for pageid, page in q['query']['pages'].items():
                                 fulltitle = page['title']
@@ -402,27 +417,31 @@ class ByteFilter(Filter):
     """Filters articles according to a byte treshold"""
 
     @classmethod
-    def from_template(cls, tpl, sites, cfg):
+    def make(cls, tpl, sites, **kwargs):
         if len(tpl.anon_params) < 3:
             raise RuntimeError(_('No byte limit (second argument) given'))
         params = {
             'sites': tpl.sites,
-            'bytelimit': tpl.anon_params[2],
+            'bytelimit': int(tpl.anon_params[2]),
         }
         return cls(**params)
 
     def __init__(self, sites, bytelimit):
-        Filter.__init__(self, sites)
-        self.bytelimit = int(bytelimit)
+        """
+        The ByteFilter keeps pages with a byte size above a certain threshold limit. 
 
-    def filter(self, articles):
-        out = odict()
-        for article_key, article in articles.items():
-            if article.bytes >= self.bytelimit:
-                out[article_key] = article
-        logger.info(" - ByteFilter: Articles reduced from %d to %d",
-                    len(articles), len(out))
-        return out
+        Args:
+            sites (SiteManager): References to the sites part of this contest
+            bytelimit (int): The minimum number of bytes required to keep a page
+        """
+        Filter.__init__(self, sites)
+        self.bytelimit = bytelimit
+
+    def test_page(self, page):
+        """
+        Return True if the page matches the current filter, False otherwise.
+        """
+        return page.bytes >= self.bytelimit
 
 
 class NewPageFilter(Filter):
@@ -454,14 +473,13 @@ class NewPageFilter(Filter):
         self.contest_end = contest.end
         self.redirects = redirects
 
-    def filter(self, articles):
-        out = odict()
-        for article_key, article in articles.items():
-            if article.created_at >= self.contest_start and article.created_at < self.contest_end:
-                if self.redirects or not article.redirect:
-                    out[article_key] = article
-        logger.info(" - NewPageFilter: Articles reduced from %d to %d", len(articles), len(out))
-        return out
+    def test_page(self, page):
+        """
+        Return True if the page matches the current filter, False otherwise.
+        """
+        if page.redirect and not self.redirects:
+            return False
+        return page.created_at >= self.contest_start and page.created_at < self.contest_end
 
 
 class ExistingPageFilter(Filter):
@@ -487,77 +505,66 @@ class ExistingPageFilter(Filter):
         Filter.__init__(self, sites)
         self.contest_start = contest.start
 
-    def filter(self, articles):
-        out = odict()
-        for article_key, article in articles.items():
-            if article.created_at < self.contest_start:
-                out[article_key] = article
-        logger.info(" - ExistingPageFilter: Articles reduced from %d -> %d", len(articles), len(out))
-        return out
+    def test_page(self, page):
+        """
+        Return True if the page matches the current filter, False otherwise.
+        """
+        return page.created_at < self.contest_start
 
 
 class BackLinkFilter(Filter):
-    """Filters articles linked to from <self.links>"""
+    """Filters articles linked to from a list of pages."""
 
     @classmethod
-    def from_template(cls, tpl, cfg):
+    def make(cls, tpl, cfg, **kwargs):
         params = {
             'sites': tpl.sites,
             'pages': [tpl.sites.resolve_page(x) for x in tpl.anon_params[2:] if x.strip() is not ''],
+            'include_langlinks': cfg.get('include_langlinks', False),
         }
         return cls(**params)
 
-    def __init__(self, pages, sites):
+    def __init__(self, sites, pages, include_langlinks=False):
         """
-        Arguments:
-            pages: list of Page objects
-            sites: Sites object
+        The BackLinkFilter keeps pages linked to from a list of pages, and optionally also the
+        interwiki links of those pages.
+
+        Args:
+            sites (SiteManager): References to the sites part of this contest
+            pages(list): List of Page objects to extract links from.
+            include_langlinks(bool): Whether to include langlinked pages as well. This is useful for 
+                multi-language contests, but we can save some time by not checking them.
         """
         Filter.__init__(self, sites)
-        self.links = set()
-        self.pages = pages
 
         page_names = ['%s:%s' % (x.site.key, x.name) for x in pages]
         logger.info('Initializing BackLinkFilter: %s',
                     ','.join(page_names))
 
-        for page in self.pages:
+        for page in pages:
             for linked_page in page.links(redirects=True):
                 link = '%s:%s' % (linked_page.site.key, linked_page.name.replace('_', ' '))
                 logger.debug(' - Include: %s', link)
-                self.links.add(link)
+                self.page_keys.add(link)
 
                 # Include langlinks as well
-                for langlink in linked_page.langlinks():
-                    site = self.sites.from_prefix(langlink[0])
-                    if site is not None:
-                        link = '%s:%s' % (site.host, langlink[1].replace('_', ' '))
-                        logger.debug(' - Include: %s', link)
-                        self.links.add(link)
+                if include_langlinks:
+                    for langlink in linked_page.langlinks():
+                        site = self.sites.from_prefix(langlink[0])
+                        if site is not None:
+                            link = '%s:%s' % (site.host, langlink[1].replace('_', ' '))
+                            logger.debug(' - Include: %s', link)
+                            self.page_keys.add(link)
 
         logger.info('BackLinkFilter ready with %d links (after having expanded langlinks)',
-                    len(self.links))
-
-    def extend(self, other_filter):
-        self.pages.extend(other_filter.pages)
-        for link in other_filter.links:
-            self.links.add(link)
-
-    def filter(self, articles):
-        out = odict()
-        for article_key, article in articles.items():
-            if article_key in self.links:
-                out[article_key] = article
-        logger.info(' - BackLinkFilter: Articles reduced from %d to %d',
-                    len(articles), len(out))
-        return out
+                    len(self.page_keys))
 
 
 class ForwardLinkFilter(Filter):
     """Filters articles linking to <self.links>"""
 
     @classmethod
-    def from_template(cls, tpl, cfg):
+    def make(cls, tpl, **kwargs):
 
         params = {
             'sites': tpl.sites,
@@ -565,43 +572,27 @@ class ForwardLinkFilter(Filter):
         }
         return cls(**params)
 
-    def __init__(self, pages, sites):
+    def __init__(self, sites, pages):
         """
         Arguments:
+            sites (SiteManager): References to the sites part of this contest
             pages: list of Page objects
-            sites: Sites object
         """
         Filter.__init__(self, sites)
-        self.links = set()
-        self.pages = pages
 
-        for page in self.pages:
+        for page in pages:
             for linked_page in page.backlinks(redirect=True):
                 link = '%s:%s' % (linked_page.site.key, linked_page.name.replace('_', ' '))
-                self.links.add(link)
+                self.page_keys.add(link)
 
-        logger.info('ForwardLinkFilter ready with %d links', len(self.links))
-
-    def extend(self, other_filter):
-        self.pages.extend(other_filter.pages)
-        for link in other_filter.links:
-            self.links.add(link)
-
-    def filter(self, articles):
-        out = odict()
-        for article_key, article in articles.items():
-            if article_key in self.links:
-                out[article_key] = article
-        logger.info(" - ForwardLinkFilter: Articles reduced from %d to %d",
-                    len(articles), len(out))
-        return out
+        logger.info('ForwardLinkFilter ready with %d links', len(self.page_keys))
 
 
 class PageFilter(Filter):
     """Filters articles with forwardlinks to <name>"""
 
     @classmethod
-    def from_template(cls, tpl, cfg):
+    def make(cls, tpl, **kwargs):
         params = {
             'sites': tpl.sites,
             'pages': [tpl.sites.resolve_page(x) for x in tpl.anon_params[2:] if x.strip() is not '']
@@ -611,64 +602,47 @@ class PageFilter(Filter):
     def __init__(self, sites, pages):
         """
         Arguments:
-            pages     : list of Page objects
+            sites (SiteManager): References to the sites part of this contest 
+            pages (list): list of Page objects
         """
         Filter.__init__(self, sites)
-        self.pages = pages
-        logger.info('PageFilter ready with %d links', len(self.pages))
-
-    def extend(self, other_filter):
-        self.pages.extend(other_filter.pages)
-
-    def filter(self, articles):
-        page_keys = ['%s:%s' % (page.site.key, page.name) for page in self.pages]
-        out = odict()
-        for article_key, article in articles.items():
-            if article_key in page_keys:
-                out[article_key] = article
-        logger.info(' - PageFilter: Articles reduced from %d to %d',
-                    len(articles), len(out))
-        return out
+        self.page_keys = set(['%s:%s' % (page.site.key, page.name) for page in pages])
+        logger.info('PageFilter ready with %d links', len(self.page_keys))
 
 
 class NamespaceFilter(Filter):
     """Filters articles with a given namespaces"""
 
     @classmethod
-    def from_template(cls, tpl, cfg):
+    def make(cls, tpl, cfg, **kwargs):
         params = {
             'sites': tpl.sites,
             'namespaces': [x.strip() for x in tpl.anon_params[2:]],
         }
-        if tpl.has_param('site'):
-            params['site'] = tpl.get_param('site')
         return cls(**params)
 
-    def __init__(self, namespaces, sites, site=None):
+    def __init__(self, sites, namespaces):
         """
-        Arguments:
-            namespaces : list
+        Args:
+            sites (SiteManager): References to the sites part of this contest
+            namespaces (list): List of namespaces to include
         """
         Filter.__init__(self, sites)
         self.namespaces = namespaces
-        self.site = site
         logger.info('NamespaceFilter: namespaces: %s', ','.join(self.namespaces))
 
-    def filter(self, articles):
-        out = odict()
-        for article_key, article in articles.items():
-            if article.ns in self.namespaces:
-                out[article_key] = article
-        logger.info(' - NamespaceFilter: Articles reduced from %d to %d',
-                    len(articles), len(out))
-        return out
+    def test_page(self, page):
+        """
+        Return True if the page matches the current filter, False otherwise.
+        """
+        return page.ns in self.namespaces
 
 
 class SparqlFilter(Filter):
     """Filters articles matching a SPARQL query"""
 
     @classmethod
-    def from_template(cls, tpl, cfg):
+    def make(cls, tpl, cfg, **kwargs):
         if not tpl.has_param('query'):
             raise RuntimeError(_('No "%s" parameter given') % cfg['params']['query'])
         
@@ -680,9 +654,9 @@ class SparqlFilter(Filter):
 
     def __init__(self, sites, query):
         """
-        Arguments:
-            pages     : list of Page objects
-            sites     : Sites object
+        Args:
+            sites (SiteManager): References to the sites part of this contest
+            query (str): The SPARQL query
         """
         Filter.__init__(self, sites)
         self.query = query
@@ -701,7 +675,7 @@ class SparqlFilter(Filter):
             }
         )
         if not response.ok:
-            raise IOError('SPARQL query returned status %s', res.status_code)
+            raise IOError('SPARQL query returned status %s', response.status_code)
 
         expected_length = response.headers.get('Content-Length')
         if expected_length is not None and 'tell' in dir(response.raw):
@@ -742,8 +716,6 @@ class SparqlFilter(Filter):
 
         logger.info('SparqlFilter: Got %d results in %.1f secs', len(result['rows']), dt)
 
-        articles = set()
-
         # Implementatio notes:
         # - When the contest includes multiple sites, we do one query per site. I tried using
         #   a single query with `VALUES ?site { %(sites)s }` instead, but the query time
@@ -775,18 +747,9 @@ class SparqlFilter(Filter):
                 article = '/'.join(res.split('/')[4:])
                 article = urllib.parse.unquote(article).replace('_', ' ')
                 page_key = '%s:%s' % (site, article)
-                articles.add(page_key)
+                self.page_keys.add(page_key)
 
             dt = time.time() - t0
             logger.info('SparqlFilter: Got %d results for %s in %.1f secs', n, site, dt)
-        self.articles = articles
-        logger.info('SparqlFilter: Initialized with %d articles', len(self.articles))
 
-    def filter(self, articles):
-        out = odict()
-        for article_key, article in articles.items():
-            if article_key in self.articles:
-                out[article_key] = article
-        logger.info(' - SparqlFilter: Articles reduced from %d to %d',
-                    len(articles), len(out))
-        return out
+        logger.info('SparqlFilter: Initialized with %d articles', len(self.page_keys))

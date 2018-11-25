@@ -238,15 +238,20 @@ class Article(object):
             cur = sql.cursor()
             res = self.site().pages[self.name].revisions(prop='timestamp', limit=1, dir='newer')
             ts = next(res)['timestamp']
-            self._created_at = datetime.fromtimestamp(time.mktime(ts))
+            self._created_at = pytz.utc.localize(datetime.fromtimestamp(time.mktime(ts)))
+            
             # self._created = time.strftime('%Y-%m-%d %H:%M:%S', ts)
             # datetime.fromtimestamp(rev.timestamp).strftime('%F %T')
             cur.execute(
                 'INSERT INTO articles (site, name, created_at) VALUES (%s, %s, %s)',
-                [site.name, article_key, self._created_at.strftime('%Y-%m-%d %H:%M:%S')]
+                [self.site().key, self.key, self._created_at.strftime('%Y-%m-%d %H:%M:%S')]
             )
             sql.commit()
         return self._created_at
+
+    @property
+    def key(self):
+        return '%s:%s' % (self.site().key, self.name)
 
     @property
     def redirect(self):
@@ -297,8 +302,7 @@ class Article(object):
     def get_points(self, ptype='', ignore_max=False, ignore_suspension_period=False,
                    ignore_disqualification=False, ignore_point_deductions=False):
         p = 0.
-        article_key = self.site().key + ':' + self.name
-        if ignore_disqualification or not article_key in self.user().disqualified_articles:
+        if ignore_disqualification or not self.key in self.user().disqualified_articles:
             for revid, rev in self.revisions.items():
                 dt = pytz.utc.localize(datetime.fromtimestamp(rev.timestamp))
                 if ignore_suspension_period is True or self.user().suspended_since is None or dt < self.user().suspended_since:
@@ -732,7 +736,7 @@ class User(object):
             )
             for row in cur.fetchall():
                 article = articles_by_site[site][row[0]]
-                article._created_at = row[1]
+                article._created_at = pytz.utc.localize(row[1])
 
             # n = 0
             # for article_key, article in articles.items():
@@ -1168,32 +1172,21 @@ class FilterTemplate(object):
     def get_param(self, name):
         return self.named_params[self.translations['params'][self.type]['params'][name]]
 
-    def get(self):
-        try:
-            return {
-                'new': NewPageFilter,
-                'existing': ExistingPageFilter,
-                'template': TemplateFilter,
-                'bytes': ByteFilter,
-                'category': CatFilter,
-                'sparql': SparqlFilter,
-                'backlink': BackLinkFilter,
-                'forwardlink': ForwardLinkFilter,
-                'namespace': NamespaceFilter,
-                'pages': PageFilter,
-            }[self.type].from_template(
-                self,
-                self.translations['params'][self.type]
-            )
-        except RuntimeError as exp:
-            raise InvalidContestPage(
-                _('Could not parse {{tlx|%(template)s|%(firstarg)s}} template: %(err)s') 
-                % {
-                    'template': self.translations['name'],
-                    'firstarg': self.anon_params[1],
-                    'err': str(exp)
-                }
-            )
+    def make(self, contest):
+        filter_cls = {
+            'new': NewPageFilter,
+            'existing': ExistingPageFilter,
+            'template': TemplateFilter,
+            'bytes': ByteFilter,
+            'category': CatFilter,
+            'sparql': SparqlFilter,
+            'backlink': BackLinkFilter,
+            'forwardlink': ForwardLinkFilter,
+            'namespace': NamespaceFilter,
+            'pages': PageFilter,
+        }[self.type]
+
+        return filter_cls.make(contest=contest, tpl=self, cfg=self.translations['params'][self.type])
 
 
 class Contest(object):
@@ -1277,6 +1270,78 @@ class Contest(object):
         #if not 'ukens konkurranse kriterium' in dp.templates.keys():
         #    raise InvalidContestPage('Denne konkurransen har ingen bidragskriterier. Kriterier defineres med {{tl|ukens konkurranse kriterium}}.')
 
+
+        ######################## Read infobox ########################
+
+        commonargs = config['templates']['commonargs']
+        ibcfg = config['templates']['infobox']
+        if ibcfg['name'] not in dp.templates:
+            raise InvalidContestPage(_('This contest is missing a {{tl|%(template)s}} template.') % {'template': ibcfg['name']})
+
+        infoboks = dp.templates[ibcfg['name']][0]
+        utc = pytz.utc
+
+        if infoboks.has_param(commonargs['year']) and infoboks.has_param(commonargs['week']):
+            year = int(re.sub(r'<\!--.+?-->', r'', infoboks.parameters[commonargs['year']].value).strip())
+            startweek = int(re.sub(r'<\!--.+?-->', r'', infoboks.parameters[commonargs['week']].value).strip())
+            if infoboks.has_param(commonargs['week2']):
+                endweek = re.sub(r'<\!--.+?-->', r'', infoboks.parameters[commonargs['week2']].value).strip()
+                if endweek == '':
+                    endweek = startweek
+            else:
+                endweek = startweek
+            endweek = int(endweek)
+
+            startweek = Week(year, startweek)
+            endweek = Week(year, endweek)
+            self.start = self.wiki_tz.localize(datetime.combine(startweek.monday(), dt_time(0, 0, 0)))
+            self.end = self.wiki_tz.localize(datetime.combine(endweek.sunday(), dt_time(23, 59, 59)))
+        elif infoboks.has_param(ibcfg['start']) and infoboks.has_param(ibcfg['end']):
+            startdt = infoboks.parameters[ibcfg['start']].value
+            enddt = infoboks.parameters[ibcfg['end']].value
+            self.start = self.wiki_tz.localize(datetime.strptime(startdt + ' 00 00 00', '%Y-%m-%d %H %M %S'))
+            self.end = self.wiki_tz.localize(datetime.strptime(enddt + ' 23 59 59', '%Y-%m-%d %H %M %S'))
+        else:
+            args = {'week': commonargs['week'], 'year': commonargs['year'], 'start': ibcfg['start'], 'end': ibcfg['end'], 'template': ibcfg['name']}
+            raise InvalidContestPage(_('Did not find %(week)s+%(year)s or %(start)s+%(end)s in {{tl|%(templates)s}}.') % args)
+
+        self.year = self.start.isocalendar()[0]
+
+        self.startweek = self.start.isocalendar()[1]
+        self.endweek = self.end.isocalendar()[1]
+        self.month = self.start.month
+
+        userprefix = self.sites.homesite.namespaces[2]
+        self.ledere = []
+        if ibcfg['organizer'] in infoboks.parameters:
+            self.ledere = re.findall(r'\[\[(?:User|%s):([^\|\]]+)' % userprefix, infoboks.parameters[ibcfg['organizer']].value, flags=re.I)
+        if len(self.ledere) == 0:
+            logger.warning('Found no organizers in {{tl|%s}}.', ibcfg['name'])
+
+        awards = config['awards']
+        self.prices = []
+        for col in awards.keys():
+            if infoboks.has_param(col):
+                r = re.sub(r'<\!--.+?-->', r'', infoboks.parameters[col].value.strip())  # strip comments, then whitespace
+                if r != '':
+                    r = r.lower().replace('&nbsp;', ' ').split()[0]
+                    #print col,r
+                    if r == ibcfg['winner']:
+                        self.prices.append([col, 'winner', 0])
+                    elif r != '':
+                        try:
+                            self.prices.append([col, 'pointlimit', int(r)])
+                        except ValueError:
+                            pass
+                            #raise InvalidContestPage('Klarte ikke tolke verdien til parameteren %s gitt til {{tl|infoboks ukens konkurranse}}.' % col)
+
+        if not 'winner' in [r[1] for r in self.prices]:
+            winnerawards = ', '.join(['{{para|%s|vinner}}' % k for k, v in awards.items() if 'winner' in v])
+            #raise InvalidContestPage(_('Found no winner award in {{tl|%(template)s}}. Winner award is set by one of the following: %(awards)s.') % {'template': ibcfg['name'], 'awards': winnerawards})
+            logger.warning('Found no winner award in {{tl|%s}}. Winner award is set by one of the following: %s.', ibcfg['name'], winnerawards)
+
+        self.prices.sort(key=lambda x: x[2], reverse=True)
+        
         ######################## Read filters ########################
 
         nfilters = 0
@@ -1291,7 +1356,17 @@ class Contest(object):
                 else:
                     op = 'OR'
 
-                filter_inst = filter_tpl.get()
+                try:
+                    filter_inst = filter_tpl.make(self)
+                except RuntimeError as exp:
+                    raise InvalidContestPage(
+                        _('Could not parse {{tlx|%(template)s|%(firstarg)s}} template: %(err)s') 
+                        % {
+                            'template': trans['name'],
+                            'firstarg': filter_tpl.anon_params[1],
+                            'err': str(exp)
+                        }
+                    )
 
                 nfilters += 1
                 if op == 'OR':
@@ -1383,77 +1458,6 @@ class Contest(object):
 
             else:
                 raise InvalidContestPage(_('Unkown argument given to {{tl|%(template)s}}: %(argument)s') % {'template': rulecfg['name'], 'argument': key})
-
-        ######################## Read infobox ########################
-
-        commonargs = config['templates']['commonargs']
-        ibcfg = config['templates']['infobox']
-        if ibcfg['name'] not in dp.templates:
-            raise InvalidContestPage(_('This contest is missing a {{tl|%(template)s}} template.') % {'template': ibcfg['name']})
-
-        infoboks = dp.templates[ibcfg['name']][0]
-        utc = pytz.utc
-
-        if infoboks.has_param(commonargs['year']) and infoboks.has_param(commonargs['week']):
-            year = int(re.sub(r'<\!--.+?-->', r'', infoboks.parameters[commonargs['year']].value).strip())
-            startweek = int(re.sub(r'<\!--.+?-->', r'', infoboks.parameters[commonargs['week']].value).strip())
-            if infoboks.has_param(commonargs['week2']):
-                endweek = re.sub(r'<\!--.+?-->', r'', infoboks.parameters[commonargs['week2']].value).strip()
-                if endweek == '':
-                    endweek = startweek
-            else:
-                endweek = startweek
-            endweek = int(endweek)
-
-            startweek = Week(year, startweek)
-            endweek = Week(year, endweek)
-            self.start = self.wiki_tz.localize(datetime.combine(startweek.monday(), dt_time(0, 0, 0)))
-            self.end = self.wiki_tz.localize(datetime.combine(endweek.sunday(), dt_time(23, 59, 59)))
-        elif infoboks.has_param(ibcfg['start']) and infoboks.has_param(ibcfg['end']):
-            startdt = infoboks.parameters[ibcfg['start']].value
-            enddt = infoboks.parameters[ibcfg['end']].value
-            self.start = self.wiki_tz.localize(datetime.strptime(startdt + ' 00 00 00', '%Y-%m-%d %H %M %S'))
-            self.end = self.wiki_tz.localize(datetime.strptime(enddt + ' 23 59 59', '%Y-%m-%d %H %M %S'))
-        else:
-            args = {'week': commonargs['week'], 'year': commonargs['year'], 'start': ibcfg['start'], 'end': ibcfg['end'], 'template': ibcfg['name']}
-            raise InvalidContestPage(_('Did not find %(week)s+%(year)s or %(start)s+%(end)s in {{tl|%(templates)s}}.') % args)
-
-        self.year = self.start.isocalendar()[0]
-
-        self.startweek = self.start.isocalendar()[1]
-        self.endweek = self.end.isocalendar()[1]
-        self.month = self.start.month
-
-        userprefix = self.sites.homesite.namespaces[2]
-        self.ledere = []
-        if ibcfg['organizer'] in infoboks.parameters:
-            self.ledere = re.findall(r'\[\[(?:User|%s):([^\|\]]+)' % userprefix, infoboks.parameters[ibcfg['organizer']].value, flags=re.I)
-        if len(self.ledere) == 0:
-            logger.warning('Found no organizers in {{tl|%s}}.', ibcfg['name'])
-
-        awards = config['awards']
-        self.prices = []
-        for col in awards.keys():
-            if infoboks.has_param(col):
-                r = re.sub(r'<\!--.+?-->', r'', infoboks.parameters[col].value.strip())  # strip comments, then whitespace
-                if r != '':
-                    r = r.lower().replace('&nbsp;', ' ').split()[0]
-                    #print col,r
-                    if r == ibcfg['winner']:
-                        self.prices.append([col, 'winner', 0])
-                    elif r != '':
-                        try:
-                            self.prices.append([col, 'pointlimit', int(r)])
-                        except ValueError:
-                            pass
-                            #raise InvalidContestPage('Klarte ikke tolke verdien til parameteren %s gitt til {{tl|infoboks ukens konkurranse}}.' % col)
-
-        if not 'winner' in [r[1] for r in self.prices]:
-            winnerawards = ', '.join(['{{para|%s|vinner}}' % k for k, v in awards.items() if 'winner' in v])
-            #raise InvalidContestPage(_('Found no winner award in {{tl|%(template)s}}. Winner award is set by one of the following: %(awards)s.') % {'template': ibcfg['name'], 'awards': winnerawards})
-            logger.warning('Found no winner award in {{tl|%s}}. Winner award is set by one of the following: %s.', ibcfg['name'], winnerawards)
-
-        self.prices.sort(key=lambda x: x[2], reverse=True)
 
         ####################### Check if contest is in DB yet ##################
 

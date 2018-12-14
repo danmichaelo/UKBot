@@ -1,6 +1,9 @@
 # encoding=utf-8
 # vim: fenc=utf-8 et sw=4 ts=4 sts=4 ai
 import time
+
+from ukbot.contributions import UserContributions
+
 runstart_s = time.time()
 print('Loading')
 
@@ -236,26 +239,6 @@ class Article(object):
         """
         return np.max([0, np.sum([rev.words for rev in self.revisions.values()])])
 
-    @property
-    def points(self):
-        """ The article score is the sum of the score for its revisions, independent of whether the article is disqualified or not """
-        return self.get_points()
-        #return np.sum([rev.get_points() for rev in self.revisions.values()])
-
-    def get_points(self, ptype='', ignore_max=False, ignore_suspension_period=False,
-                   ignore_disqualification=False, ignore_point_deductions=False):
-        p = 0.
-        if ignore_disqualification or not self.key in self.user().disqualified_articles:
-            for revid, rev in self.revisions.items():
-                dt = pytz.utc.localize(datetime.fromtimestamp(rev.timestamp))
-                if ignore_suspension_period is True or self.user().suspended_since is None or dt < self.user().suspended_since:
-                    p += rev.get_points(ptype, ignore_max, ignore_point_deductions)
-                else:
-                    logger.debug('!! Skipping revision %d in suspension period', revid)
-
-        return p
-        #return np.sum([a.points for a in self.articles.values()])
-
 
 class Revision(object):
 
@@ -284,8 +267,6 @@ class Revision(object):
         self.dirty = False  #
         self._te_text = None  # Loaded as needed
         self._te_parenttext = None  # Loaded as needed
-
-        self.points = []
 
         for k, v in kwargs.items():
             if k == 'timestamp':
@@ -413,21 +394,6 @@ class Revision(object):
         q = OrderedDict([('oldid', self.parentid)])
         return '//' + self.article().site().host + self.article().site().site['script'] + '?' + urllib.parse.urlencode(q)
 
-    def get_points(self, ptype='', ignore_max=False, ignore_point_deductions=False):
-        p = 0.0
-        for pnt in self.points:
-            if ptype == '' or pnt[1] == ptype:
-                if ignore_max and len(pnt) > 3:
-                    p += pnt[3]
-                else:
-                    p += pnt[0]
-
-        if not ignore_point_deductions and (ptype == '' or ptype == 'trekk'):
-            for points, reason in self.point_deductions:
-                p -= points
-
-        return p
-
     def add_point_deduction(self, points, reason):
         logger.info('Revision %s: Removing %d points for reason: %s', self.revid, points, reason)
         self.point_deductions.append([points, reason])
@@ -441,6 +407,7 @@ class User(object):
         self.revisions = odict()
         self.contest = weakref.ref(contest)
         self.suspended_since = None
+        self.contributions = UserContributions()
         self.disqualified_articles = []
         self.point_deductions = []
 
@@ -951,17 +918,7 @@ class User(object):
     def words(self):
         return np.sum([a.words for a in self.articles.values()])
 
-    @property
-    def points(self):
-        """ The points for all the user's articles, excluding disqualified ones """
-        p = 0.
-        for article_key, article in self.articles.items():
-            p += article.get_points()
-        return p
-        #return np.sum([a.points for a in self.articles.values()])
-
     def analyze(self, rules):
-
         x = []
         y = []
         utc = pytz.utc
@@ -977,18 +934,19 @@ class User(object):
             # loop over revisions
             for revid, rev in article.revisions.items():
 
-                rev.points = []
-
                 # loop over rules
                 for rule in rules:
                     logger.debug('Applying %s to %s', type(rule).__name__, revid)
-                    rule.test(rev)
+                    for contribution in rule.test(rev):
+                        self.contributions.add(contribution)
                     # logger.debug('Generated %.1f points', rev.points[-1])
 
                 if not article.disqualified:
 
                     dt = pytz.utc.localize(datetime.fromtimestamp(rev.timestamp))
                     if self.suspended_since is None or dt < self.suspended_since:
+
+                        rev_points = [x for x in self.contributions if x.rev ==rev]
 
                         if rev.get_points() > 0:
                             #print self.name, rev.timestamp, rev.get_points()
@@ -1020,6 +978,8 @@ class User(object):
         logger.debug('Formatting results for user %s', self.name)
         # loop over articles
         for article_key, article in self.articles.items():
+
+            brutto = self.contributions.get_contribs(article=article)
 
             brutto = article.get_points(ignore_suspension_period=True, ignore_point_deductions=True, ignore_disqualification=True)
             netto = article.get_points()

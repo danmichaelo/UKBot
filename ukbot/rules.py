@@ -3,11 +3,13 @@
 import re
 from lxml.html import fromstring
 import lxml
+import functools
 from mwtextextractor import condition_for_lxml
 from mwclient.errors import InvalidPageTitle
 import urllib
 import logging
 from .common import t, _
+from .contributions import UserContribution
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.DEBUG)
@@ -18,35 +20,35 @@ class Rule(object):
     def __init__(self, key):
         self.key = key
 
-    def iszero(self, f):
-        f = float(f)
-        return (f > -0.1 and f < 0.1)
+    # def iszero(self, f):
+    #     f = float(f)
+    #     return (f > -0.1 and f < 0.1)
 
-    def add_points(self, rev, points, ptype, txt, pmax, include_zero=False):
+    # def add_points(self, rev, points, ptype, txt, pmax, include_zero=False):
 
-        ab = rev.article().get_points(ptype)
-        ab_raw = rev.article().get_points(ptype, ignore_max=True)
-        pts = 0.0
+    #     ab = rev.article().get_points(ptype)
+    #     ab_raw = rev.article().get_points(ptype, ignore_max=True)
+    #     pts = 0.0
 
-        if pmax > 0.0 and self.iszero(ab - pmax):
-            # we have reached max
-            if points < 0.0 and ab_raw + points < pmax:
-                pts = pmax - ab_raw - points
-            rev.points.append([pts, ptype, txt, points])
+    #     if pmax > 0.0 and self.iszero(ab - pmax):
+    #         # we have reached max
+    #         if points < 0.0 and ab_raw + points < pmax:
+    #             pts = pmax - ab_raw - points
+    #         rev.points.append([pts, ptype, txt, points])
 
-        elif pmax > 0.0 and ab + points > pmax:
-            # reaching max
-            pts = pmax - ab
-            rev.points.append([pts, ptype, txt + ' &gt; ' + _('max'), points])
+    #     elif pmax > 0.0 and ab + points > pmax:
+    #         # reaching max
+    #         pts = pmax - ab
+    #         rev.points.append([pts, ptype, txt + ' &gt; ' + _('max'), points])
 
-        #elif not self.iszero(revpoints):
-        else:
-            if self.iszero(points) and not include_zero:
-                return False
-            pts = points
-            rev.points.append([points, ptype, txt, points])
-        if pts > 0.0:
-            return True
+    #     #elif not self.iszero(revpoints):
+    #     else:
+    #         if self.iszero(points) and not include_zero:
+    #             return False
+    #         pts = points
+    #         rev.points.append([points, ptype, txt, points])
+    #     if pts > 0.0:
+    #         return True
 
 
 class NewPageRule(Rule):
@@ -57,7 +59,7 @@ class NewPageRule(Rule):
 
     def test(self, rev):
         if rev.new and not rev.redirect:
-            rev.points.append([self.points, 'newpage', _('new page')])
+            yield UserContribution(rev=rev, points=self.points, rule=self, description=_('new page'))
 
 
 class RedirectRule(Rule):
@@ -68,7 +70,8 @@ class RedirectRule(Rule):
 
     def test(self, rev):
         if rev.new and rev.redirect:
-            rev.points.append([self.points, 'redirect', _('redirect')])
+            yield UserContribution(rev=rev, points=self.points, rule=self, description=_('redirect'))
+
 
 # class StubRule(Rule):
 
@@ -141,6 +144,11 @@ class TemplateRemovalRule(Rule):
                         tc += 1
         return tc
 
+    def get_templates_removed(self, template, rev):
+        pt = self.count_instances(template, rev.te_parenttext())
+        ct = self.count_instances(template, rev.te_text())
+        return pt - ct
+
     def test(self, rev):
         if rev.redirect or rev.parentredirect:
             # skip redirects
@@ -149,12 +157,11 @@ class TemplateRemovalRule(Rule):
         for template in self.templates:
             if template['site'] != rev.article().site():
                 continue
-            pt = self.count_instances(template, rev.te_parenttext())
-            ct = self.count_instances(template, rev.te_text())
-            if ct < pt:
-                rev.points.append([(pt - ct) * self.points, 'templateremoval',
-                                  _('removal of {{tl|%(template)s}}') % {'template': template['name']}])
-                template['total'] += (pt - ct)
+            removed = self.get_templates_removed(template, rev)
+            if removed > 0:
+                template['total'] += removed
+                yield UserContribution(rev=rev, rule=self, points=removed * self.points,
+                                       description=_('removal of {{tl|%(template)s}}') % {'template': template['name']})
 
 
 class QualiRule(Rule):
@@ -165,7 +172,8 @@ class QualiRule(Rule):
 
     def test(self, rev):
         if self.iszero(rev.article().get_points('quali')):
-            rev.points.append([self.points, 'quali', _('qualified')])
+            yield UserContribution(rev=rev, points=self.points, rule=self,
+                                   description=_('qualified'))
 
 
 class ContribRule(Rule):
@@ -175,7 +183,7 @@ class ContribRule(Rule):
         self.points = float(points)
 
     def test(self, rev):
-        rev.points.append([self.points, 'contrib', _('contribution')])
+        yield UserContribution(rev=rev, points=self.points, rule=self.rule, description=_('contribution'))
 
 
 class ByteRule(Rule):
@@ -185,12 +193,13 @@ class ByteRule(Rule):
         self.points = float(points)
         self.maxpoints = float(maxpoints)
 
+    @capped(include_zero=True)
     def test(self, rev):
-        revpoints = rev.bytes * self.points
-        if revpoints > 0.:
-            self.add_points(rev, revpoints, 'byte',
-                            _('%(bytes).f bytes') % {'bytes': rev.bytes},
-                            self.maxpoints, include_zero=True)
+        points = rev.bytes * self.points
+        yield UserContribution(rev=rev, points=points, rule=self, description=_('%(bytes).f bytes') % {'bytes': rev.bytes})
+        # self.add_points(rev, revpoints, 'byte',
+        #                 _('%(bytes).f bytes') % {'bytes': rev.bytes},
+        #                 self.maxpoints, include_zero=True)
 
 
 class WordRule(Rule):
@@ -201,13 +210,9 @@ class WordRule(Rule):
         self.maxpoints = float(maxpoints)
 
     def test(self, rev):
-
         words = rev.words
-        revpoints = words * self.points
-        if revpoints > 0.:
-            self.add_points(rev, revpoints, 'word',
-                            _('%(words).f words') % {'words': words},
-                            self.maxpoints)
+        points = words * self.points
+        yield UserContribution(rev=rev, points=points, rule=self, description=_('%(words).f words') % {'words': words})
 
 
 class ImageRule(Rule):
@@ -216,7 +221,7 @@ class ImageRule(Rule):
         Rule.__init__(self, key)
         self.points = float(points)
         self.maxpoints = float(maxpoints)
-        self.totalimages = 0
+        self.total = 0  # statistic
         self.file_prefixes = file_prefixes or set()
 
         if own == -1:
@@ -255,10 +260,13 @@ class ImageRule(Rule):
     def test(self, rev):
         imgs0 = list(self.get_images(rev.parenttext))
         imgs1 = list(self.get_images(rev.text))
-        imgs_added = set(imgs1).difference(set(imgs0))
+        added = set(imgs1).difference(set(imgs0))
+
+        if len(added) == 0:
+            return
 
         counters = {'ownwork': [], 'own': [], 'other': []}
-        for filename in imgs_added:
+        for filename in added:
             filename = urllib.parse.unquote(filename)
             try:
                 image = rev.article().site().images[filename]
@@ -297,25 +305,25 @@ class ImageRule(Rule):
             else:
                 logger.warning("File '%s' does not exist", filename)
 
+        # Update statistic
+        self.total += len(counters['own']) + len(counters['ownwork']) + len(counters['other'])
 
         # If maxinitialcount is 0, only the first image counts.
         # If an user adds both an own image and an image by someone else,
         # we should make sure to credit the own image, not the other.
         # We therefore process the own images first.
-        total_added = len(counters['own']) + len(counters['ownwork']) + len(counters['other'])
-        self.totalimages += total_added
-        revpoints = 0
-        for n, img in enumerate(imgs_added):
+        points = 0
+        for n, img in enumerate(added):
             if len(imgs0) + n <= self.maxinitialcount:
                 if img in counters['ownwork']:
-                    revpoints += self.ownwork
+                    points += self.ownwork
                 elif img in counters['own']:
-                    revpoints += self.own
+                    points += self.own
                 else:
-                    revpoints += self.points
+                    points += self.points
 
-        if revpoints > 0:
-            self.add_points(rev, revpoints, 'image', _('images') % {'images': len(imgs_added)}, self.maxpoints)
+        yield UserContribution(rev=rev, rule=self, points=points,
+                               description=_('images') % {'images': len(added)})
 
 
 class ExternalLinkRule(Rule):
@@ -333,11 +341,13 @@ class ExternalLinkRule(Rule):
 
         nlinks = self.get_linkcount(rev.text)
         nlinks_p = self.get_linkcount(rev.parenttext)
-        links = nlinks - nlinks_p
+        added = nlinks - nlinks_p
 
-        if links > 0:
-            revpoints = links * self.points
-            self.add_points(rev, revpoints, 'link', _('links') % {'links': links}, self.maxpoints)
+        if added <= 0:
+            return
+
+        points = added * self.points
+        yield UserContribution(rev=rev, points=points, rule=self, description=_('links') % {'links': added})
 
 
 class RefRule(Rule):
@@ -399,47 +409,47 @@ class RefRule(Rule):
 
         self.totalsources += sources_added
 
-        if sources_added > 0 or refs_added > 0:
-            p = 0.
-            s = []
-            if sources_added > 0:
-                p += sources_added * self.sourcepoints
-                s.append(_('references') % {'num': sources_added})
-            if refs_added > 0:
-                p += refs_added * self.refpoints
-                s.append(_('reference pointers') % {'num': refs_added})
-            txt = ', '.join(s)
+        if sources_added <= 0 and refs_added <= 0:
+            return
 
-            rev.points.append([p, 'ref', txt])
+        p = 0.
+        s = []
+        if sources_added > 0:
+            p += sources_added * self.sourcepoints
+            s.append(_('references') % {'num': sources_added})
+        if refs_added > 0:
+            p += refs_added * self.refpoints
+            s.append(_('reference pointers') % {'num': refs_added})
+        txt = ', '.join(s)
+        yield UserContribution(rev=rev, points=p, rule=self, description=txt)
 
 
 class RefSectionFiRule(Rule):
+    # @TODO: Generalize to "AddSectionRule"
 
-    def __init__(self, key, points, maxpoints=-1):
+    def __init__(self, key, points, maxpoints=-1, pattern='Lähteet|Viitteet'):
         Rule.__init__(self, key)
         self.points = float(points)
         self.maxpoints = float(maxpoints)
-        self.totalrefsectionsadded = 0
+        self.total = 0
+        self.pattern = pattern
 
-    def has_ref_section(self, txt):
+    def has_section(self, txt):
         # Count list item under section heading "Kilder" or "Kjelder"
         refsection = False
         for line in txt.split('\n'):
-            if re.match(r'==(=)?[\s]*(Lähteet|Viitteet)[\s]*(=?)==', line):
+            if re.match(r'==(=)?[\s]*(%s)[\s]*(=?)==' % self.pattern, line):
                 refsection = True
 
         return refsection
 
     def test(self, rev):
+        had_section = self.has_section(rev.parenttext)
+        has_section = self.has_section(rev.text)
 
-        r1 = self.has_ref_section(rev.parenttext)
-        r2 = self.has_ref_section(rev.text)
-
-        if not r1 and r2:
-            if self.add_points(rev, self.points, 'refsection',
-                               _('added reference section'),
-                               self.maxpoints):
-                self.totalrefsectionsadded += 1
+        if has_section and not had_section:
+            self.total += 1
+            yield UserContribution(rev=rev, points=self.points, rule=self, description=_('added reference section'))
 
 
 class ByteBonusRule(Rule):
@@ -462,7 +472,8 @@ class ByteBonusRule(Rule):
                     thisrev = True
 
         if abytes >= self.limit and thisrev is True:
-            rev.points.append([self.points, 'bytebonus', _('bonus %(bytes).f bytes') % {'bytes': self.limit}])
+            yield UserContribution(rev=rev, points=self.points, rule=self,
+                                   description=_('bonus %(bytes).f bytes') % {'bytes': self.limit})
 
 
 class WordBonusRule(Rule):
@@ -488,5 +499,5 @@ class WordBonusRule(Rule):
                     thisrev = True
 
         if awords >= self.limit and thisrev is True:
-            rev.points.append([self.points, 'wordbonus',
-                              _('bonus %(words)d words') % {'words': self.limit}])
+            yield UserContribution(rev=rev, points=self.points, rule=self,
+                                   description=_('bonus %(words)d words') % {'words': self.limit})

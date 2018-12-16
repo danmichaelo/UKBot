@@ -351,7 +351,7 @@ class RefRule(Rule):
         try:
             if txt == '':
                 return 0, 0
-            xml = fromstring(condition_for_lxml(txt))
+            xml = fromstring(condition_for_lxml(re.sub(r'<!--.*?-->', '', txt, flags=re.I)))
             allref1 = xml.findall('.//ref')
             for tag in allref1:
                 if tag.text is None:

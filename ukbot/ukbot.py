@@ -32,7 +32,6 @@ import gettext
 import pytz
 from isoweek import Week  # Sort-of necessary until datetime supports %V, see http://bugs.python.org/issue12006
                           # and See http://stackoverflow.com/questions/5882405/get-date-from-iso-week-number-in-python
-import unicodedata
 import re
 import json
 import os
@@ -58,6 +57,7 @@ from .common import get_mem_usage, Localization, t, _, InvalidContestPage, logfi
 from .rules import *
 from .filters import *
 from .db import SQL
+from .util import cleanup_input
 
 STATE_NORMAL='normal'
 STATE_ENDING = 'ending'
@@ -111,17 +111,6 @@ YamlLoader.add_constructor('!include', YamlLoader.include)
 
 
 # Read args
- 
-all_chars = (chr(i) for i in range(sys.maxunicode))
-control_chars = ''.join(c for c in all_chars if unicodedata.category(c) in set(['Cc','Cf']))
-control_char_re = re.compile('[%s]' % re.escape(control_chars))
-logger.info('Control char regexp is ready')
-
-def remove_control_chars(s):
-    if isinstance(s, str):
-        return control_char_re.sub('', s)
-    else:
-        return s
 
 
     # Settings
@@ -1149,11 +1138,11 @@ class FilterTemplate(object):
         self.template = template
         self.sites = sites
         self.named_params = {
-            remove_control_chars(k): remove_control_chars(v.value)
+            cleanup_input(k): cleanup_input(v.value)
             for k, v in template.parameters.items()
         }
         self.anon_params = [
-            remove_control_chars(v) if v is not None else None
+            cleanup_input(v) if v is not None else None
             for v in template.get_anonymous_parameters()
         ]
         self.translations = translations
@@ -1282,10 +1271,10 @@ class Contest(object):
         utc = pytz.utc
 
         if infoboks.has_param(commonargs['year']) and infoboks.has_param(commonargs['week']):
-            year = int(re.sub(r'<\!--.+?-->', r'', infoboks.parameters[commonargs['year']].value).strip())
-            startweek = int(re.sub(r'<\!--.+?-->', r'', infoboks.parameters[commonargs['week']].value).strip())
+            year = int(cleanup_input(infoboks.parameters[commonargs['year']].value))
+            startweek = int(cleanup_input(infoboks.parameters[commonargs['week']].value))
             if infoboks.has_param(commonargs['week2']):
-                endweek = re.sub(r'<\!--.+?-->', r'', infoboks.parameters[commonargs['week2']].value).strip()
+                endweek = cleanup_input(infoboks.parameters[commonargs['week2']].value)
                 if endweek == '':
                     endweek = startweek
             else:
@@ -1297,8 +1286,8 @@ class Contest(object):
             self.start = self.wiki_tz.localize(datetime.combine(startweek.monday(), dt_time(0, 0, 0)))
             self.end = self.wiki_tz.localize(datetime.combine(endweek.sunday(), dt_time(23, 59, 59)))
         elif infoboks.has_param(ibcfg['start']) and infoboks.has_param(ibcfg['end']):
-            startdt = infoboks.parameters[ibcfg['start']].value
-            enddt = infoboks.parameters[ibcfg['end']].value
+            startdt = cleanup_input(infoboks.parameters[ibcfg['start']].value)
+            enddt = cleanup_input(infoboks.parameters[ibcfg['end']].value)
             self.start = self.wiki_tz.localize(datetime.strptime(startdt + ' 00 00 00', '%Y-%m-%d %H %M %S'))
             self.end = self.wiki_tz.localize(datetime.strptime(enddt + ' 23 59 59', '%Y-%m-%d %H %M %S'))
         else:
@@ -1314,7 +1303,7 @@ class Contest(object):
         userprefix = self.sites.homesite.namespaces[2]
         self.ledere = []
         if ibcfg['organizer'] in infoboks.parameters:
-            self.ledere = re.findall(r'\[\[(?:User|%s):([^\|\]]+)' % userprefix, infoboks.parameters[ibcfg['organizer']].value, flags=re.I)
+            self.ledere = re.findall(r'\[\[(?:User|%s):([^\|\]]+)' % userprefix, cleanup_input(infoboks.parameters[ibcfg['organizer']].value), flags=re.I)
         if len(self.ledere) == 0:
             logger.warning('Found no organizers in {{tl|%s}}.', ibcfg['name'])
 
@@ -1322,7 +1311,7 @@ class Contest(object):
         self.prices = []
         for col in awards.keys():
             if infoboks.has_param(col):
-                r = re.sub(r'<\!--.+?-->', r'', infoboks.parameters[col].value.strip())  # strip comments, then whitespace
+                r = cleanup_input(infoboks.parameters[col].value)  # strip comments, then whitespace
                 if r != '':
                     r = r.lower().replace('&nbsp;', ' ').split()[0]
                     #print col,r
@@ -1490,9 +1479,9 @@ class Contest(object):
         sucfg = self.config['templates']['suspended']
         if sucfg['name'] in dp.templates:
             for templ in dp.templates[sucfg['name']]:
-                uname = templ.parameters[1].value
+                uname = cleanup_input(templ.parameters[1].value)
                 try:
-                    sdate = self.wiki_tz.localize(datetime.strptime(templ.parameters[2].value, '%Y-%m-%d %H:%M'))
+                    sdate = self.wiki_tz.localize(datetime.strptime(cleanup_input(templ.parameters[2].value), '%Y-%m-%d %H:%M'))
                 except ValueError:
                     raise InvalidContestPage(_("Couldn't parse the date given to the {{tl|%(template)s}} template.") % sucfg['name'])
 
@@ -1512,7 +1501,7 @@ class Contest(object):
         if dicfg['name'] in dp.templates:
             logger.info('Disqualified contributions:')
             for templ in dp.templates[dicfg['name']]:
-                uname = templ.parameters[1].value
+                uname = cleanup_input(templ.parameters[1].value)
                 anon = templ.get_anonymous_parameters()
                 uname = anon[1]
                 if not templ.has_param('s'):
@@ -1532,11 +1521,11 @@ class Contest(object):
         pocfg = self.config['templates']['penalty']
         if pocfg['name'] in dp.templates:
             for templ in dp.templates[pocfg['name']]:
-                uname = templ.parameters[1].value
-                revid = int(templ.parameters[2].value)
+                uname = cleanup_input(templ.parameters[1].value)
+                revid = int(cleanup_input(templ.parameters[2].value))
                 site_key = ''
                 if 'site' in templ.parameters:
-                    site_key = templ.parameters['site'].value
+                    site_key = cleanup_input(templ.parameters['site'].value)
 
                 site = self.sites.from_prefix(site_key)
                 if site is None:
@@ -1545,10 +1534,10 @@ class Contest(object):
                         'prefix': site_key,
                     })
 
-                points = float(templ.parameters[3].value.replace(',', '.'))
-                reason = templ.parameters[4].value
+                points = float(cleanup_input(templ.parameters[3].value).replace(',', '.'))
+                reason = cleanup_input(templ.parameters[4].value)
                 ufound = False
-                logger.info('Point deduction: %d points to %s for revision %s:%s. Reason: %s', points, uname, site.key, revid, reason)
+                logger.info('Point deduction: %d points to "%s" for revision %s:%s. Reason: %s', points, uname, site.key, revid, reason)
                 for u in self.users:
                     if u.name == uname:
                         u.point_deductions.append({
@@ -1567,11 +1556,11 @@ class Contest(object):
         pocfg = self.config['templates']['bonus']
         if pocfg['name'] in dp.templates:
             for templ in dp.templates[pocfg['name']]:
-                uname = templ.parameters[1].value
-                revid = int(templ.parameters[2].value)
+                uname = cleanup_input(templ.parameters[1].value)
+                revid = int(cleanup_input(templ.parameters[2].value))
                 site_key = ''
                 if 'site' in templ.parameters:
-                    site_key = templ.parameters['site'].value
+                    site_key = cleanup_input(templ.parameters['site'].value)
 
                 site = None
                 for s in self.sites.sites.values():
@@ -1585,8 +1574,8 @@ class Contest(object):
                         'prefix': site_key,
                     })
 
-                points = float(templ.parameters[3].value.replace(',', '.'))
-                reason = templ.parameters[4].value
+                points = float(cleanup_input(templ.parameters[3].value).replace(',', '.'))
+                reason = cleanup_input(templ.parameters[4].value)
                 ufound = False
                 logger.info('Point addition: %d points to %s for revision %s:%s. Reason: %s', points, uname, site.key, revid, reason)
                 for u in self.users:

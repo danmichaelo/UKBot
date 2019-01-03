@@ -647,7 +647,7 @@ class SparqlFilter(Filter):
             raise RuntimeError(_('No "%s" parameter given') % cfg['params']['query'])
         
         params = {
-            'query': tpl.get_param('query'),
+            'query': tpl.get_raw_param('query'),
             'sites': tpl.sites,
         }
         return cls(**params)

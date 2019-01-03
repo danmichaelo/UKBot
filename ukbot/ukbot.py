@@ -1116,9 +1116,13 @@ class FilterTemplate(object):
     def __init__(self, template, translations, sites):
         self.template = template
         self.sites = sites
-        self.named_params = {
-            cleanup_input(k): cleanup_input(v.value)
+        self.named_params_raw_values = {
+            cleanup_input(k): v.value
             for k, v in template.parameters.items()
+        }
+        self.named_params = {
+            k: cleanup_input(v)
+            for k, v in self.named_params_raw_values.items()
         }
         self.anon_params = [
             cleanup_input(v) if v is not None else None
@@ -1139,6 +1143,9 @@ class FilterTemplate(object):
 
     def get_param(self, name):
         return self.named_params[self.translations['params'][self.type]['params'][name]]
+
+    def get_raw_param(self, name):
+        return self.named_params_raw_values[self.translations['params'][self.type]['params'][name]]
 
     def make(self, contest):
         filter_cls = {

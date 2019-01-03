@@ -269,9 +269,8 @@ def show_wordcount():
 def show_contests():
     status = request.args.get('status', '')
     error = request.args.get('error', '')
-    config_file = os.path.join(project_dir, 'config', 'config.no.yml')
     contests = []
-    with db_cursor(config_file) as cur:
+    with db_cursor() as cur:
         cur.execute(u'SELECT C.contest_id, C.name, C.site, C.ended, C.closed, C.start_date, C.end_date, C.update_date, C.last_job_id FROM contests as C ORDER BY C.start_date DESC LIMIT 10')
         for row in cur.fetchall():
             contests.append({
@@ -292,8 +291,7 @@ def show_contests():
 @app.route('/ukbot/contests', methods=['POST'])
 def update_contest():
     contest_id = request.form['contest_id']
-    config_file = os.path.join(project_dir, 'config', 'config.no.yml')
-    with db_cursor(config_file) as cur:
+    with db_cursor() as cur:
         cur.execute(u'SELECT C.config, C.name, C.last_job_id FROM contests as C WHERE C.contest_id=%s', [contest_id])
         rows = cur.fetchall()
         if len(rows) != 1:
@@ -311,7 +309,7 @@ def update_contest():
         }), code=302)
 
     try:
-        config_short_name = re.match('^config/config\.(.*)\.yml$', config_file).groups()[0]
+        config_short_name = re.match(r'^config/config\.(.*)\.yml$', config_file).groups()[0]
     except AttributeError:
         return redirect('/ukbot/contests?%s' % urllib.parse.urlencode({
             'error': 'Unknown config file',
@@ -339,7 +337,7 @@ def update_contest():
     out = out.decode('utf-8') if out is not None else ''
     errs = errs.decode('utf-8') if errs is not None else ''
 
-    m = re.match('^Your job ([0-9]+) ', out)
+    m = re.match(r'^Your job ([0-9]+) ', out)
     if m:
         job_id = m.groups()[0]
         log_file = os.path.join(project_dir, 'logs', '%s_%s.log' % (config_short_name, job_id))

@@ -35,7 +35,6 @@ from isoweek import Week  # Sort-of necessary until datetime supports %V, see ht
 import re
 import json
 import os
-import yaml
 from odict import odict
 import urllib
 import argparse
@@ -56,8 +55,8 @@ import locale
 from .common import get_mem_usage, Localization, t, _, InvalidContestPage, logfile
 from .rules import *
 from .filters import *
-from .db import SQL
-from .util import cleanup_input
+from .db import db_conn
+from .util import cleanup_input, load_config
 
 STATE_NORMAL='normal'
 STATE_ENDING = 'ending'
@@ -90,26 +89,6 @@ from dotenv import load_dotenv
 load_dotenv()
 
 #locale.setlocale(locale.LC_TIME, 'no_NO'.encode('utf-8'))
-
-
-class YamlLoader(yaml.SafeLoader):
-
-    def __init__(self, stream):
-
-        self._root = os.path.split(stream.name)[0]
-
-        super(YamlLoader, self).__init__(stream)
-
-    def include(self, node):
-
-        filename = os.path.join(self._root, self.construct_scalar(node))
-
-        with open(filename, 'r') as f:
-            return yaml.load(f, YamlLoader)
-
-YamlLoader.add_constructor('!include', YamlLoader.include)
-
-
 # Read args
 
 
@@ -2621,12 +2600,7 @@ def init_sites(config):
     homesite.prefixes = prefixes
 
     # Connect to DB
-    sql = SQL({
-        'host': os.getenv('DB_HOST'),
-        'db': os.getenv('DB_DB'),
-        'user': os.getenv('DB_USER'),
-        'password': os.getenv('DB_PASSWORD'),
-    })
+    sql = db_conn()
     logger.debug('Connected to database')
 
     sites = {homesite.host: homesite}
@@ -2665,7 +2639,7 @@ def main():
     if args.log != '':
         logfile = open(args.log, 'a')
 
-    config = yaml.load(args.config, YamlLoader)
+    config = load_config(args.config)
     config['filename'] = args.config.name
     args.config.close()
 

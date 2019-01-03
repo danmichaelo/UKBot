@@ -1,6 +1,10 @@
 from contextlib import contextmanager
 import mysql.connector
-import yaml
+import os
+
+from dotenv import load_dotenv
+load_dotenv()
+
 
 class MyConverter(mysql.connector.conversion.MySQLConverter):
 
@@ -41,11 +45,18 @@ class SQL(object):
         self.conn.close()
 
 
+def db_conn():
+    return SQL({
+        'host': os.getenv('DB_HOST'),
+        'db': os.getenv('DB_DB'),
+        'user': os.getenv('DB_USER'),
+        'password': os.getenv('DB_PASSWORD'),
+    })
+
+
 @contextmanager
-def db_cursor(config_file):
-    with open(config_file, encoding='utf-8') as fp:
-        config = yaml.load(fp)
-    db = SQL(config['db'])
+def db_cursor():
+    db = db_conn()
     cur = db.cursor()
     yield cur
     cur.close()

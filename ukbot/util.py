@@ -2,6 +2,8 @@ import re
 import sys
 import unicodedata
 import logging
+import os
+import yaml
 
 logger = logging.getLogger(__name__)
 all_chars = (chr(i) for i in range(sys.maxunicode))
@@ -19,3 +21,24 @@ def cleanup_input(value):
     value = control_char_re.sub('', value)
 
     return value
+
+
+class YamlLoader(yaml.SafeLoader):
+
+    def __init__(self, stream):
+
+        self._root = os.path.split(stream.name)[0]
+
+        super(YamlLoader, self).__init__(stream)
+
+    def include(self, node):
+
+        filename = os.path.join(self._root, self.construct_scalar(node))
+
+        with open(filename, encoding='utf-8') as fp:
+            return yaml.load(fp, YamlLoader)
+
+YamlLoader.add_constructor('!include', YamlLoader.include)
+
+def load_config(fp):
+    return yaml.load(fp, YamlLoader)

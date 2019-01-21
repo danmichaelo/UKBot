@@ -95,56 +95,62 @@ class RedirectRule(Rule):
 
 class TemplateRemovalRule(Rule):
 
-    def __init__(self, key, points, template, aliases=[]):
+    def __init__(self, key, points, templates):
         Rule.__init__(self, key)
         self.points = float(points)
-        self.template = template.lower()
-        self.aliases = [a.lower() for a in aliases]
-        self.total = 0
 
-    def testtpl(self, name):
-        name = name.lower()
-        for tpl in self.aliases + [self.template]:
-            if tpl[0] == '*' and tpl[-1] == '*' and name.find(tpl[1:-1]) != -1:
+        # Make page_name -> [aliases] map
+        self.templates = []
+        logger.info('Initializing TemplateRemovalRule with %d templates:', len(templates))
+        for page in templates:
+            tpl = {
+                'name': page.page_title,
+                'values': [page.page_title.lower()],
+                'total': 0,
+            }
+            if page.exists:
+                for alias in page.backlinks(filterredir='redirects'):
+                    tpl['values'].append(alias.page_title.lower())
+            self.templates.append(tpl)
+
+            logger.info('  - Template name="%s", aliases="%s"', tpl['name'], ','.join(tpl['values']))
+
+    def matches_template(self, template, text):
+        """Check if the text matches the template name or any of its aliases. Supports wildcards."""
+        text = text.lower()
+        for tpl_name in template['values']:
+            if tpl_name[0] == '*' and tpl_name[-1] == '*' and text.find(tpl_name[1:-1]) != -1:
                 return True
-            elif tpl[0] == '*' and name.endswith(tpl[1:]):
+            elif tpl_name[0] == '*' and text.endswith(tpl_name[1:]):
                 return True
-            elif tpl[-1] == '*' and name.startswith(tpl[:-1]):
+            elif tpl_name[-1] == '*' and text.startswith(tpl_name[:-1]):
                 return True
-            elif name == tpl:
+            elif text == tpl_name:
                 return True
         return False
 
-    def templatecount(self, dp):
-        """ Checks if a given text has the template"""
-
+    def count_instances(self, template, parsed_text):
+        """Count the number of instances of a template in a given text."""
         tc = 0
-        for node in dp.templates.doc.findall('.//template'):
+        for node in parsed_text.templates.doc.findall('.//template'):
             for elem in node:
                 if (elem.tag == 'title') and (elem.text is not None):
-                    if self.testtpl(elem.text):
+                    if self.matches_template(template, elem.text):
                         tc += 1
- #       for tpl in dp.templates._templates():
-            #if self.testtpl(tpl.name) or tpl.name in self.aliases:
-#            tc += 1
-        #for tpl in dp.templates:
-            #tc += len(tpl)
-        #    pass
-        #     if self.testtpl(tname) or tname in self.aliases:
-        #         tc += len(templ)
-        # del dp
         return tc
 
     def test(self, rev):
         if rev.redirect or rev.parentredirect:
             # skip redirects
             return
-        pt = self.templatecount(rev.te_parenttext())
-        ct = self.templatecount(rev.te_text())
-        if ct < pt:
-            rev.points.append([(pt - ct) * self.points, 'templateremoval',
-                              _('removal of {{tl|%(template)s}}') % {'template': self.template}])
-            self.total += (pt - ct)
+
+        for template in self.templates:
+            pt = self.count_instances(template, rev.te_parenttext())
+            ct = self.count_instances(template, rev.te_text())
+            if ct < pt:
+                rev.points.append([(pt - ct) * self.points, 'templateremoval',
+                                  _('removal of {{tl|%(template)s}}') % {'template': template['name']}])
+                template['total'] += (pt - ct)
 
 
 class QualiRule(Rule):

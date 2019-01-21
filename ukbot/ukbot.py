@@ -1418,11 +1418,14 @@ class Contest(object):
                 rules.append(RefRule(**params))
 
             elif key == rulecfg['templateremoval']:
-                params = {'key': key, 'points': anon[2], 'template': anon[3]}
-                tplpage = self.sites.homesite.pages['Template:' + params['template']]
-                if tplpage.exists:
-                    params['aliases'] = [x.page_title for x in tplpage.backlinks(filterredir='redirects')]
-
+                params = {
+                    'key': key,
+                    'points': anon[2],
+                    'templates': [
+                        self.sites.resolve_page(tpl_name, 10, True)
+                        for tpl_name in anon[3:] if tpl_name.strip() is not ''
+                    ],
+                }
                 rules.append(TemplateRemovalRule(**params))
 
             elif key == rulecfg['bytebonus']:
@@ -2141,9 +2144,10 @@ class Contest(object):
                 elif type(f) == ImageRule:
                     sammen += '|%s=%d' % (f.key, f.totalimages)
                 elif type(f) == TemplateRemovalRule:
-                    trn += 1
-                    sammen += '|%(key)s%(idx)d=%(tpl)s|%(key)s%(idx)dn=%(cnt)d' % {
-                        'key': f.key, 'idx': trn, 'tpl': f.template, 'cnt': f.total}
+                    for tpl in f.templates:
+                        trn += 1
+                        sammen += '|%(key)s%(idx)d=%(tpl)s|%(key)s%(idx)dn=%(cnt)d' % {
+                            'key': f.key, 'idx': trn, 'tpl': tpl['name'], 'cnt': tpl['total']}
 
             sammen += '}}'
 

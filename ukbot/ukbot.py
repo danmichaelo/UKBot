@@ -916,6 +916,8 @@ class User(object):
 
             elif isinstance(filters, tuple):
                 # Apply filters in parallel (OR)
+                if len(filters) == 0:  # Interpret empty tuple as "filtering nothing" rather than "filter everything"
+                    return articles
                 res = odict([])
                 logger.debug('%s Union of %d filters (OR):', '>' * depth, len(filters))
                 for f in filters:
@@ -930,6 +932,7 @@ class User(object):
 
         logger.debug('Before filtering : %d articles',
                      len(self.articles))
+
         self.articles = apply_filters(self.articles, filters, 1)
         logger.debug('After filtering : %d articles',
                      len(self.articles))

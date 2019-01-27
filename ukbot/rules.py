@@ -104,6 +104,7 @@ class TemplateRemovalRule(Rule):
         logger.info('Initializing TemplateRemovalRule with %d templates:', len(templates))
         for page in templates:
             tpl = {
+                'site': page.site,
                 'name': page.page_title,
                 'values': [page.page_title.lower()],
                 'total': 0,
@@ -113,7 +114,8 @@ class TemplateRemovalRule(Rule):
                     tpl['values'].append(alias.page_title.lower())
             self.templates.append(tpl)
 
-            logger.info('  - Template name="%s", aliases="%s"', tpl['name'], ','.join(tpl['values']))
+            logger.info('  - Template site="%s" name="%s", aliases="%s"',
+                        tpl['site'].host, tpl['name'], ','.join(tpl['values']))
 
     def matches_template(self, template, text):
         """Check if the text matches the template name or any of its aliases. Supports wildcards."""
@@ -145,6 +147,8 @@ class TemplateRemovalRule(Rule):
             return
 
         for template in self.templates:
+            if template['site'] != rev.article().site():
+                continue
             pt = self.count_instances(template, rev.te_parenttext())
             ct = self.count_instances(template, rev.te_text())
             if ct < pt:

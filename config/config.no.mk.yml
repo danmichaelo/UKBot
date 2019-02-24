@@ -5,13 +5,13 @@ wiki_timezone: Europe/Oslo
 homesite: no.wikipedia.org
 default_prefix: "no"
 plot:
-    datafile: 'plots/Nowp Ukens konkurranse %(year)d-%(week)02d.json'
-    figname: 'plots/Nowp Ukens konkurranse %(year)d-%(week)02d.svg'
+    datafile: 'plots/Nowp Månedens konkurranse %(year)d-%(month)02d.json'
+    figname: 'plots/Nowp Månedens konkurranse %(year)d-%(month)02d.svg'
     description: |
         == {{int:filedesc}} ==
         {{Information
-        |Description    = {{no|1=Resultater for [[:no:%(pagename)s|Ukens konkurranse uke %(week)s, %(year)s]]}}
-                          {{en|1=Results from the weekly article writing contest at Norwegian Bokmål/Nynorsk Wikipedia [[:no:%(pagename)s|week %(week)s, %(year)s]]}}
+        |Description    = {{no|1=Resultater for Månedens konkurranse [[:no:%(pagename)s|%(year)s-%(month)s]]}}
+                          {{en|1=Results from the monthly article writing contest at Norwegian Bokmål/Nynorsk Wikipedia [[:no:%(pagename)s|%(year)s-%(month)s]]}}
         |Source         = {{own}}
         |Date           = %(start)s
         |Author         = [[User:UKBot|UKBot]]
@@ -20,7 +20,7 @@ plot:
         == {{int:license-header}} ==
         {{PD-self}}
         
-        [[Category:Ukens konkurranse %(year)s]]
+        [[Category:Månedens konkurranse %(year)s]]
 othersites:
     - nn.wikipedia.org
     - se.wikipedia.org
@@ -52,7 +52,7 @@ templates:
         yes: ja
         no: nei
     infobox:
-        name: Infoboks ukens konkurranse
+        name: Infoboks månedens konkurranse
         status: status
         start: start
         end: slutt
@@ -67,7 +67,7 @@ templates:
     bonus:
         name: UK poeng
     contestlist:
-        name: Ukens konkurranse-liste
+        name: Månedens konkurranse
     rule:
         name: Ukens konkurranse poeng
         new: ny
@@ -91,13 +91,13 @@ templates:
         maxinitialcount: maksantallinnledningsvis
     filters: !include filters.no.yml
 pages:
-    base: Wikipedia:Konkurranser/Ukens konkurranse
-    default: Wikipedia:Konkurranser/Ukens konkurranse %(year)d-%(week)02d
-    redirect: WP:UK
+    base: Wikipedia:Konkurranser/Månedens konkurranse
+    default: Wikipedia:Konkurranser/Månedens konkurranse %(year)d-%(week)02d
+    redirect: WP:MK
 contestPages:
     resultsSection: Resultater
     participantsSection: 'Delta[kg]ere'
-    footer: "{{ukens konkurranse %(year)s}}\n[[Kategori:Artikkelkonkurranser]]"
+    footer: "{{Månedens konkurranse %(year)s}}\n[[Kategori:Artikkelkonkurranser]]"
 awardstatus:
     pagename: Bruker:UKBot/Premieutsendelse
     wait: Venter

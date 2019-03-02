@@ -22,11 +22,10 @@ awards:
     lyslilla: { file: Article MediumPurple.svg }
     lilla: { file: Article purple.svg }
     brun: { file: Article brown.svg }
-award_message:
-    winner_template: UK winner             # template name
-    participant_template: UK participant   # template name
-    organizer_template: UK organizer       # template name
-    extraargs: "|showuk=no"                # template argument
+award_messages:
+    winner_template: '{{UK winner|year=%(year)s|week=%(week)s|%(award)s=yes}}'
+    participant_template: '{{UK participant|year=%(year)s|week=%(week)s|%(award)s=yes}}'
+    organizer_template: '{{UK organizer|year=%(year)s|week=%(week)s|%(award)s=yes|showuk=no}}'
 templates:
     botinfo: UKB botinfo
     status: UKB status

@@ -37,11 +37,10 @@ awards:
     lyslilla: { file: Article MediumPurple.svg }
     lilla: { file: Article purple.svg }
     brun: { file: Article brown.svg }
-award_message:
-    winner_template: UK vinner          # template name
-    participant_template: UK deltaker   # template name
-    organizer_template: UK arrangør     # template name
-    extraargs: "|visuk=nei"             # template argument
+award_messages:
+    winner_template: '{{UK vinner|år=%(year)s|måned=%(month)s|%(award)s=ja}}'
+    participant_template: '{{UK deltaker|år=%(year)s|måned=%(month)s|%(award)s=ja}}'
+    organizer_template: '{{UK arrangør|år=%(year)s|måned=%(month)s|%(award)s=ja|visuk=nei}}'
 templates:
     botinfo: Ukens konkurranse robotinfo
     status: Ukens konkurranse status
@@ -49,6 +48,7 @@ templates:
         year: år
         week: uke
         week2: ukefler
+        month: måned
         yes: ja
         no: nei
     infobox:

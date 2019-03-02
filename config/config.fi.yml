@@ -30,11 +30,10 @@ awards:
     vaaleanvioletti: { file: Article MediumPurple.svg }
     violetti: { file: Article purple.svg }
     ruskea: { file: Article brown.svg }
-award_message:
-    winner_template: VK voittaja         # template name
-    participant_template: VK osallistuja # template name
-    organizer_template: VK järjestäjä    # template name
-    #extraargs: "|visuk=nei"              # template argument
+award_messages:
+    winner_template: '{{VK voittaja|vuosi=%(year)s|viikko=%(week)s|%(award)s=kyllä}}'
+    participant_template: '{{VK osallistuja|vuosi=%(year)s|viikko=%(week)s|%(award)s=kyllä}}'
+    organizer_template: '{{VK järjestäjä|vuosi=%(year)s|viikko=%(week)s|%(award)s=kyllä}}'
 templates:
     botinfo: Viikon kilpailu robotti-info
     status: Viikon kilpailu tilanne

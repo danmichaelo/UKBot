@@ -1742,26 +1742,18 @@ class Contest(object):
             plt.savefig(figname, dpi=200)
             logger.info('Wrote plot: %s', figname)
 
-    def format_msg(self, template, award):
-        tpl = self.config['award_message']
+    def format_msg(self, template_name, award):
+        template = self.config['award_messages'][template_name]
         args = {
-            'template': tpl[template],
-            'yearname': self.config['templates']['commonargs']['year'],
-            'weekname': self.config['templates']['commonargs']['week'],
-            'week2name': self.config['templates']['commonargs']['week2'],
-            'extraargs': (tpl['extraargs'] if 'extraargs' in tpl else ''),
             'year': self.year,
             'week': self.startweek,
             'month': self.month,
             'award': award,
-            'yes': self.config['templates']['commonargs'][True],
-            'no': self.config['templates']['commonargs'][False]
         }
-        if self.startweek == self.endweek:
-            return '{{%(template)s|%(yearname)s=%(year)d|%(weekname)s=%(week)02d|%(award)s=%(yes)s%(extraargs)s' % args
-        else:
-            args['week2'] = self.endweek
-            return '{{%(template)s|%(yearname)s=%(year)d|%(weekname)s=%(week)02d|%(week2name)s=%(week2)02d|%(award)s=%(yes)s%(extraargs)s' % args
+        if self.startweek != self.endweek:
+            args['week'] += '|%s=%s' % (self.config['commonargs']['week2'], self.endweek)
+
+        return template % args
 
     def format_heading(self):
         if self.startweek == self.endweek:
@@ -1876,30 +1868,7 @@ class Contest(object):
         if oaward == '':
             raise Exception('No organizer award found in config')
         for u in self.ledere:
-            if self.startweek == self.endweek:
-                mld = '{{%(template)s|%(yeararg)s=%(year)d|%(weekarg)s=%(week)02d|%(organizeraward)s=%(yes)s%(extraargs)s}}\n' % {
-                    'template': self.config['award_message']['organizer_template'],
-                    'yeararg': self.config['templates']['commonargs']['year'],
-                    'weekarg': self.config['templates']['commonargs']['week'],
-                    'year': self.year,
-                    'week': self.startweek,
-                    'extraargs': (self.config['award_message']['extraargs'] if 'extraargs' in self.config['award_message'] else ''),
-                    'organizeraward': oaward,
-                    'yes': self.config['templates']['commonargs'][True]
-                }
-            else:
-                mld = '{{%(template)s|%(yeararg)s=%(year)d|%(weekarg)s=%(week)02d|%(week2arg)s=%(week2)02d|%(organizeraward)s=%(yes)s%(extraargs)s}}\n' % {
-                    'template': self.config['award_message']['organizer_template'],
-                    'yeararg': self.config['templates']['commonargs']['year'],
-                    'weekarg': self.config['templates']['commonargs']['week'],
-                    'week2arg': self.config['templates']['commonargs']['week2'],
-                    'year': self.year,
-                    'week': self.startweek,
-                    'week2': self.endweek,
-                    'extraargs': (self.config['award_message']['extraargs'] if 'extraargs' in self.config['award_message'] else ''),
-                    'organizeraward': oaward,
-                    'yes': self.config['templates']['commonargs'][True]
-                }
+            mld = self.format_msg('organizer_template', oaward)
             mld += _('Now you must check if the results look ok. If there are error messages at the bottom of the [[%(page)s|contest page]], you should check that the related contributions have been awarded the correct number of points. Also check if there are comments or complaints on the discussion page. If everything looks fine, [%(link)s click here] (and save) to indicate that I can send out the awards at first occasion.') % {'page': self.name, 'link': link}
             sig = _('Thanks, ~~~~')
 

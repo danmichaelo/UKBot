@@ -328,11 +328,11 @@ def update_contest():
         '-cwd',
         '-N', config_short_name,
         '-mem', '1524m',
-        'jobs/run.sh', '--page', '\'%s\'' % page_name.encode('utf-8'),
+        'jobs/run.sh', '--page', '\'%s\'' % page_name
         # Double-quoting is necessary due to a qsub bug,
         # see <https://phabricator.wikimedia.org/T50811>
     ]
-    proc = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    proc = subprocess.Popen([x.encode('utf-8') for x in cmd], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
     try:
         out, errs = proc.communicate(timeout=15)
     except TimeoutExpired:

@@ -33,6 +33,11 @@ contest_setups = [
         "url": "https://no.wikipedia.org/wiki/WP:UK",
     },
     {
+        "id": "no-mk",
+        "name": "Månedens konkurranse",
+        "url": "https://no.wikipedia.org/wiki/WP:MK",
+    },
+    {
         "id": "fi",
         "name": "Viikon kilpailu",
         "url": "https://fi.wikipedia.org/wiki/WP:VK",
@@ -323,7 +328,7 @@ def update_contest():
         '-cwd',
         '-N', config_short_name,
         '-mem', '1524m',
-        'jobs/run.sh', '--page', '\'%s\'' % page_name,
+        'jobs/run.sh', '--page', '\'%s\'' % page_name.encode('utf-8'),
         # Double-quoting is necessary due to a qsub bug,
         # see <https://phabricator.wikimedia.org/T50811>
     ]

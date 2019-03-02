@@ -52,7 +52,7 @@ templates:
         yes: ja
         no: nei
     infobox:
-        name: Infoboks månedens konkurranse
+        name: Infoboks Wikipedia-konkurranse
         status: status
         start: start
         end: slutt
@@ -92,7 +92,7 @@ templates:
     filters: !include filters.no.yml
 pages:
     base: Wikipedia:Konkurranser/Månedens konkurranse
-    default: Wikipedia:Konkurranser/Månedens konkurranse %(year)d-%(week)02d
+    default: Wikipedia:Konkurranser/Månedens konkurranse %(year)d-%(month)02d
     redirect: WP:MK
 contestPages:
     resultsSection: Resultater

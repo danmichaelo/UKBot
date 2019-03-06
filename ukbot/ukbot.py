@@ -1818,7 +1818,7 @@ class Contest(object):
                             mld = self.format_msg('winner_template', r[0])
                         prizefound = True
                         break
-                mld += '}}\n'
+                mld += '\n'
             else:
                 mld = ''
                 for r in self.prices:
@@ -1826,7 +1826,7 @@ class Contest(object):
                         prizefound = True
                         mld = self.format_msg('participant_template', r[0])
                         break
-                mld += '}}\n'
+                mld += '\n'
 
             now = self.server_tz.localize(datetime.now())
             yearweek = now.astimezone(self.wiki_tz).strftime('%Y-%V')

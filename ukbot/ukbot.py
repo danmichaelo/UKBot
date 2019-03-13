@@ -663,7 +663,7 @@ class User(object):
                 # contribution list (self.articles), so we need to check:
                 if article_key in self.articles:
                     article = self.articles[article_key]
-                    for apirev in page['revisions']:
+                    for apirev in page.get('revisions', []):
                         nr += 1
                         parentid = apirev['revid']
                         found = False

@@ -24,7 +24,6 @@ from datetime import datetime
 logger = logging.getLogger('app')
 
 project_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.realpath(__file__))))
-base_href = os.environ.get('APP_BASE_HREF', 'http://localhost:5000/ukbot/')
 
 contest_setups = [
     {
@@ -61,7 +60,7 @@ def touch(fname, mode=0o664):
         os.utime(f.fileno())
 
 
-app = Flask(__name__, static_url_path='/ukbot/static')
+app = Flask(__name__, static_url_path='/static')
 sockets = Sockets(app)
 
 def error_404():
@@ -104,11 +103,6 @@ def inject_current_time():
     return dict(current_time=datetime.now())
 
 @app.route('/')
-def goto_index():
-    return redirect('/ukbot/', code=302)
-
-
-@app.route('/ukbot/')
 def show_home():
 
     cf = copy(contest_setups)
@@ -117,8 +111,7 @@ def show_home():
         contest_setup['status'] = read_status(status_file)
 
     return render_template('home.html',
-        contest_setups=cf,
-        base_href=base_href
+        contest_setups=cf
     )
 
 # @app.route('/<contest>/')
@@ -142,7 +135,7 @@ def show_home():
 #         )
 
 
-@sockets.route('/ukbot/jobs/<job_id>/sock')
+@sockets.route('/jobs/<job_id>/sock')
 def show_contest_status_sock(socket, job_id):
     contest_id, job_id = job_id.rsplit('_', 1)
     contest_id = re.sub('[^a-z_-]', '', contest_id)
@@ -176,7 +169,7 @@ def show_contest_status_sock(socket, job_id):
     app.logger.info('Closed websocket for %s', log_file)
 
 
-@app.route('/ukbot/jobs/<job_id>')
+@app.route('/jobs/<job_id>')
 def show_log(job_id):
     # if contest_setup not in [c['id'] for c in contest_setups]:
     #     return error_404()
@@ -242,7 +235,7 @@ def validate(data):
     return page, errors
 
 
-@app.route('/ukbot/wordcount')
+@app.route('/wordcount')
 def show_wordcount():
     lang = request.args.get('lang', '')
     page = request.args.get('page', '')
@@ -270,7 +263,7 @@ def show_wordcount():
     )
 
 
-@app.route('/ukbot/contests', methods=['GET'])
+@app.route('/contests', methods=['GET'])
 def show_contests():
     status = request.args.get('status', '')
     error = request.args.get('error', '')
@@ -293,7 +286,7 @@ def show_contests():
     return render_template('contests.html', contests=contests, status=status, error=error)
 
 
-@app.route('/ukbot/contests', methods=['POST'])
+@app.route('/contests', methods=['POST'])
 def update_contest():
     contest_id = request.form['contest_id']
     with db_cursor() as cur:
@@ -301,7 +294,7 @@ def update_contest():
         rows = cur.fetchall()
         if len(rows) != 1:
             qs = urllib.parse.urlencode({'error': 'Contest not found'})
-            return redirect('/ukbot/contests?' + qs, code=302)
+            return redirect('/contests?' + qs, code=302)
 
         config_file = rows[0][0]
         page_name = rows[0][1]
@@ -309,14 +302,14 @@ def update_contest():
 
 
     if config_file is None:
-        return redirect('/ukbot/contests?%s' % urllib.parse.urlencode({
+        return redirect('/contests?%s' % urllib.parse.urlencode({
             'error': 'Unknown config file',
         }), code=302)
 
     try:
         config_short_name = re.match(r'^config/config\.(.*)\.yml$', config_file).groups()[0]
     except AttributeError:
-        return redirect('/ukbot/contests?%s' % urllib.parse.urlencode({
+        return redirect('/contests?%s' % urllib.parse.urlencode({
             'error': 'Unknown config file',
         }), code=302)
 
@@ -347,7 +340,7 @@ def update_contest():
         job_id = m.groups()[0]
         log_file = os.path.join(project_dir, 'logs', '%s_%s.log' % (config_short_name, job_id))
         touch(log_file)
-        return redirect('/ukbot/jobs/%s_%s?%s' % (config_short_name, job_id, urllib.parse.urlencode({
+        return redirect('/jobs/%s_%s?%s' % (config_short_name, job_id, urllib.parse.urlencode({
             'status': 'Job started',
         })), code=302)
 
@@ -355,7 +348,7 @@ def update_contest():
         'status': out,
         'error': errs,
     })
-    return redirect('/ukbot/contests?%s' % qs, code=302)
+    return redirect('/contests?%s' % qs, code=302)
 
 
 if __name__ == "__main__":

@@ -47,6 +47,7 @@ uk.db
 .cache
 replica.my.cnf
 ENV
+www/python/venv
 logs
 storage
 plots

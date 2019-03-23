@@ -6,6 +6,9 @@ MAILTO=""
 ##
 20 * * * * jsub -once -j y -cwd -N no -mem 1524m -o logs/no.log jobs/run.sh
 40 23 * * * jsub -once -j y -cwd -N no -mem 1524m -o logs/no.log jobs/upload.sh
+##
+0 * * * * jsub -once -j y -cwd -N no-mk -mem 1524m -o logs/no-mk.log jobs/run.sh
+30 23 * * * jsub -once -j y -cwd -N no-mk -mem 1524m -o logs/no-mk.log jobs/upload.sh
 #
 30 * * * * jsub -once -j y -cwd -N fi -mem 1524m -o logs/fi.log jobs/run.sh
 55 22 * * * jsub -once -j y -cwd -N fi -mem 1524m -o logs/fi.log jobs/upload.sh

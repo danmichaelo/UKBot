@@ -428,14 +428,14 @@ class Revision(object):
 
     def get_link(self):
         """ returns a link to revision """
-        q = OrderedDict((('title', self.article().name), ('oldid', self.revid)))
+        q = OrderedDict([('oldid', self.revid)])
         if not self.new:
             q['diff'] = 'prev'
         return '//' + self.article().site().host + self.article().site().site['script'] + '?' + urllib.parse.urlencode(q)
 
     def get_parent_link(self):
         """ returns a link to parent revision """
-        q = OrderedDict((('title', self.article().name), ('oldid', self.parentid)))
+        q = OrderedDict([('oldid', self.parentid)])
         return '//' + self.article().site().host + self.article().site().site['script'] + '?' + urllib.parse.urlencode(q)
 
     def get_points(self, ptype='', ignore_max=False, ignore_point_deductions=False):
@@ -1049,7 +1049,7 @@ class User(object):
                                 descr += ' <span style="color:green">+ %.1f p (%s)</span>' % (-p[0], p[1])
 
                         dt = utc.localize(datetime.fromtimestamp(rev.timestamp))
-                        dt_str = dt.astimezone(self.contest().wiki_tz).strftime(_('%A, %H:%M'))
+                        dt_str = dt.astimezone(self.contest().wiki_tz).strftime(_('%d.%m, %H:%M'))
                         out = '[%s %s]: %s' % (rev.get_link(), dt_str, descr)
                         if self.suspended_since is not None and dt > self.suspended_since:
                             out = '<s>' + out + '</s>'
@@ -1060,7 +1060,7 @@ class User(object):
                 titletxt = ''
                 try:
                     cat_path = [x.split(':')[-1] for x in article.cat_path]
-                    titletxt = "''" + _('Category hit') + "'': " + ' &gt; '.join(cat_path) + '<br />'
+                    titletxt = ' : '.join(cat_path) + '<br />'
                 except AttributeError:
                     pass
                 titletxt += '<br />'.join(revs)
@@ -1070,7 +1070,7 @@ class User(object):
                 #         pds.append('%.f p: %s' % (-points, reason))
                 #     titletxt += '<div style="border-top:1px solid #CCC">\'\'' + _('Notes') + ':\'\'<br />%s</div>' % '<br />'.join(pds)
 
-                titletxt += '<div style="border-top:1px solid #CCC">' + _('Total: {{formatnum:%(bytecount)d}} bytes, %(wordcount)d words') % {'bytecount': article.bytes, 'wordcount': article.words} + '.</div>'
+                titletxt += '<div style="border-top:1px solid #CCC">' + _('Total {{formatnum:%(bytecount)d}} bytes, %(wordcount)d words') % {'bytecount': article.bytes, 'wordcount': article.words} + '</div>'
 
                 p = '%.1f p' % brutto
                 if brutto != netto:

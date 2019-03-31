@@ -27,11 +27,6 @@ project_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.realpath(_
 
 contest_setups = [
     {
-        "id": "no",
-        "name": "Ukens konkurranse",
-        "url": "https://no.wikipedia.org/wiki/WP:UK",
-    },
-    {
         "id": "no-mk",
         "name": "Månedens konkurranse",
         "url": "https://no.wikipedia.org/wiki/WP:MK",
@@ -42,9 +37,9 @@ contest_setups = [
         "url": "https://fi.wikipedia.org/wiki/WP:VK",
     },
     {
-        "id": "fi-ek",
-        "name": "Elokuun kuvitustalkoot",
-        "url": "https://fi.wikipedia.org/wiki/Wikipedia:Elokuun kuvitustalkoot",
+        "id": "fi-pln",
+        "name": "Punaisten linkkien naiset",
+        "url": "https://fi.wikipedia.org/wiki/Wikiprojekti:Punaisten_linkkien_naiset",
     },
     {
         "id": "eu",

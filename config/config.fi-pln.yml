@@ -71,7 +71,7 @@ templates:
 pages:
     catignore: Käyttäjä:UKBot/cat-ignore
     base: Wikiprojekti:Punaisten linkkien naiset
-    default: Wikiprojekti:Punaisten linkkien naiset
+    default: Wikiprojekti:Punaisten linkkien naiset/%(year)s
 contestPages:
     participantsSection: Osallistujat
     footer: ""

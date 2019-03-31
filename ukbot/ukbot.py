@@ -1296,7 +1296,7 @@ class Contest(object):
         if len(self.ledere) == 0:
             logger.warning('Found no organizers in {{tl|%s}}.', ibcfg['name'])
 
-        awards = config['awards']
+        awards = config.get('awards', {})
         self.prices = []
         for col in awards.keys():
             if infoboks.has_param(col):

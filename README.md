@@ -32,7 +32,12 @@ Webinterface
 
 At Tool Forge:
 ```
-webservice --backend=gridengine generic start /data/project/ukbot/server.sh
+python3 -m venv www/python/venv
+. www/python/venv/bin/activate
+webservice --backend=kubernetes python shell
+pip install -e .
+exit
+webservice --backend=kubernetes python start
 ```
 
 To test the webinterface locally:

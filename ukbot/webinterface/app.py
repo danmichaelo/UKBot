@@ -175,7 +175,7 @@ def show_log(job_id):
     #     return error_404()
     status = request.args.get('status', '')
 
-    return render_template('status.html', base_href=base_href, job_id=job_id, status=status)
+    return render_template('status.html', job_id=job_id, status=status)
 
 
 # @app.route('/<lang>/contest/<week>/')
@@ -257,7 +257,6 @@ def show_wordcount():
     body = get_body_text(txt)
     return render_template('wordcount.html',
             body=body,
-            base_href=base_href,
             word_count=len(body.split()),
             **args
     )

@@ -1745,13 +1745,13 @@ class Contest(object):
     def format_msg(self, template_name, award):
         template = self.config['award_messages'][template_name]
         args = {
-            'year': self.year,
-            'week': self.startweek,
-            'month': self.month,
+            'year': str(self.year),
+            'week': str(self.startweek),
+            'month': str(self.month),
             'award': award,
         }
         if self.startweek != self.endweek:
-            args['week'] += '|%s=%s' % (self.config['commonargs']['week2'], self.endweek)
+            args['week'] += '|%s=%s' % (self.config['templates']['commonargs']['week2'], self.endweek)
 
         return template % args
 

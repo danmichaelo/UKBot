@@ -1,24 +1,10 @@
 from contextlib import contextmanager
-import mysql.connector
+import pymysql.cursors
+from pymysql.err import OperationalError
 import os
 
 from dotenv import load_dotenv
 load_dotenv()
-
-
-class MyConverter(mysql.connector.conversion.MySQLConverter):
-
-    def row_to_python(self, row, fields):
-        row = super(MyConverter, self).row_to_python(row, fields)
-
-        def to_unicode(col):
-            if isinstance(col, bytearray):
-                return col.decode('utf-8')
-            elif isinstance(col, bytes):
-                return col.decode('utf-8')
-            return col
-
-        return[to_unicode(col) for col in row]
 
 
 class SQL(object):
@@ -28,13 +14,13 @@ class SQL(object):
         self.open_conn()
 
     def open_conn(self):
-        self.conn = mysql.connector.connect(converter_class=MyConverter, **self.config)
+        self.conn = pymysql.connect(charset='utf8mb4', **self.config)
 
     def cursor(self, **kwargs):
         try:
             return self.conn.cursor(**kwargs)
-        except mysql.connector.errors.OperationalError:
-            # Seems like this can happen if the db connection times out
+        except OperationalError:
+            # Can happen if the db connection times out
             self.open_conn()
             return self.conn.cursor(**kwargs)
 

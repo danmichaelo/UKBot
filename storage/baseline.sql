@@ -39,7 +39,7 @@ CREATE TABLE `articles` (
 CREATE TABLE `fulltexts` (
   `revid` int(11) unsigned NOT NULL,
   `site` varchar(50) COLLATE utf8mb4_bin NOT NULL,
-  `revtxt` mediumblob NOT NULL,
+  `revtxt` MEDIUMTEXT COLLATE utf8mb4_bin NOT NULL,
   PRIMARY KEY (`revid`,`site`)
 ) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin;
 

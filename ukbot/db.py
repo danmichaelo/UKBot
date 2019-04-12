@@ -16,13 +16,13 @@ class SQL(object):
     def open_conn(self):
         self.conn = pymysql.connect(charset='utf8mb4', **self.config)
 
-    def cursor(self, **kwargs):
+    def cursor(self):
         try:
-            return self.conn.cursor(**kwargs)
+            return self.conn.cursor()
         except OperationalError:
             # Can happen if the db connection times out
             self.open_conn()
-            return self.conn.cursor(**kwargs)
+            return self.conn.cursor()
 
     def commit(self):
         self.conn.commit()

@@ -802,7 +802,7 @@ class User(object):
                     else:
                         logger.warning('No parent revision text available!')
 
-        cur = sql.cursor(buffered=True)
+        cur = sql.cursor()
 
         # Save revision text if we have it and if not already saved
         cur.execute('SELECT revid FROM fulltexts WHERE revid=%s AND site=%s', [rev.revid, site.key])

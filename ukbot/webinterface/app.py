@@ -1,18 +1,16 @@
 # vim: fenc=utf-8 et sw=4 ts=4 sts=4 ai
 import re
 import json
+import time
 from flask import Flask
 from flask import request
 from flask import render_template, redirect
-from flask_sockets import Sockets
-from time import time
+from flask_uwsgi_websocket import WebSocket
 from mwclient import Site
 from requests import ConnectionError
 from mwtextextractor import get_body_text
 from copy import copy
 import os
-import gevent
-from gevent import Timeout
 from ukbot.db import db_cursor
 import logging
 import subprocess
@@ -55,7 +53,7 @@ def touch(fname, mode=0o664):
 
 
 app = Flask(__name__, static_url_path='/static')
-sockets = Sockets(app)
+ws = WebSocket(app)
 
 def error_404():
     return '404'
@@ -76,7 +74,7 @@ def read_status(fname):
         'job_date': datetime.fromtimestamp(int(status.get('update_date'))).strftime('%F %T'),
         'job_id': status.get('job_id'),
         'runtime': status.get('runtime'),
-        'time_ago': int(time()) - int(status.get('update_date')),
+        'time_ago': int(time.time()) - int(status.get('update_date')),
     }
 
     if args['job_status'] == 'running':
@@ -129,7 +127,7 @@ def show_home():
 #         )
 
 
-@sockets.route('/jobs/<job_id>/sock')
+@ws.route('/jobs/<job_id>/sock')
 def show_contest_status_sock(socket, job_id):
     contest_id, job_id = job_id.rsplit('_', 1)
     contest_id = re.sub('[^a-z_-]', '', contest_id)
@@ -139,14 +137,23 @@ def show_contest_status_sock(socket, job_id):
     app.logger.info('Opened websocket for %s', log_file)
 
     close_next_time = False
-    with open(log_file, encoding='utf-8') as run_file:
+
+    # Use line-buffering (buffering=1) so that we never send incomplete lines
+    with open(log_file, buffering=1, encoding='utf-8') as run_file:
         n = 0
-        while not socket.closed:
-            new_data = run_file.read()
-            if new_data:
-                socket.send(new_data)
-            if close_next_time is True:
-                socket.close()
+        while True:
+            try:
+                # Handle ping/pong, but don't block
+                socket.recv_nb()
+
+                new_data = run_file.read()
+                if new_data != '':
+                    socket.send(new_data)
+                if close_next_time is True:
+                    socket.close()
+                    break
+            except IOError:
+                app.logger.info('WebSocket connection closed by client')
                 break
             if n % 10 == 0:
                 try:
@@ -156,9 +163,8 @@ def show_contest_status_sock(socket, job_id):
                             close_next_time = True
                 except:
                     pass
-            with Timeout(0.5, False):
-                socket.receive()
             n += 1
+            time.sleep(1)
 
     app.logger.info('Closed websocket for %s', log_file)
 
@@ -341,12 +347,12 @@ def update_contest():
         'status': out,
         'error': errs,
     })
-    return redirect('/contests?%s' % qs, code=302)
+    return redirect('contests?%s' % qs, code=302)
 
 
-if __name__ == "__main__":
+# if __name__ == "__main__":
     # app.run()
-    from gevent import pywsgi
-    from geventwebsocket.handler import WebSocketHandler
-    server = pywsgi.WSGIServer(('', 5000), app, handler_class=WebSocketHandler)
-    server.serve_forever()
+    # from gevent import pywsgi
+    # from geventwebsocket.handler import WebSocketHandler
+    # server = pywsgi.WSGIServer(('', 5000), app, handler_class=WebSocketHandler)
+    # server.serve_forever()

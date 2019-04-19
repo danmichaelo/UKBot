@@ -13,7 +13,7 @@ cd "${projectdir}"
 echo "$(date) : Starting '$CONTEST' job ($JOB_ID) on $HOSTNAME" | tee $logfile
 START=$(date +%s)
 
-. ENV/bin/activate
+. www/python/venv/bin/activate
 
 # set -o pipefail  # doesn't work when run through the task schedueler
 ukbot config/config.${CONTEST}.yml --action "uploadplot" "$@" 2>&1 | tee -a $logfile

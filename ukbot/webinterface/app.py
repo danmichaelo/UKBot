@@ -295,14 +295,14 @@ def update_contest():
 
 
     if config_file is None:
-        return redirect('/contests?%s' % urllib.parse.urlencode({
+        return redirect('contests?%s' % urllib.parse.urlencode({
             'error': 'Unknown config file',
         }), code=302)
 
     try:
         config_short_name = re.match(r'^config/config\.(.*)\.yml$', config_file).groups()[0]
     except AttributeError:
-        return redirect('/contests?%s' % urllib.parse.urlencode({
+        return redirect('contests?%s' % urllib.parse.urlencode({
             'error': 'Unknown config file',
         }), code=302)
 
@@ -314,7 +314,7 @@ def update_contest():
         '-cwd',
         '-N', config_short_name,
         '-mem', '1524m',
-        'jobs/run.sh', '--page', '\'%s\'' % page_name
+        '/data/project/ukbot/jobs/run.sh', '--page', '\'%s\'' % page_name
         # Double-quoting is necessary due to a qsub bug,
         # see <https://phabricator.wikimedia.org/T50811>
     ]
@@ -333,7 +333,7 @@ def update_contest():
         job_id = m.groups()[0]
         log_file = os.path.join(project_dir, 'logs', '%s_%s.log' % (config_short_name, job_id))
         touch(log_file)
-        return redirect('/jobs/%s_%s?%s' % (config_short_name, job_id, urllib.parse.urlencode({
+        return redirect('jobs/%s_%s?%s' % (config_short_name, job_id, urllib.parse.urlencode({
             'status': 'Job started',
         })), code=302)
 

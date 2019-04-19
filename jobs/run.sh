@@ -19,7 +19,7 @@ printf '{"status": "running", "update_date": "%s", "job_id": "%s"}' "${START}" "
 # Start mem logger
 ./mem_logger.sh &
 
-. ENV/bin/activate
+. www/python/venv/bin/activate
 
 # set -o pipefail  # doesn't work when run through the task schedueler
 ukbot config/config.${CONTEST}.yml "$@" --job_id ${JOB_ID} 2>&1 | tee -a ${logfile}

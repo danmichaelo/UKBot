@@ -136,6 +136,11 @@ def show_contest_status_sock(socket, job_id):
     status_file = os.path.join(project_dir, 'logs', '%s.status.json' % contest_id)
     app.logger.info('Opened websocket for %s', log_file)
 
+    if not os.path.isfile(log_file):
+        socket.send('The requested log does not exist')
+        socket.close()
+        return
+
     close_next_time = False
 
     # Use line-buffering (buffering=1) so that we never send incomplete lines

@@ -9,7 +9,6 @@ from time import time
 from mwclient import Site
 from requests import ConnectionError
 from mwtextextractor import get_body_text
-import mysql.connector
 from copy import copy
 import os
 import gevent

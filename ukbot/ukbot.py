@@ -1807,6 +1807,9 @@ class Contest(object):
                 logger.info('No price for %s', result['name'])
 
     def deliver_leader_notification(self):
+        if 'awardstatus' not in self.config:
+            return
+
         heading = self.format_heading()
         args = {
             'prefix': self.sites.homesite.site['server'] + self.sites.homesite.site['script'],
@@ -2184,9 +2187,10 @@ class Contest(object):
         if self.state == STATE_ENDING:
             logger.info('Ending contest')
             if not simulate:
-                aws = config['awardstatus']
-                page = self.sites.homesite.pages[aws['pagename']]
-                page.save(text=aws['wait'], summary=aws['wait'], bot=True)
+                if 'awardstatus' in config:
+                    aws = config['awardstatus']
+                    page = self.sites.homesite.pages[aws['pagename']]
+                    page.save(text=aws['wait'], summary=aws['wait'], bot=True)
 
                 cur = self.sql.cursor()
                 cur.execute('UPDATE contests SET ended=1 WHERE site=%s AND name=%s', [self.sites.homesite.key, self.name])
@@ -2479,7 +2483,9 @@ def get_contest_page_titles(sql, homesite, config, wiki_tz, server_tz):
                 logger.info('Award delivery confirmed for [[%s]]', page_title)
                 yield (STATE_CLOSING, page_title)
         else:
-            logger.info('Contest ended: [[%s]], should we autoclose it?', page_title)
+            logger.info('Contest ended: [[%s]]. Auto-closing since there\'s no award delivery', page_title)
+            cursor.execute('UPDATE contests SET closed=1 WHERE site=%s AND name=%s', [homesite.key, page_title])
+            sql.commit()
 
     # 2) Check if there are contests to end
 

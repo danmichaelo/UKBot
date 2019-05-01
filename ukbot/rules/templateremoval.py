@@ -1,0 +1,83 @@
+import logging
+
+from ..common import _
+from ..contributions import UserContribution
+from .rule import Rule
+
+logger = logging.getLogger(__name__)
+
+
+class TemplateRemovalRule(Rule):
+
+    rule_name = 'templateremoval'
+
+    def __init__(self, sites, params, trans=None):
+        Rule.__init__(self, sites, params, trans)
+
+        templates = [
+            self.sites.resolve_page(tpl_name, 10, True)
+            for tpl_name in self.get_anon_params() if tpl_name.strip() is not ''
+        ]
+
+        # Make page_name -> [aliases] map
+        self.templates = []
+        logger.info('Initializing TemplateRemovalRule with %d templates:', len(templates))
+        for page in templates:
+            tpl = {
+                'site': page.site,
+                'name': page.page_title,
+                'values': [page.page_title.lower()],
+                'total': 0,
+            }
+            if page.exists:
+                for alias in page.backlinks(filterredir='redirects'):
+                    tpl['values'].append(alias.page_title.lower())
+            self.templates.append(tpl)
+
+            logger.info('  - Template site="%s" name="%s", aliases="%s"',
+                        tpl['site'].host, tpl['name'], ','.join(tpl['values']))
+
+    @staticmethod
+    def matches_template(template, text):
+        """Check if the text matches the template name or any of its aliases. Supports wildcards."""
+        text = text.lower()
+        for tpl_name in template['values']:
+            if tpl_name[0] == '*' and tpl_name[-1] == '*' and text.find(tpl_name[1:-1]) != -1:
+                return True
+            elif tpl_name[0] == '*' and text.endswith(tpl_name[1:]):
+                return True
+            elif tpl_name[-1] == '*' and text.startswith(tpl_name[:-1]):
+                return True
+            elif text == tpl_name:
+                return True
+        return False
+
+    def count_instances(self, template, parsed_text):
+        """Count the number of instances of a template in a given text."""
+        tc = 0
+        for node in parsed_text.templates.doc.findall('.//template'):
+            for elem in node:
+                if (elem.tag == 'title') and (elem.text is not None):
+                    if self.matches_template(template, elem.text.strip()):
+                        tc += 1
+        return tc
+
+    def get_templates_removed(self, template, rev):
+        pt = self.count_instances(template, rev.te_parenttext())
+        ct = self.count_instances(template, rev.te_text())
+        return pt - ct
+
+    def test(self, rev):
+        if rev.redirect or rev.parentredirect:
+            # skip redirects
+            return
+
+        for template in self.templates:
+            if template['site'] != rev.article().site():
+                continue
+            removed = self.get_templates_removed(template, rev)
+            if removed > 0:
+                template['total'] += removed
+                yield UserContribution(rev=rev, rule=self, points=removed * self.points,
+                                       description=_('removal of {{tl|%(template)s}}') % {'template': template['name']})
+

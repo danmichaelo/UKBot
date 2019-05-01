@@ -1,12 +1,22 @@
+from datetime import datetime
 import re
 import sys
 import unicodedata
 import logging
 import os
+
+import pytz
 import yaml
 
 logger = logging.getLogger(__name__)
 control_char_re = None  # lazy-load
+
+
+def unix_time(dt):
+    """ OS-independent method to get unix time from a datetime object (strftime('%s') does not work on solaris) """
+    epoch = pytz.utc.localize(datetime.utcfromtimestamp(0))
+    delta = dt - epoch
+    return delta.total_seconds()
 
 
 def cleanup_input(value):

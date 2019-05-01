@@ -2,8 +2,6 @@
 # vim: fenc=utf-8 et sw=4 ts=4 sts=4 ai
 import time
 
-from ukbot.contributions import UserContributions
-
 runstart_s = time.time()
 print('Loading')
 
@@ -12,7 +10,6 @@ import logging
 import matplotlib
 import pydash
 import weakref
-from collections import OrderedDict
 import numpy as np
 import calendar
 from datetime import datetime
@@ -30,17 +27,20 @@ import codecs
 import mwclient
 import mwtemplates
 from mwtemplates import TemplateEditor
-from mwtextextractor import get_body_text
 import locale
 import rollbar
 import platform
 from dotenv import load_dotenv
 
-from .common import get_mem_usage, Localization, t, _, InvalidContestPage, logfile
-from .rules import *
+from .contributions import UserContributions
+from .rules import NewPageRule, ByteRule, WordRule, RefRule, ImageRule, TemplateRemovalRule
+from .common import get_mem_usage, Localization, _
+from .rules import rule_classes
 from .filters import *
 from .db import db_conn
-from .util import cleanup_input, load_config
+from .util import cleanup_input, load_config, unix_time
+from .site import Site
+from .article import Article
 
 # ----------------------------------------------------------
 
@@ -84,320 +84,13 @@ logger.setLevel(logging.DEBUG)
 syslog = logging.StreamHandler()
 logger.addHandler(syslog)
 syslog.setLevel(logging.INFO)
-formatter = logging.Formatter('[%(relativeSecs)s] [%(mem_usage)s MB] %(levelname)s : %(message)s')
+formatter = logging.Formatter('[%(relativeSecs)s] {%(mem_usage)s MB} %(name)-20s %(levelname)s : %(message)s')
 syslog.setFormatter(formatter)
 syslog.addFilter(AppFilter())
 
 # ----------------------------------------------------------
 
 load_dotenv()
-
-
-def unix_time(dt):
-    """ OS-independent method to get unix time from a datetime object (strftime('%s') does not work on solaris) """
-    epoch = pytz.utc.localize(datetime.utcfromtimestamp(0))
-    delta = dt - epoch
-    return delta.total_seconds()
-
-
-class Site(mwclient.Site):
-
-    def __init__(self, host, prefixes, **kwargs):
-
-        self.errors = []
-        self.name = host
-        self.key = host
-        self.prefixes = prefixes
-        logger.debug('Initializing site: %s', host)
-        ua = 'UKBot (http://tools.wmflabs.org/ukbot/; danmichaelo+wikipedia@gmail.com)'
-        mwclient.Site.__init__(
-            self,
-            host,
-            clients_useragent=ua, 
-            consumer_token=os.getenv('MW_CONSUMER_TOKEN'),
-            consumer_secret=os.getenv('MW_CONSUMER_SECRET'),
-            access_token=os.getenv('MW_ACCESS_TOKEN'),
-            access_secret=os.getenv('MW_ACCESS_SECRET'),
-            **kwargs
-        )
-
-        res = self.api('query', meta='siteinfo', siprop='magicwords|namespaces|namespacealiases|interwikimap')['query']
-
-        self.file_prefixes = [res['namespaces']['6']['*'], res['namespaces']['6']['canonical']] + [x['*'] for x in res['namespacealiases'] if x['id'] == 6]
-        logger.debug('File prefixes: %s', '|'.join(self.file_prefixes))
-
-        redirect_words = [x['aliases'] for x in res['magicwords'] if x['name'] == 'redirect'][0]
-        logger.debug('Redirect words: %s', '|'.join(redirect_words))
-        self.redirect_regexp = re.compile(u'(?:%s)' % u'|'.join(redirect_words), re.I)
-
-        self.interwikimap = {x['prefix']: x['url'].split('//')[1].split('/')[0].split('?')[0] for x in res['interwikimap']}
-
-    def get_revertpage_regexp(self):
-        msg = self.pages['MediaWiki:Revertpage'].text()
-        msg = re.sub(r'\[\[[^\]]+\]\]', '.*?', msg)
-        return msg
-
-    def match_prefix(self, prefix):
-        return prefix in self.prefixes or prefix == self.key
-
-    def link_to(self, page):
-        # Create a link to the Page or Article, including a site prefix if not the homesite
-        if self.prefixes[0] == '':
-            return ':%s' % page.name
-        else:
-            return ':%s:%s' % (self.prefixes[0], page.name)
-
-
-class Article(object):
-
-    def __init__(self, site, user, name, ns):
-        """
-        An article is uniquely identified by its name and its site
-        """
-        self.site = weakref.ref(site)
-        self.user = weakref.ref(user)
-        self.ns = str(ns)
-        self.name = name
-        self.disqualified = False
-        self._created_at = None
-
-        self.revisions = odict()
-        #self.redirect = False
-        self.errors = []
-
-    def __eq__(self, other):
-        if self.site() == other.site() and self.name == other.name:
-            return True
-        else:
-            return False
-
-    def __str__(self):
-        return "<Article %s:%s for user %s>" % (self.site().key, self.name, self.user().name)
-
-    def __repr__(self):
-        return self.__str__()
-
-    @property
-    def created_at(self):
-        if self._created_at is None:
-            sql = self.user().contest().sql
-            cur = sql.cursor()
-            res = self.site().pages[self.name].revisions(prop='timestamp', limit=1, dir='newer')
-            ts = next(res)['timestamp']
-            self._created_at = pytz.utc.localize(datetime.fromtimestamp(time.mktime(ts)))
-            
-            # self._created = time.strftime('%Y-%m-%d %H:%M:%S', ts)
-            # datetime.fromtimestamp(rev.timestamp).strftime('%F %T')
-            cur.execute(
-                'INSERT INTO articles (site, name, created_at) VALUES (%s, %s, %s)',
-                [self.site().key, self.key, self._created_at.strftime('%Y-%m-%d %H:%M:%S')]
-            )
-            sql.commit()
-        return self._created_at
-
-    @property
-    def key(self):
-        return '%s:%s' % (self.site().key, self.name)
-
-    @property
-    def redirect(self):
-        lastrev = self.revisions[self.revisions.lastkey()]
-        return lastrev.redirect
-
-    @property
-    def new(self):
-        # Deprecated, compare created_at with contest start date instead!
-        firstrev = self.revisions[self.revisions.firstkey()]
-        return firstrev.new
-
-    @property
-    def new_non_redirect(self):
-        # Deprecated, compare created_at with contest start date instead!
-        firstrev = self.revisions[self.revisions.firstkey()]
-        return firstrev.new and not firstrev.redirect
-
-    def add_revision(self, revid, **kwargs):
-        rev = Revision(self, revid, **kwargs)
-        self.revisions[revid] = rev
-        self.user().revisions[revid] = rev
-        return rev
-
-    def link(self):
-        # Create a link to the page, including a site prefix if the site is not the homesite.
-        return self.site().link_to(self)
-
-    @property
-    def bytes(self):
-        return np.sum([rev.bytes for rev in self.revisions.values()])
-
-    @property
-    def words(self):
-        """
-        Returns the total number of words added to this Article. The number
-        will never be negative, but words removed in one revision will
-        contribute negatively to the sum.
-        """
-        return np.max([0, np.sum([rev.words for rev in self.revisions.values()])])
-
-
-class Revision(object):
-
-    def __init__(self, article, revid, **kwargs):
-        """
-        A revision is uniquely identified by its revision id and its site
-
-        Arguments:
-          - article: (Article) article object reference
-          - revid: (int) revision id
-        """
-        self.article = weakref.ref(article)
-        self.errors = []
-
-        self.revid = revid
-        self.size = -1
-        self.text = ''
-        self.point_deductions = []
-
-        self.parentid = 0
-        self.parentsize = 0
-        self.parenttext = ''
-        self.username = ''
-        self.parsedcomment = None
-        self.saved = False  # Saved in local DB
-        self.dirty = False  #
-        self._te_text = None  # Loaded as needed
-        self._te_parenttext = None  # Loaded as needed
-
-        for k, v in kwargs.items():
-            if k == 'timestamp':
-                self.timestamp = int(v)
-            elif k == 'parentid':
-                self.parentid = int(v)
-            elif k == 'size':
-                self.size = int(v)
-            elif k == 'parentsize':
-                self.parentsize = int(v)
-            elif k == 'username':
-                self.username = v[0].upper() + v[1:]
-            elif k == 'parsedcomment':
-                self.parsedcomment = v
-            elif k == 'text':
-                if v is not None:
-                    self.text = v
-            elif k == 'parenttext':
-                if v is not None:
-                    self.parenttext = v
-            else:
-                raise Exception('add_revision got unknown argument %s' % k)
-
-        for pd in self.article().user().point_deductions:
-            if pd['revid'] == self.revid and self.article().site().match_prefix(pd['site']):
-                self.add_point_deduction(pd['points'], pd['reason'])
-
-    def te_text(self):
-        if self._te_text is None:
-            self._te_text = TemplateEditor(re.sub('<nowiki ?/>', '', self.text))
-        return self._te_text
-
-    def te_parenttext(self):
-        if self._te_parenttext is None:
-            self._te_parenttext = TemplateEditor(re.sub('<nowiki ?/>', '', self.parenttext))
-        return self._te_parenttext
-
-    def __str__(self):
-        return ("<Revision %d for %s:%s>" % (self.revid, self.article().site().key, self.article().name))
-
-    def __repr__(self):
-        return self.__str__()
-
-    @property
-    def bytes(self):
-        return self.size - self.parentsize
-
-    @property
-    def words(self):
-        try:
-            return self._wordcount
-        except:
-            pass
-
-        mt1 = get_body_text(re.sub('<nowiki ?/>', '', self.text))
-        mt0 = get_body_text(re.sub('<nowiki ?/>', '', self.parenttext))
-
-        if self.article().site().key == 'ja.wikipedia.org':
-            words1 = len(mt1) / 3.0
-            words0 = len(mt0) / 3.0
-        elif self.article().site().key == 'zh.wikipedia.org':
-            words1 = len(mt1) / 2.0
-            words0 = len(mt0) / 2.0
-        else:
-            words1 = len(mt1.split())
-            words0 = len(mt0.split())
-
-        charcount = len(mt1) - len(mt0)
-        self._wordcount = words1 - words0
-
-        logger.debug('Wordcount: Revision %s@%s: %+d bytes, %+d characters, %+d words',
-                     self.revid, self.article().site().key, self.bytes, charcount, self._wordcount)
-
-        if not self.new and words0 == 0 and self._wordcount > 1:
-            w = _('Revision [//%(host)s/w/index.php?diff=prev&oldid=%(revid)s %(revid)s]: The word count difference might be wrong, because no words were found in the parent revision (%(parentid)s) of size %(size)d, possibly due to unclosed tags or templates in that revision.') % {
-                'host': self.article().site().host,
-                'revid': self.revid,
-                'parentid': self.parentid,
-                'size': len(self.parenttext)
-            }
-            logger.warning(w)
-            self.errors.append(w)
-
-        elif self._wordcount > 10 and self._wordcount > self.bytes:
-            w = _('Revision [//%(host)s/w/index.php?diff=prev&oldid=%(revid)s %(revid)s]: The word count difference might be wrong, because the word count increase (%(words)d) is larger than the byte increase (%(bytes)d). Wrong word counts can occur for invalid wiki text.') % {
-                'host': self.article().site().host,
-                'revid': self.revid,
-                'words': self._wordcount,
-                'bytes': self.bytes
-            }
-            logger.warning(w)
-            self.errors.append(w)
-
-        #s = _('A problem encountered with revision %(revid)d may have influenced the word count for this revision: <nowiki>%(problems)s</nowiki> ')
-        #s = _('Et problem med revisjon %d kan ha påvirket ordtellingen for denne: <nowiki>%s</nowiki> ')
-        del mt1
-        del mt0
-        # except DanmicholoParseError as e:
-        #     log("!!!>> FAIL: %s @ %d" % (self.article().name, self.revid))
-        #     self._wordcount = 0
-        #     #raise
-        return self._wordcount
-
-    @property
-    def new(self):
-        return self.parentid == 0 or (self.parentredirect and not self.redirect)
-
-    @property
-    def redirect(self):
-        return bool(self.article().site().redirect_regexp.match(self.text))
-
-    @property
-    def parentredirect(self):
-        return bool(self.article().site().redirect_regexp.match(self.parenttext))
-
-    def get_link(self):
-        """ returns a link to revision """
-        q = OrderedDict([('oldid', self.revid)])
-        if not self.new:
-            q['diff'] = 'prev'
-        return '//' + self.article().site().host + self.article().site().site['script'] + '?' + urllib.parse.urlencode(q)
-
-    def get_parent_link(self):
-        """ returns a link to parent revision """
-        q = OrderedDict([('oldid', self.parentid)])
-        return '//' + self.article().site().host + self.article().site().site['script'] + '?' + urllib.parse.urlencode(q)
-
-    def add_point_deduction(self, points, reason):
-        logger.info('Revision %s: Removing %d points for reason: %s', self.revid, points, reason)
-        self.point_deductions.append([points, reason])
-
 
 class User(object):
 
@@ -407,7 +100,7 @@ class User(object):
         self.revisions = odict()
         self.contest = weakref.ref(contest)
         self.suspended_since = None
-        self.contributions = UserContributions()
+        self.contributions = UserContributions(self)
         self.disqualified_articles = []
         self.point_deductions = []
 
@@ -924,37 +617,38 @@ class User(object):
         utc = pytz.utc
 
         # loop over articles
-        for article_key, article in self.articles.items():
+        for article in self.articles.values():
             # if self.contest().verbose:
             #     logger.info(article_key)
             # else:
             #     logger.info('.', newline=False)
-            #log(article_key)
+            # log(article_key)
 
             # loop over revisions
             for revid, rev in article.revisions.items():
 
                 # loop over rules
                 for rule in rules:
-                    logger.debug('Applying %s to %s', type(rule).__name__, revid)
                     for contribution in rule.test(rev):
                         self.contributions.add(contribution)
-                    # logger.debug('Generated %.1f points', rev.points[-1])
 
                 if not article.disqualified:
-
                     dt = pytz.utc.localize(datetime.fromtimestamp(rev.timestamp))
                     if self.suspended_since is None or dt < self.suspended_since:
+                        contributions = self.contributions.get(revision=rev)
+                        points = sum([contribution.points for contribution in contributions])
 
-                        rev_points = [x for x in self.contributions if x.rev ==rev]
-
-                        if rev.get_points() > 0:
-                            #print self.name, rev.timestamp, rev.get_points()
-                            ts = float(unix_time(utc.localize(datetime.fromtimestamp(rev.timestamp)).astimezone(self.contest().wiki_tz)))
+                        if points > 0:
+                            # logger.debug('%s: %d: %s', self.name, rev.revid, points)
+                            ts = float(unix_time(utc.localize(datetime.fromtimestamp(rev.timestamp)).astimezone(
+                                self.contest().wiki_tz
+                            )))
                             x.append(ts)
-                            y.append(float(rev.get_points()))
+                            y.append(float(points))
 
-                            logger.debug('    %d : %d ', revid, rev.get_points())
+                            # logger.debug('    %d : %d ', revid, points)
+            logger.debug('[[%s]] Sum: %.1f points', article.name,
+                         self.contributions.get_article_points(article=article))
 
         x = np.array(x)
         y = np.array(y)
@@ -969,85 +663,61 @@ class User(object):
         #np.savetxt('user-%s'%self.name, np.column_stack((x,y,y2)))
 
     def format_result(self):
-
-        entries = []
-        config = self.contest().config
-
-        utc = pytz.utc
-
         logger.debug('Formatting results for user %s', self.name)
-        # loop over articles
-        for article_key, article in self.articles.items():
+        entries = []
 
-            brutto = self.contributions.get_contribs(article=article)
 
-            brutto = article.get_points(ignore_suspension_period=True, ignore_point_deductions=True, ignore_disqualification=True)
-            netto = article.get_points()
+        ## WIP
 
-            if brutto == 0.0:
+        # <<<<<<< HEAD
+        #                         dt = utc.localize(datetime.fromtimestamp(rev.timestamp))
+        #                         dt_str = dt.astimezone(self.contest().wiki_tz).strftime(_('%d.%m, %H:%M'))
+        #                         out = '[%s %s]: %s' % (rev.get_link(), dt_str, descr)
+        #                         if self.suspended_since is not None and dt > self.suspended_since:
+        #                             out = '<s>' + out + '</s>'
+        #                         if len(rev.errors) > 0:
+        #                             out = '[[File:Ambox warning yellow.svg|12px|%s]] ' % (', '.join(rev.errors)) + out
+        #                         revs.append(out)
 
-                logger.debug('    %s: skipped (0 points)', article_key)
+        #                 titletxt = ''
+        #                 try:
+        #                     cat_path = [x.split(':')[-1] for x in article.cat_path]
+        #                     titletxt = ' : '.join(cat_path) + '<br />'
+        #                 except AttributeError:
+        #                     pass
+        #                 titletxt += '<br />'.join(revs)
+        #                 # if len(article.point_deductions) > 0:
+        #                 #     pds = []
+        #                 #     for points, reason in article.point_deductions:
+        #                 #         pds.append('%.f p: %s' % (-points, reason))
+        #                 #     titletxt += '<div style="border-top:1px solid #CCC">\'\'' + _('Notes') + ':\'\'<br />%s</div>' % '<br />'.join(pds)
 
-            else:
+        #                 titletxt += '<div style="border-top:1px solid #CCC">' + _('Total {{formatnum:%(bytecount)d}} bytes, %(wordcount)d words') % {'bytecount': article.bytes, 'wordcount': article.words} + '</div>'
 
-                # loop over revisions
-                revs = []
-                for revid, rev in article.revisions.items():
+        #                 p = '%.1f p' % brutto
+        #                 if brutto != netto:
+        #                     p = '<s>' + p + '</s> '
+        #                     if netto != 0.:
+        #                         p += '%.1f p' % netto
 
-                    if len(rev.points) > 0:
-                        descr = ' + '.join(['%.1f p (%s)' % (p[0], p[2]) for p in rev.points])
-                        for p in rev.point_deductions:
-                            if p[0] > 0:
-                                descr += ' <span style="color:red">− %.1f p (%s)</span>' % (p[0], p[1])
-                            else:
-                                descr += ' <span style="color:green">+ %.1f p (%s)</span>' % (-p[0], p[1])
+        #                 out = '[[%s|%s]]' % (article.link(), article.name)
+        #                 if article_key in self.disqualified_articles:
+        #                     out = '[[File:Qsicon Achtung.png|14px]] <s>' + out + '</s>'
+        #                     titletxt += '<div style="border-top:1px solid red; background:#ffcccc;">' + _('<strong>Note:</strong> The contributions to this article are currently disqualified.') + '</div>'
+        #                 elif brutto != netto:
+        #                     out = '[[File:Qsicon Achtung.png|14px]] ' + out
+        #                     #titletxt += '<div style="border-top:1px solid red; background:#ffcccc;"><strong>Merk:</strong> En eller flere revisjoner er ikke talt med fordi de ble gjort mens brukeren var suspendert. Hvis suspenderingen oppheves vil bidragene telle med.</div>'
+        #                 if article.new:
+        #                     out += ' ' + _('<abbr class="newpage" title="New page">N</abbr>')
+        #                 out += ' (<abbr class="uk-ap">%s</abbr>)' % p
 
-                        dt = utc.localize(datetime.fromtimestamp(rev.timestamp))
-                        dt_str = dt.astimezone(self.contest().wiki_tz).strftime(_('%d.%m, %H:%M'))
-                        out = '[%s %s]: %s' % (rev.get_link(), dt_str, descr)
-                        if self.suspended_since is not None and dt > self.suspended_since:
-                            out = '<s>' + out + '</s>'
-                        if len(rev.errors) > 0:
-                            out = '[[File:Ambox warning yellow.svg|12px|%s]] ' % (', '.join(rev.errors)) + out
-                        revs.append(out)
+        #                 out = '# ' + out
+        #                 out += '<div class="uk-ap-title" style="font-size: smaller; color:#888; line-height:100%;">' + titletxt + '</div>'
 
-                titletxt = ''
-                try:
-                    cat_path = [x.split(':')[-1] for x in article.cat_path]
-                    titletxt = ' : '.join(cat_path) + '<br />'
-                except AttributeError:
-                    pass
-                titletxt += '<br />'.join(revs)
-                # if len(article.point_deductions) > 0:
-                #     pds = []
-                #     for points, reason in article.point_deductions:
-                #         pds.append('%.f p: %s' % (-points, reason))
-                #     titletxt += '<div style="border-top:1px solid #CCC">\'\'' + _('Notes') + ':\'\'<br />%s</div>' % '<br />'.join(pds)
-
-                titletxt += '<div style="border-top:1px solid #CCC">' + _('Total {{formatnum:%(bytecount)d}} bytes, %(wordcount)d words') % {'bytecount': article.bytes, 'wordcount': article.words} + '</div>'
-
-                p = '%.1f p' % brutto
-                if brutto != netto:
-                    p = '<s>' + p + '</s> '
-                    if netto != 0.:
-                        p += '%.1f p' % netto
-
-                out = '[[%s|%s]]' % (article.link(), article.name)
-                if article_key in self.disqualified_articles:
-                    out = '[[File:Qsicon Achtung.png|14px]] <s>' + out + '</s>'
-                    titletxt += '<div style="border-top:1px solid red; background:#ffcccc;">' + _('<strong>Note:</strong> The contributions to this article are currently disqualified.') + '</div>'
-                elif brutto != netto:
-                    out = '[[File:Qsicon Achtung.png|14px]] ' + out
-                    #titletxt += '<div style="border-top:1px solid red; background:#ffcccc;"><strong>Merk:</strong> En eller flere revisjoner er ikke talt med fordi de ble gjort mens brukeren var suspendert. Hvis suspenderingen oppheves vil bidragene telle med.</div>'
-                if article.new:
-                    out += ' ' + _('<abbr class="newpage" title="New page">N</abbr>')
-                out += ' (<abbr class="uk-ap">%s</abbr>)' % p
-
-                out = '# ' + out
-                out += '<div class="uk-ap-title" style="font-size: smaller; color:#888; line-height:100%;">' + titletxt + '</div>'
-
-                entries.append(out)
-                logger.debug('    %s: %.f / %.f points', article_key, netto, brutto)
+        #                 entries.append(out)
+        #                 logger.debug('    %s: %.f / %.f points', article_key, netto, brutto)
+        # =======
+        # >>>>>>> WIP
 
         ros = '{awards}'
 
@@ -1055,7 +725,8 @@ class User(object):
         if self.suspended_since is not None:
             suspended = ', ' + _('suspended since') + ' %s' % self.suspended_since.strftime(_('%A, %H:%M'))
         userprefix = self.contest().sites.homesite.namespaces[2]
-        out = '=== %s [[%s:%s|%s]] (%.f p%s) ===\n' % (ros, userprefix, self.name, self.name, self.points, suspended)
+        out = '=== %s [[%s:%s|%s]] (%.f p%s) ===\n' % (ros, userprefix, self.name, self.name,
+                                                       self.contributions.sum(), suspended)
         if len(entries) == 0:
             out += "''" + _('No qualifying contributions registered yet') + "''"
         else:
@@ -1192,7 +863,6 @@ class Contest(object):
         config = self.config
 
         rulecfg = config['templates']['rule']
-        maxpoints = rulecfg['maxpoints']
 
         dp = TemplateEditor(txt)
 
@@ -1260,89 +930,24 @@ class Contest(object):
 
         ######################## Read rules ########################
 
+        rule_classes_map = {
+            rulecfg[rule_cls.rule_name]: rule_cls for rule_cls in rule_classes
+        }
+
         nrules = 0
-        for templ in dp.templates[rulecfg['name']]:
+        for rule_template in dp.templates[rulecfg['name']]:
             nrules += 1
-            p = templ.parameters
-            anon = templ.get_anonymous_parameters()
+            rule_name = rule_template.parameters[1].value.lower()
+            try:
+                rule_cls = rule_classes_map[rule_name]
+            except:
+                raise InvalidContestPage(
+                    _('Unkown argument given to {{tl|%(template)s}}: %(argument)s')
+                    % {'template': rulecfg['name'], 'argument': rule_name}
+                )
 
-            key = anon[1].lower()
-
-            if key == rulecfg['new']:
-                rules.append(NewPageRule(key, anon[2]))
-
-            elif key == rulecfg['redirect']:
-                rules.append(RedirectRule(key, anon[2]))
-
-            elif key == rulecfg['qualified']:
-                rules.append(QualiRule(key, anon[2]))
-
-            elif key == rulecfg['contrib']:
-                rules.append(ContribRule(key, anon[2]))
-
-            elif key == rulecfg['refsectionfi']:
-                params = {'key': key, 'points': anon[2]}
-                if templ.has_param(maxpoints):
-                    params['maxpoints'] = p[maxpoints]
-                rules.append(RefSectionFiRule(**params))
-
-            # elif key == 'stubb':
-            #     rules.append(StubRule(anon[1]))
-
-            elif key == rulecfg['byte']:
-                params = {'key': key, 'points': anon[2]}
-                if templ.has_param(maxpoints):
-                    params['maxpoints'] = p[maxpoints]
-                rules.append(ByteRule(**params))
-
-            elif key == rulecfg['word']:
-                params = {'key': key, 'points': anon[2]}
-                if templ.has_param(maxpoints):
-                    params['maxpoints'] = p[maxpoints]
-                rules.append(WordRule(**params))
-
-            elif key == rulecfg['image']:
-                file_prefixes = set([prefix for site in self.sites.sites.values() for prefix in site.file_prefixes])
-                params = {'key': key, 'points': anon[2], 'file_prefixes': file_prefixes}
-                if templ.has_param(maxpoints):
-                    params['maxpoints'] = p[maxpoints]
-                if templ.has_param(rulecfg['own']):
-                    params['own'] = p[rulecfg['own']]
-                if templ.has_param(rulecfg['ownwork']):
-                    params['ownwork'] = p[rulecfg['ownwork']]
-                if templ.has_param(rulecfg['maxinitialcount']):
-                    params['maxinitialcount'] = p[rulecfg['maxinitialcount']]
-                rules.append(ImageRule(**params))
-
-            elif key == rulecfg['external_link']:
-                params = {'key': key, 'points': anon[2]}
-                if templ.has_param(maxpoints):
-                    params['maxpoints'] = p[maxpoints]
-                rules.append(ExternalLinkRule(**params))
-
-            elif key == rulecfg['ref']:
-                params = {'key': key, 'sourcepoints': anon[2], 'refpoints': anon[3]}
-                rules.append(RefRule(**params))
-
-            elif key == rulecfg['templateremoval']:
-                params = {
-                    'key': key,
-                    'points': anon[2],
-                    'templates': [
-                        self.sites.resolve_page(tpl_name, 10, True)
-                        for tpl_name in anon[3:] if tpl_name.strip() is not ''
-                    ],
-                }
-                rules.append(TemplateRemovalRule(**params))
-
-            elif key == rulecfg['bytebonus']:
-                rules.append(ByteBonusRule(key, anon[2], anon[3]))
-
-            elif key == rulecfg['wordbonus']:
-                rules.append(WordBonusRule(key, anon[2], anon[3]))
-
-            else:
-                raise InvalidContestPage(_('Unkown argument given to {{tl|%(template)s}}: %(argument)s') % {'template': rulecfg['name'], 'argument': key})
+            rule = rule_cls(self.sites, rule_template.parameters, rulecfg)
+            rules.append(rule)
 
         ####################### Check if contest is in DB yet ##################
 
@@ -1921,7 +1526,8 @@ class Contest(object):
                 tp0 = time.time()
                 user.analyze(self.rules)
                 tp1 = time.time()
-                logger.info('%s: %.f points (calculated in %.1f secs)', user.name, user.points, tp1 - tp0)
+                logger.info('%s: %.f points (calculated in %.1f secs)', user.name,
+                            user.contributions.sum(), tp1 - tp0)
 
                 narticles += len(user.articles)
                 nbytes += user.bytes
@@ -1943,7 +1549,7 @@ class Contest(object):
 
                 results.append({
                     'name': user.name,
-                    'points': user.points,
+                    'points': user.contributions.sum(),
                     'bytes': int(user.bytes),
                     'newpages': int(user.newpages),
                     'result': user.format_result(),
@@ -1983,27 +1589,27 @@ class Contest(object):
             #    sammen += '|avstubbet=%d' % narticles
 
             trn = 0
-            for f in self.rules:
-                if type(f) == NewPageRule:
-                    sammen += '|%s=%d' % (f.key, nnewpages)
-                elif type(f) == ByteRule:
+            for rule in self.rules:
+                if isinstance(rule, NewPageRule):
+                    sammen += '|%s=%d' % (rule.key, nnewpages)
+                elif isinstance(rule, ByteRule):
                     if nbytes >= 10000:
-                        sammen += '|kilo%s=%.f' % (f.key, nbytes / 1000.)
+                        sammen += '|kilo%s=%.f' % (rule.key, nbytes / 1000.)
                     else:
-                        sammen += '|%s=%d' % (f.key, nbytes)
-                elif type(f) == WordRule:
-                    sammen += '|%s=%d' % (f.key, nwords)
-                elif type(f) == RefRule:
-                    sammen += '|%s=%d' % (f.key, f.totalsources)
-                elif type(f) == RefSectionFiRule:
-                    sammen += '|%s=%d' % (f.key, f.totalrefsectionsadded)
-                elif type(f) == ImageRule:
-                    sammen += '|%s=%d' % (f.key, f.totalimages)
-                elif type(f) == TemplateRemovalRule:
-                    for tpl in f.templates:
+                        sammen += '|%s=%d' % (rule.key, nbytes)
+                elif isinstance(rule, WordRule):
+                    sammen += '|%s=%d' % (rule.key, nwords)
+                elif isinstance(rule, RefRule):
+                    sammen += '|%s=%d' % (rule.key, rule.totalsources)
+                # elif isinstance(rule, RefSectionFiRule):
+                #     sammen += '|%s=%d' % (rule.key, rule.total)
+                elif isinstance(rule, ImageRule):
+                    sammen += '|%s=%d' % (rule.key, rule.total)
+                elif isinstance(rule, TemplateRemovalRule):
+                    for tpl in rule.templates:
                         trn += 1
                         sammen += '|%(key)s%(idx)d=%(tpl)s|%(key)s%(idx)dn=%(cnt)d' % {
-                            'key': f.key, 'idx': trn, 'tpl': tpl['name'], 'cnt': tpl['total']}
+                            'key': rule.key, 'idx': trn, 'tpl': tpl['name'], 'cnt': tpl['total']}
 
             sammen += '}}'
 

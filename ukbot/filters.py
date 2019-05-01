@@ -14,7 +14,6 @@ from mwtemplates.templateeditor2 import TemplateParseError
 from .common import t, _, InvalidContestPage
 
 logger = logging.getLogger(__name__)
-logger.setLevel(logging.DEBUG)
 
 
 class CategoryLoopError(Exception):
@@ -293,7 +292,7 @@ class CatFilter(Filter):
                     nnc = 0
 
                     for s0 in range(0, len(titles0), requestlimit):
-                        logger.debug('[%d] > Getting %d to %d of %d', level, s0, s0+requestlimit, len(titles0))
+                        logger.debug('Getting categories at level %d: %d titles. Batch %d to %d', level, len(titles0), s0, s0+requestlimit)
                         ids = '|'.join(titles0[s0:s0+requestlimit])
 
                         cont = True
@@ -349,7 +348,7 @@ class CatFilter(Filter):
                     titles = list(set(titles))  # to remove duplicates (not order preserving)
                     #if level == 0:
                     #    cattree = [p for p in titles]
-                    logger.debug(' %d', len(titles))
+                    # logger.debug(' %d', len(titles))
                     #.stdout.flush()
                     #print "Found %d unique categories (%d total) at level %d (skipped %d categories)" % (len(titles), nc, level, nnc)
         
@@ -701,22 +700,9 @@ class SparqlFilter(Filter):
     def fetch(self):
         logger.debug('SparqlFilter: %s', self.query)
 
-        t0 = time.time()
-        result = self.do_query(self.query)
-        try:
-            result = self.do_query(self.query)
-        except:
-            raise InvalidContestPage(_('SPARQL query invalid or timed out'))
-        dt = time.time() - t0
+        query_variable = 'item'
 
-        if len(result['rows']) == 0:
-            raise InvalidContestPage(_('SPARQL query returned zero results'))
-
-        query_variable = result['var']
-
-        logger.info('SparqlFilter: Got %d results in %.1f secs', len(result['rows']), dt)
-
-        # Implementatio notes:
+        # Implementation notes:
         # - When the contest includes multiple sites, we do one query per site. I tried using
         #   a single query with `VALUES ?site { %(sites)s }` instead, but the query time
         #   almost doubled for each additional site, making timeouts likely.

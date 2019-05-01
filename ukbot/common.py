@@ -10,7 +10,6 @@ import pkg_resources
 import logging
 
 logger = logging.getLogger(__name__)
-logger.setLevel(logging.DEBUG)
 
 # LOCALE_PATH = pkg_resources.resource_filename('ukbot', 'locale/')
 LOCALE_PATH = os.path.join(os.path.dirname(os.path.dirname(__file__)), "locale")

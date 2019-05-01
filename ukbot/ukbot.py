@@ -2217,20 +2217,6 @@ class Contest(object):
 
         # self.deliver_warnings(simulate=simulate)
 
-        # Update WP:UK
-
-        if 'redirect' in config['pages']:
-            if re.match('^' + config['pages']['base'], self.name) and not simulate and self.state == STATE_NORMAL:
-                pages = config['pages']['redirect']
-                if not isinstance(pages, list):
-                    pages = [pages]
-                for pagename in pages:
-                    page = self.sites.homesite.pages[pagename]
-                    txt = _('#REDIRECT [[%s]]') % self.name
-                    if page.text() != txt:
-                        if not simulate:
-                            page.save(txt, summary=_('Redirecting to %s') % self.name)
-
         # Update Wikipedia:Portal/Oppslagstavle
 
         if 'noticeboard' in config:
@@ -2721,6 +2707,23 @@ def main():
             contest.plot(plotdata)
         else:
             contest.run(args.simulate, args.output)
+
+    # Update WP:UK
+
+    normal_contests = [
+        contest_page.name for contest_state, contest_page in active_contests
+        if contest_state == STATE_NORMAL and contest_page.name.startswith(config['pages']['base'])
+    ]
+    if 'redirect' in config['pages'] and len(normal_contests) == 1:
+        contest_name = normal_contests[0]
+        pages = config['pages']['redirect']
+        if not isinstance(pages, list):
+            pages = [pages]
+        for pagename in pages:
+            page = sites.homesite.pages[pagename]
+            txt = _('#REDIRECT [[%s]]') % contest_name
+            if page.text() != txt and not args.simulate:
+                page.save(txt, summary=_('Redirecting to %s') % contest_name)
 
     runend = server_tz.localize(datetime.now())
     runend_s = time.time()

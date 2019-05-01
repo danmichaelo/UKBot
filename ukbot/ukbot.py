@@ -21,6 +21,7 @@ logger.info('Loading')
 import matplotlib
 matplotlib.use('svg')
 
+import pydash
 import weakref
 from collections import OrderedDict
 import numpy as np
@@ -616,27 +617,33 @@ class User(object):
         parentids = set()
         revs = set()
 
+        cur_apilim = apilim
+
         while len(revids) > 0:
-            try:
-                ids = '|'.join(revids[:apilim])
-                logger.info('Checking ids: %s', ids)
-                for page in site.api('query', prop='revisions', rvprop=props, revids=ids, uselang='nb')['query']['pages'].values():
-                    article_key = site_key + ':' + page['title']
-                    for apirev in page['revisions']:
-                        rev = self.articles[article_key].revisions[apirev['revid']]
-                        rev.parentid = apirev['parentid']
-                        rev.size = apirev['size']
-                        rev.parsedcomment = apirev['parsedcomment']
-                        if '*' in apirev.keys():
-                            rev.text = apirev['*']
-                            rev.dirty = True
-                        if not rev.new:
-                            parentids.add(rev.parentid)
-                        revs.add(apirev['revid'])
-                revids = revids[apilim:]
-            except KeyError:
+            ids = '|'.join(revids[:cur_apilim])
+            logger.info('Checking %d revisions: %s', cur_apilim, ids)
+            res = site.api('query', prop='revisions', rvprop=props, revids=ids, rvslots='main', uselang='nb')
+            if pydash.get(res, 'warnings.result.*') is not None:
                 # We ran into Manual:$wgAPIMaxResultSize, try reducing
-                apilim = 1
+                logger.warning('We ran into wgAPIMaxResultSize, reducing the batch size from %d to %d', cur_apilim, round(cur_apilim / 2))
+                cur_apilim = round(cur_apilim / 2)
+                continue
+
+            for page in res['query']['pages'].values():
+                article_key = site_key + ':' + page['title']
+                for apirev in page['revisions']:
+                    rev = self.articles[article_key].revisions[apirev['revid']]
+                    rev.parentid = apirev['parentid']
+                    rev.size = apirev['size']
+                    rev.parsedcomment = apirev['parsedcomment']
+                    content = pydash.get(apirev, 'slots.main.*')
+                    if content is not None:
+                        rev.text = content
+                        rev.dirty = True
+                    if not rev.new:
+                        parentids.add(rev.parentid)
+                    revs.add(apirev['revid'])
+            revids = revids[cur_apilim:]
 
         dt = time.time() - t0
         t0 = time.time()
@@ -653,12 +660,20 @@ class User(object):
         if fulltext:
             props += '|content'
         nr = 0
-        parentids = [str(i) for i in parentids]
-        for s0 in range(0, len(parentids), apilim):
-            ids = '|'.join(parentids[s0:s0 + apilim])
-            for page in site.api('query', prop='revisions', rvprop=props, revids=ids)['query']['pages'].values():
-                article_key = site_key + ':' + page['title']
 
+        parentids = [str(i) for i in parentids]
+        while len(parentids) > 0:
+            ids = '|'.join(parentids[:cur_apilim])
+            logger.info('Checking %d revisions: %s', cur_apilim, ids)
+            res = site.api('query', prop='revisions', rvprop=props, revids=ids, rvslots='main', uselang='nb')
+            if pydash.get(res, 'warnings.result.*') is not None:
+                # We ran into Manual:$wgAPIMaxResultSize, try reducing
+                logger.warning('We ran into wgAPIMaxResultSize, reducing the batch size from %d to %d', cur_apilim, round(cur_apilim / 2))
+                cur_apilim = round(cur_apilim / 2)
+                continue
+
+            for page in res['query']['pages'].values():
+                article_key = site_key + ':' + page['title']
                 # In the case of a merge, the new title (article_key) might not be part of the user's 
                 # contribution list (self.articles), so we need to check:
                 if article_key in self.articles:
@@ -673,13 +688,16 @@ class User(object):
                                 break
                         if found:
                             rev.parentsize = apirev['size']
-                            if '*' in apirev.keys():
-                                rev.parenttext = apirev['*']
-                                logger.debug('Got revision text for %s: %d bytes', article.name, len(rev.parenttext))
-                            else:
+                            content = pydash.get(apirev, 'slots.main.*')
+                            if content is None:
                                 logger.warning('Did not get revision text for %s', article.name)
+                            else:
+                                rev.parenttext = content
+                                logger.debug('Got revision text for %s: %d bytes', article.name, len(rev.parenttext))
                         else:
                             rev.parenttext = ''  # New page
+            parentids = parentids[cur_apilim:]
+
         if nr > 0:
             dt = time.time() - t0
             logger.info('Checked %d parent revisions in %.2f secs', nr, dt)
@@ -784,7 +802,7 @@ class User(object):
     def backfill_text(self, sql, site, rev):
         parentid = None
         props = 'ids|size|content'
-        res = site.api('query', prop='revisions', rvprop=props, revids='{}|{}'.format(rev.revid, rev.parentid))['query']
+        res = site.api('query', prop='revisions', rvprop=props, rvslots='main', revids='{}|{}'.format(rev.revid, rev.parentid))['query']
         if res.get('pages') is None:
             logger.info('Failed to get revision %d, revision deleted?', rev.revid)
             return
@@ -792,15 +810,17 @@ class User(object):
         for page in res['pages'].values():
             for apirev in page['revisions']:
                 if apirev['revid'] == rev.revid:
-                    if '*' in apirev.keys():
-                        rev.text = apirev['*']
-                    else:
+                    content = pydash.get(apirev, 'slots.main.*')
+                    if content is None:
                         logger.warning('No revision text available!')
-                elif apirev['revid'] == rev.parentid:
-                    if '*' in apirev.keys():
-                        rev.parenttext = apirev['*']
                     else:
+                        rev.text = content
+                elif apirev['revid'] == rev.parentid:
+                    content = pydash.get(apirev, 'slots.main.*')
+                    if content is None:
                         logger.warning('No parent revision text available!')
+                    else:
+                        rev.parenttext = content
 
         cur = sql.cursor()
 
@@ -2321,8 +2341,8 @@ def award_delivery_confirmed(site, config, page_title):
     confirmation_message = config['send']
 
     if status_page.exists:
-        lastrev = status_page.revisions(prop='user|comment|content').next()
-        if lastrev['comment'].find('/* %s */' % confirmation_message) == -1 and lastrev['*'].find(confirmation_message) == -1:
+        lastrev = status_page.revisions(prop='user|comment|content', slots='main').next()
+        if lastrev['comment'].find('/* %s */' % confirmation_message) == -1 and lastrev['slots']['main']['*'].find(confirmation_message) == -1:
             logger.info('Contest [[%s]] is to be closed, but award delivery has not been confirmed yet', page_title)
         else:
             logger.info('Will close contest [[%s]], award delivery has been confirmed', page_title)

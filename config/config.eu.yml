@@ -22,22 +22,6 @@ plot:
         {{PD-self}}
         
         [[Category:Lehiaketak]]
-awards:
-    blå: { file: Article blue.svg, winner: true }
-    rød: { file: Article red.svg, winner: true }
-    gul: { file: Article yellow.svg, organizer: true }
-    oransj: { file: Article orange.svg, winner: true }
-    orange: { file: Article orange.svg, winner: true }
-    grønn: { file: Article green.svg }
-    grå: { file: Article grey.svg }
-    lyslilla: { file: Article MediumPurple.svg }
-    lilla: { file: Article purple.svg }
-    brun: { file: Article brown.svg }
-award_message:
-    winner_template: UK winner             # template name
-    participant_template: UK participant   # template name
-    organizer_template: UK organizer       # template name
-    extraargs: "|showuk=no"                # template argument
 templates:
     botinfo: UKB botinfo
     status: UKB status
@@ -93,11 +77,6 @@ pages:
 contestPages:
     participantsSection: 'Parte-hartzaileak'
     footer: ""
-awardstatus:
-    pagename: Bruker:UKBot/Premieutsendelse
-    wait: Venter
-    send: Send ut
-    sent: Sendt
 ignore:
     - Tilbakestilte endring # MediaWiki:Revertpage/nb
     - Attenderulla endring  # MediaWiki:Revertpage/nn

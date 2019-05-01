@@ -2469,20 +2469,23 @@ def get_contest_page_titles(sql, homesite, config, wiki_tz, server_tz):
     # 1) Check if there are contests to close
 
     cursor.execute(
-        'SELECT name FROM contests WHERE site=%s AND update_date IS NOT NULL AND ended=1 AND closed=0',
-        [homesite.key]
+        'SELECT name FROM contests WHERE site=%s AND name LIKE %s AND update_date IS NOT NULL AND ended=1 AND closed=0',
+        [homesite.key, config['pages']['base'] + '%%']
     )
     for row in cursor.fetchall():
         page_title = row[0]
-        if award_delivery_confirmed(homesite, config['awardstatus'], page_title):
-            logger.info('Award delivery confirmed for [[%s]]', page_title)
-            yield (STATE_CLOSING, page_title)
+        if 'awardstatus' in config:
+            if award_delivery_confirmed(homesite, config['awardstatus'], page_title):
+                logger.info('Award delivery confirmed for [[%s]]', page_title)
+                yield (STATE_CLOSING, page_title)
+        else:
+            logger.info('Contest ended: [[%s]], should we autoclose it?', page_title)
 
     # 2) Check if there are contests to end
 
     cursor.execute(
-        'SELECT name FROM contests WHERE site=%s AND update_date IS NOT NULL AND ended=0 AND closed=0 AND end_date < %s',
-        [homesite.key, now_s]
+        'SELECT name FROM contests WHERE site=%s AND name LIKE %s AND update_date IS NOT NULL AND ended=0 AND closed=0 AND end_date < %s',
+        [homesite.key, config['pages']['base'] + '%%', now_s]
     )
     for row in cursor.fetchall():
         page_title = row[0]
@@ -2492,8 +2495,8 @@ def get_contest_page_titles(sql, homesite, config, wiki_tz, server_tz):
     # 3) Check if there are other contests to update
 
     cursor.execute(
-        'SELECT name FROM contests WHERE site=%s AND ended=0 AND closed=0 AND start_date < %s AND end_date > %s',
-        [homesite.key, now_s, now_s]
+        'SELECT name FROM contests WHERE site=%s AND name LIKE %s AND ended=0 AND closed=0 AND start_date < %s',
+        [homesite.key, config['pages']['base'] + '%%', now_s]
     )
     for row in cursor.fetchall():
         page_title = row[0]

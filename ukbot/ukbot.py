@@ -1239,7 +1239,7 @@ class Contest(object):
 
         rulecfg = config['templates']['rule']
         maxpoints = rulecfg['maxpoints']
-        
+
         dp = TemplateEditor(txt)
 
         if config['templates']['rule']['name'] not in dp.templates:
@@ -1251,75 +1251,25 @@ class Contest(object):
 
         ######################## Read infobox ########################
 
-        commonargs = config['templates']['commonargs']
-        ibcfg = config['templates']['infobox']
-        if ibcfg['name'] not in dp.templates:
-            raise InvalidContestPage(_('This contest is missing a {{tl|%(template)s}} template.') % {'template': ibcfg['name']})
+        infobox = parse_infobox(txt, self.sites.homesite.namespaces[2], self.config, self.wiki_tz)
+        self.start = infobox['start_time']
+        self.end = infobox['end_time']
 
-        infoboks = dp.templates[ibcfg['name']][0]
-        utc = pytz.utc
-
-        if infoboks.has_param(commonargs['year']) and infoboks.has_param(commonargs['week']):
-            year = int(cleanup_input(infoboks.parameters[commonargs['year']].value))
-            startweek = int(cleanup_input(infoboks.parameters[commonargs['week']].value))
-            if infoboks.has_param(commonargs['week2']):
-                endweek = cleanup_input(infoboks.parameters[commonargs['week2']].value)
-                if endweek == '':
-                    endweek = startweek
-            else:
-                endweek = startweek
-            endweek = int(endweek)
-
-            startweek = Week(year, startweek)
-            endweek = Week(year, endweek)
-            self.start = self.wiki_tz.localize(datetime.combine(startweek.monday(), dt_time(0, 0, 0)))
-            self.end = self.wiki_tz.localize(datetime.combine(endweek.sunday(), dt_time(23, 59, 59)))
-        elif infoboks.has_param(ibcfg['start']) and infoboks.has_param(ibcfg['end']):
-            startdt = cleanup_input(infoboks.parameters[ibcfg['start']].value)
-            enddt = cleanup_input(infoboks.parameters[ibcfg['end']].value)
-            self.start = self.wiki_tz.localize(datetime.strptime(startdt + ' 00 00 00', '%Y-%m-%d %H %M %S'))
-            self.end = self.wiki_tz.localize(datetime.strptime(enddt + ' 23 59 59', '%Y-%m-%d %H %M %S'))
-        else:
-            args = {'week': commonargs['week'], 'year': commonargs['year'], 'start': ibcfg['start'], 'end': ibcfg['end'], 'template': ibcfg['name']}
-            raise InvalidContestPage(_('Did not find %(week)s+%(year)s or %(start)s+%(end)s in {{tl|%(templates)s}}.') % args)
+        # args = {'week': commonargs['week'], 'year': commonargs['year'], 'start': ibcfg['start'], 'end': ibcfg['end'], 'template': ibcfg['name']}
+        # raise InvalidContestPage(_('Did not find %(week)s+%(year)s or %(start)s+%(end)s in {{tl|%(templates)s}}.') % args)
 
         self.year = self.start.isocalendar()[0]
-
         self.startweek = self.start.isocalendar()[1]
         self.endweek = self.end.isocalendar()[1]
         self.month = self.start.month
 
-        userprefix = self.sites.homesite.namespaces[2]
-        self.ledere = []
-        if ibcfg['organizer'] in infoboks.parameters:
-            self.ledere = re.findall(r'\[\[(?:User|%s):([^\|\]]+)' % userprefix, cleanup_input(infoboks.parameters[ibcfg['organizer']].value), flags=re.I)
+        self.ledere = infobox['organizers']
         if len(self.ledere) == 0:
-            logger.warning('Found no organizers in {{tl|%s}}.', ibcfg['name'])
+            logger.warning('Found no organizers in {{tl|%s}}.', infobox['name'])
 
-        awards = config.get('awards', {})
-        self.prices = []
-        for col in awards.keys():
-            if infoboks.has_param(col):
-                r = cleanup_input(infoboks.parameters[col].value)  # strip comments, then whitespace
-                if r != '':
-                    r = r.lower().replace('&nbsp;', ' ').split()[0]
-                    #print col,r
-                    if r == ibcfg['winner']:
-                        self.prices.append([col, 'winner', 0])
-                    elif r != '':
-                        try:
-                            self.prices.append([col, 'pointlimit', int(r)])
-                        except ValueError:
-                            pass
-                            #raise InvalidContestPage('Klarte ikke tolke verdien til parameteren %s gitt til {{tl|infoboks ukens konkurranse}}.' % col)
-
-        if not 'winner' in [r[1] for r in self.prices]:
-            winnerawards = ', '.join(['{{para|%s|vinner}}' % k for k, v in awards.items() if 'winner' in v])
-            #raise InvalidContestPage(_('Found no winner award in {{tl|%(template)s}}. Winner award is set by one of the following: %(awards)s.') % {'template': ibcfg['name'], 'awards': winnerawards})
-            logger.warning('Found no winner award in {{tl|%s}}. Winner award is set by one of the following: %s.', ibcfg['name'], winnerawards)
-
+        self.prices = infobox['awards']
         self.prices.sort(key=lambda x: x[2], reverse=True)
-        
+
         ######################## Read filters ########################
 
         nfilters = 0
@@ -1443,26 +1393,15 @@ class Contest(object):
         ####################### Check if contest is in DB yet ##################
 
         cur = self.sql.cursor()
-        cur.execute('SELECT contest_id FROM contests WHERE site=%s AND name=%s', [self.sites.homesite.key, self.name])
-        rows = cur.fetchall()
         now = datetime.now()
-        if len(rows) == 0:
-            cur.execute('INSERT INTO contests (config, site, name, start_date, end_date, update_date, last_job_id) VALUES (%s,%s,%s,%s,%s,%s,%s)', [
-                self.config['filename'],
-                self.sites.homesite.key,
-                self.name,
-                self.start.strftime('%F %T'),
-                self.end.strftime('%F %T'),
-                now.strftime('%F %T'),
-                self.job_id,
-            ])
-        else:
-            cur.execute('UPDATE contests SET update_date=%s, last_job_id=%s WHERE site=%s AND name=%s', [
-                now.strftime('%F %T'),
-                self.job_id,
-                self.sites.homesite.key,
-                self.name,
-            ])
+        cur.execute('UPDATE contests SET start_date=%s, end_date=%s, update_date=%s, last_job_id=%s WHERE site=%s AND name=%s', [
+            self.start.strftime('%F %T'),
+            self.end.strftime('%F %T'),
+            now.strftime('%F %T'),
+            self.job_id,
+            self.sites.homesite.key,
+            self.name,
+        ])
         self.sql.commit()
         cur.close()
 
@@ -1584,11 +1523,6 @@ class Contest(object):
                         'user': uname,
                         'template': pocfg['name'],
                     })
-
-        # try:
-        #     infoboks = dp.templates['infoboks ukens konkurranse'][0]
-        # except:
-        #     raise InvalidContestPage('Klarte ikke å tolke innholdet i {{tl|infoboks ukens konkurranse}}-malen.')
 
         return rules, filters
 
@@ -2408,64 +2342,163 @@ def award_delivery_confirmed(site, config, page_title):
             logger.info('Will close contest [[%s]], award delivery has been confirmed', page_title)
             return True
 
-def get_contest_page_titles(sql, homesite, config, wiki_tz, server_tz):
+
+def parse_infobox(page_text, userprefix, config, wiki_tz):
+    infobox_cfg = config['templates']['infobox']
+    common_cfg = config['templates']['commonargs']
+    award_cfg = config.get('awards', {})
+
+    parsed = {'name': infobox_cfg['name']}
+
+    te = TemplateEditor(page_text)
+    infobox = te.templates[infobox_cfg['name']][0]
+
+    # Start time / end time
+
+    if infobox.has_param(common_cfg['year']) and infobox.has_param(common_cfg['week']):
+        year = int(cleanup_input(infobox.parameters[common_cfg['year']].value))
+        startweek = int(cleanup_input(infobox.parameters[common_cfg['week']].value))
+        if infobox.has_param(common_cfg['week2']):
+            endweek = cleanup_input(infobox.parameters[common_cfg['week2']].value)
+            if endweek == '':
+                endweek = startweek
+        else:
+            endweek = startweek
+        endweek = int(endweek)
+
+        startweek = Week(year, startweek)
+        endweek = Week(year, endweek)
+        parsed['start_time'] = wiki_tz.localize(datetime.combine(startweek.monday(), dt_time(0, 0, 0)))
+        parsed['end_time'] = wiki_tz.localize(datetime.combine(endweek.sunday(), dt_time(23, 59, 59)))
+    else:
+        start_value = cleanup_input(infobox.parameters[infobox_cfg['start']].value)
+        end_value = cleanup_input(infobox.parameters[infobox_cfg['end']].value)
+        parsed['start_time'] = wiki_tz.localize(datetime.strptime(start_value + ' 00 00 00', '%Y-%m-%d %H %M %S'))
+        parsed['end_time'] = wiki_tz.localize(datetime.strptime(end_value + ' 23 59 59', '%Y-%m-%d %H %M %S'))
+
+    # Organizers
+
+    parsed['organizers'] = []
+    if infobox_cfg['organizer'] in infobox.parameters:
+        parsed['organizers'] = re.findall(
+            r'\[\[(?:User|%s):([^\|\]]+)' % userprefix,
+            cleanup_input(infobox.parameters[infobox_cfg['organizer']].value),
+            flags=re.I
+        )
+
+    # Awards
+
+    parsed['awards'] = []
+    for award_name in award_cfg.keys():
+        if infobox.has_param(award_name):
+            award_value = cleanup_input(infobox.parameters[award_name].value)
+            if award_value != '':
+                award_value = award_value.lower().replace('&nbsp;', ' ').split()[0]
+                if award_value == infobox_cfg['winner'].lower():
+                    parsed['awards'].append([award_name, 'winner', 0])
+                elif award_value != '':
+                    try:
+                        parsed['awards'].append([award_name, 'pointlimit', int(award_value)])
+                    except ValueError:
+                        pass
+                        #raise InvalidContestPage('Klarte ikke tolke verdien til parameteren %s gitt til {{tl|infoboks ukens konkurranse}}.' % col)
+
+    winner_awards = [k for k, v in award_cfg.items() if v.get('winner') is True]
+    if len(parsed['awards']) != 0 and 'winner' not in [award[1] for award in parsed['awards']]:
+        winner_awards = ', '.join(['{{para|%s|%s}}' % (k, infobox_cfg['winner']) for k in winner_awards])
+        # raise InvalidContestPage(_('Found no winner award in {{tl|%(template)s}}. Winner award is set by one of the following: %(awards)s.') % {'template': ibcfg['name'], 'awards': winner_awards})
+        logger.warning(
+            'Found no winner award in {{tl|%s}}. Winner award is set by one of the following: %s.',
+            infobox_cfg['name'],
+            winner_awards
+        )
+
+    return parsed
+
+
+def sync_contests_table(sql, homesite, config, wiki_tz, server_tz):
+
     cursor = sql.cursor()
-    contests = set()
 
-    # 1) Check if there is a contest to close
+    infobox_cfg = config['templates']['infobox']
+    infobox_page = homesite.pages['Template:' + infobox_cfg['name']]
+    contest_pages = list(infobox_page.embeddedin())
 
-    cursor.execute('SELECT name FROM contests WHERE site=%s AND name LIKE %s AND ended=1 AND closed=0 LIMIT 1', [
-        homesite.key,
-        config['pages']['base'] + '%',
-    ])
-    closing_contests = cursor.fetchall()
-    if len(closing_contests) != 0:
-        page_title = closing_contests[0][0]
-        if award_delivery_confirmed(homesite, config['awardstatus'], page_title):
-            contests.add(page_title)
-            yield (STATE_CLOSING, page_title)
+    cursor.execute('SELECT name, start_date, end_date, ended, closed FROM contests WHERE site=%s', [homesite.key])
+    contests = cursor.fetchall()
+    contest_names = [c[0] for c in contests]
 
-    # 2) Check if there is a contest to end
+    for page in contest_pages:
+        if not page.name.startswith(config['pages']['base']):
+            continue
+
+        if page.name not in contest_names:
+            logger.info('Found new contest: %s', page.name)
+
+            try:
+                infobox = parse_infobox(page.text(), homesite.namespaces[2], config, wiki_tz)
+            except ValueError:
+                logger.error('Failed to parse infobox for contest %s', page.name)
+                continue
+
+            cursor.execute('INSERT INTO contests (config, site, name, start_date, end_date) VALUES (%s,%s,%s,%s,%s)', [
+                config['filename'],
+                homesite.key,
+                page.name,
+                infobox['start_time'].strftime('%F %T'),
+                infobox['end_time'].strftime('%F %T')
+            ])
+            sql.commit()
+    cursor.close()
+
+
+def get_contest_page_titles(sql, homesite, config, wiki_tz, server_tz):
+
+    cursor = sql.cursor()
+
     now = server_tz.localize(datetime.now())
     now_w = now.astimezone(wiki_tz)
     now_s = now_w.strftime('%F %T')
-    cursor.execute('SELECT name FROM contests WHERE site=%s AND name LIKE %s AND ended=0 AND closed=0 AND end_date < %s LIMIT 1', [
-        homesite.key,
-        config['pages']['base'] + '%',
-        now_s,
-    ])
-    ending_contests = cursor.fetchall()
-    if len(ending_contests) != 0:
-        page_title = ending_contests[0][0]
+
+    # 1) Check if there are contests to close
+
+    cursor.execute(
+        'SELECT name FROM contests WHERE site=%s AND update_date IS NOT NULL AND ended=1 AND closed=0',
+        [homesite.key]
+    )
+    for row in cursor.fetchall():
+        page_title = row[0]
+        if award_delivery_confirmed(homesite, config['awardstatus'], page_title):
+            logger.info('Award delivery confirmed for [[%s]]', page_title)
+            yield (STATE_CLOSING, page_title)
+
+    # 2) Check if there are contests to end
+
+    cursor.execute(
+        'SELECT name FROM contests WHERE site=%s AND update_date IS NOT NULL AND ended=0 AND closed=0 AND end_date < %s',
+        [homesite.key, now_s]
+    )
+    for row in cursor.fetchall():
+        page_title = row[0]
         logger.info('Contest [[%s]] just ended', page_title)
-        contests.add(page_title)
         yield (STATE_ENDING, page_title)
 
-    # 3) Get contest page from current date
-    if config['pages'].get('default') is not None:
-        page_title = config['pages']['default']
-        # subtract one hour, so we close last week's contest right after midnight
-        # w = Week.withdate((now - timedelta(hours=1)).astimezone(wiki_tz).date())
-        if 'week' in page_title:
-            w = Week.withdate(now_w.date())
-            page_title = page_title % { 'year': w.year, 'week': w.week }
-        else:
-            page_title = page_title % { 'year': now_w.year, 'month': now_w.month }
-        #strftime(page_title.encode('utf-8'))
-        if page_title not in contests:
-            contests.add(page_title)
-            yield (STATE_NORMAL, page_title)
+    # 3) Check if there are other contests to update
 
-    if config['pages'].get('active_contest_category') is not None:
-        for page in homesite.categories['Artikkelkonkurranser'].members(namespace=4):
-            if page.name not in contests:
-                contests.add(page.name)
-                yield (STATE_NORMAL, page.name)
+    cursor.execute(
+        'SELECT name FROM contests WHERE site=%s AND ended=0 AND closed=0 AND start_date < %s AND end_date > %s',
+        [homesite.key, now_s, now_s]
+    )
+    for row in cursor.fetchall():
+        page_title = row[0]
+        yield (STATE_NORMAL, page_title)
 
     cursor.close()
 
 
 def get_contest_pages(sql, homesite, config, wiki_tz, server_tz, page_title=None):
+
+    sync_contests_table(sql, homesite, config, wiki_tz, server_tz)
 
     if page_title is not None:
         cursor = sql.cursor()

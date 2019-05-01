@@ -2683,7 +2683,12 @@ def main():
     logger.info('Current server time: %s, wiki time: %s',
                 mainstart.strftime('%F %T'),
                 mainstart.astimezone(wiki_tz).strftime('%F %T'))
-    logger.info('Platform: Python %s @ %s %s %s', platform.python_version(), *platform.linux_distribution())
+    logger.info(
+        'Platform: Python %s, Mwclient %s, %s %s %s',
+        platform.python_version(),
+        mwclient.__ver__,
+        *platform.linux_distribution()
+    )
 
     status_template = config['templates']['botinfo']
 

@@ -273,7 +273,7 @@ def show_contests():
     error = request.args.get('error', '')
     contests = []
     with db_cursor() as cur:
-        cur.execute(u'SELECT C.contest_id, C.name, C.site, C.ended, C.closed, C.start_date, C.end_date, C.update_date, C.last_job_id FROM contests as C WHERE C.start_date IS NOT NULL ORDER BY C.start_date DESC LIMIT 10')
+        cur.execute(u'SELECT C.contest_id, C.name, C.site, C.ended, C.closed, C.start_date, C.end_date, C.update_date, C.last_job_id FROM contests as C WHERE C.update_date IS NOT NULL ORDER BY C.start_date DESC LIMIT 10')
         for row in cur.fetchall():
             contests.append({
                 'id': row[0],

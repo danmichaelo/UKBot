@@ -6,15 +6,21 @@ import os
 import yaml
 
 logger = logging.getLogger(__name__)
-all_chars = (chr(i) for i in range(sys.maxunicode))
-control_chars = ''.join(c for c in all_chars if unicodedata.category(c) in set(['Cc','Cf']))
-control_char_re = re.compile('[%s]' % re.escape(control_chars))
-logger.info('Control char regexp is ready')
+control_char_re = None  # lazy-load
 
 
 def cleanup_input(value):
+    global control_char_re
+
     if not isinstance(value, str):
         return value
+
+    if control_char_re is None:
+        logger.info('Preparing control char regexp...')
+        all_chars = (chr(i) for i in range(sys.maxunicode))
+        control_chars = ''.join(c for c in all_chars if unicodedata.category(c) in set(['Cc','Cf']))
+        control_char_re = re.compile('[%s]' % re.escape(control_chars))
+        logger.info('Control char regexp is ready')
 
     value = value.strip()
     value = re.sub(r'<\!--.+?-->', r'', value)

@@ -2,25 +2,8 @@
 # vim: fenc=utf-8 et sw=4 ts=4 sts=4 ai
 import time
 import sys
-runstart_s = time.time()
-
 import logging
-logger = logging.getLogger()
-logger.setLevel(logging.DEBUG)     # DEBUG if verbose
-syslog = logging.StreamHandler()
-# formatter = logging.Formatter('%(asctime)s [%(mem_usage)s MB] %(name)s %(levelname)s : %(message)s')
-logger.addHandler(syslog)
-syslog.setLevel(logging.INFO)
-
-if sys.version_info < (3, 4):
-    print('Requires Python >= 3.4')
-    sys.exit(1)
-
-logger.info('Loading')
-
 import matplotlib
-matplotlib.use('svg')
-
 import pydash
 import weakref
 from collections import OrderedDict
@@ -40,18 +23,14 @@ from odict import odict
 import urllib
 import argparse
 import codecs
-
-logging.getLogger('requests').setLevel(logging.WARNING)
-logging.getLogger('urllib3').setLevel(logging.WARNING)
-logging.getLogger('requests_oauthlib').setLevel(logging.WARNING)
-logging.getLogger('oauthlib').setLevel(logging.WARNING)
-logging.getLogger('mwtemplates').setLevel(logging.INFO)
-
 import mwclient
 import mwtemplates
 from mwtemplates import TemplateEditor
 from mwtextextractor import get_body_text
 import locale
+import rollbar
+import platform
+from dotenv import load_dotenv
 
 from .common import get_mem_usage, Localization, t, _, InvalidContestPage, logfile
 from .rules import *
@@ -59,9 +38,21 @@ from .filters import *
 from .db import db_conn
 from .util import cleanup_input, load_config
 
+# ----------------------------------------------------------
+
 STATE_NORMAL='normal'
 STATE_ENDING = 'ending'
 STATE_CLOSING = 'closing'
+
+runstart_s = time.time()
+matplotlib.use('svg')
+
+if sys.version_info < (3, 4):
+    print('Requires Python >= 3.4')
+    sys.exit(1)
+
+# ----------------------------------------------------------
+# Setup root logger
 
 
 class AppFilter(logging.Filter):
@@ -78,15 +69,24 @@ class AppFilter(logging.Filter):
         record.relativeSecs = AppFilter.format_as_mins_and_secs(record.relativeCreated)
         return True
 
+
+logging.getLogger('requests').setLevel(logging.WARNING)
+logging.getLogger('urllib3').setLevel(logging.WARNING)
+logging.getLogger('requests_oauthlib').setLevel(logging.WARNING)
+logging.getLogger('oauthlib').setLevel(logging.WARNING)
+logging.getLogger('mwtemplates').setLevel(logging.INFO)
+
+logger = logging.getLogger()
+logger.setLevel(logging.DEBUG)
+syslog = logging.StreamHandler()
+logger.addHandler(syslog)
+syslog.setLevel(logging.INFO)
 formatter = logging.Formatter('[%(relativeSecs)s] [%(mem_usage)s MB] %(levelname)s : %(message)s')
 syslog.setFormatter(formatter)
 syslog.addFilter(AppFilter())
-logger.info('Logger ready')
 
-import rollbar
-import platform
+# ----------------------------------------------------------
 
-from dotenv import load_dotenv
 load_dotenv()
 
 #locale.setlocale(locale.LC_TIME, 'no_NO'.encode('utf-8'))

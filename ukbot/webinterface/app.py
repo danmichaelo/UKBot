@@ -15,7 +15,6 @@ from ukbot.db import db_cursor
 import logging
 import subprocess
 import urllib.parse
-from collections import OrderedDict
 from datetime import datetime
 
 logger = logging.getLogger('app')
@@ -45,27 +44,21 @@ contest_setups = [
     },
 ]
 
-
-def touch(fname, mode=0o664):
-    flags = os.O_CREAT | os.O_APPEND
-    with os.fdopen(os.open(fname, flags=flags, mode=mode)) as f:
-        os.utime(f.fileno())
-
-
 app = Flask(__name__, static_url_path='/static')
 ws = WebSocket(app)
 
-def error_404():
-    return '404'
-    response = render_template('404.html')
-    response.status_code = 404
-    return response
+
+def touch(fname, mode=0o664):
+    flags = os.O_CREAT | os.O_APPEND
+    with os.fdopen(os.open(fname, flags=flags, mode=mode)) as stream:
+        os.utime(stream.fileno(), None)
+
 
 def read_status(fname):
     try:
         with open(fname) as fp:
             status = json.load(fp)
-    except:
+    except IOError:
         logger.error('Could not read status file: %s', fname)
         return '<em>Could not read status</em>';
 
@@ -90,9 +83,15 @@ def read_status(fname):
     }
 
 
+@app.errorhandler(404)
+def page_not_found(err):
+    return render_template('404.html'), 404
+
+
 @app.context_processor
 def inject_current_time():
     return dict(current_time=datetime.now())
+
 
 @app.route('/')
 def show_home():
@@ -102,9 +101,7 @@ def show_home():
         status_file = os.path.join(project_dir, 'logs', '%s.status.json' % contest_setup['id'])
         contest_setup['status'] = read_status(status_file)
 
-    return render_template('home.html',
-        contest_setups=cf
-    )
+    return render_template('home.html', contest_setups=cf)
 
 # @app.route('/<contest>/')
 # def show_contest(contest):
@@ -176,8 +173,6 @@ def show_contest_status_sock(socket, job_id):
 
 @app.route('/jobs/<job_id>')
 def show_log(job_id):
-    # if contest_setup not in [c['id'] for c in contest_setups]:
-    #     return error_404()
     status = request.args.get('status', '')
 
     return render_template('status.html', job_id=job_id, status=status)
@@ -250,8 +245,7 @@ def show_wordcount():
         return render_template('wordcount.html', **args)
     mwpage, errors = validate(request.args)
     if len(errors) != 0:
-        return render_template('wordcount.html',
-            errors=errors, **args)
+        return render_template('wordcount.html', errors=errors, **args)
 
     if revision == '':
         revision = mwpage.revision
@@ -260,10 +254,11 @@ def show_wordcount():
     rev = next(mwpage.revisions(revision, prop='ids|content', limit=1))
     txt = rev['*']
     body = get_body_text(txt)
-    return render_template('wordcount.html',
-            body=body,
-            word_count=len(body.split()),
-            **args
+    return render_template(
+        'wordcount.html',
+        body=body,
+        word_count=len(body.split()),
+        **args
     )
 
 
@@ -301,7 +296,7 @@ def show_contests():
 def update_contest():
     contest_id = request.form['contest_id']
     with db_cursor() as cur:
-        cur.execute(u'SELECT C.config, C.name, C.last_job_id FROM contests as C WHERE C.contest_id=%s', [contest_id])
+        cur.execute('SELECT C.config, C.name, C.last_job_id FROM contests as C WHERE C.contest_id=%s', [contest_id])
         rows = cur.fetchall()
         if len(rows) != 1:
             qs = urllib.parse.urlencode({'error': 'Contest not found'})
@@ -310,7 +305,6 @@ def update_contest():
         config_file = rows[0][0]
         page_name = rows[0][1]
         last_job_id = rows[0][2]
-
 
     if config_file is None:
         return redirect('contests?%s' % urllib.parse.urlencode({
@@ -339,7 +333,7 @@ def update_contest():
     proc = subprocess.Popen([x.encode('utf-8') for x in cmd], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
     try:
         out, errs = proc.communicate(timeout=15)
-    except TimeoutExpired:
+    except subprocess.TimeoutExpired:
         proc.kill()
         out, errs = proc.communicate()
 
@@ -360,11 +354,3 @@ def update_contest():
         'error': errs,
     })
     return redirect('contests?%s' % qs, code=302)
-
-
-# if __name__ == "__main__":
-    # app.run()
-    # from gevent import pywsgi
-    # from geventwebsocket.handler import WebSocketHandler
-    # server = pywsgi.WSGIServer(('', 5000), app, handler_class=WebSocketHandler)
-    # server.serve_forever()

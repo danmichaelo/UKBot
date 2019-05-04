@@ -1,7 +1,5 @@
-from .webinterface.app import app
-
-import logging
 import logging.handlers
+from .webinterface.app import app
 
 logging.basicConfig()
 
@@ -16,5 +14,5 @@ fh.setLevel(logging.DEBUG)
 fh.setFormatter(formatter)
 app.logger.addHandler(fh)
 
-#app.debug = True  # reload on each code change
+# app.debug = True  # reload on each code change
 

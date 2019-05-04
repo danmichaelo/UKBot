@@ -1,6 +1,9 @@
 # encoding=utf-8
 # vim: fenc=utf-8 et sw=4 ts=4 sts=4 ai
 import time
+runstart_s = time.time()
+print('Loading')
+
 import sys
 import logging
 import matplotlib
@@ -8,11 +11,9 @@ import pydash
 import weakref
 from collections import OrderedDict
 import numpy as np
-import time
 import calendar
-from datetime import datetime, timedelta
+from datetime import datetime
 from datetime import time as dt_time
-import gettext
 import pytz
 from isoweek import Week  # Sort-of necessary until datetime supports %V, see http://bugs.python.org/issue12006
                           # and See http://stackoverflow.com/questions/5882405/get-date-from-iso-week-number-in-python
@@ -44,7 +45,6 @@ STATE_NORMAL='normal'
 STATE_ENDING = 'ending'
 STATE_CLOSING = 'closing'
 
-runstart_s = time.time()
 matplotlib.use('svg')
 
 if sys.version_info < (3, 4):
@@ -88,32 +88,6 @@ syslog.addFilter(AppFilter())
 # ----------------------------------------------------------
 
 load_dotenv()
-
-#locale.setlocale(locale.LC_TIME, 'no_NO'.encode('utf-8'))
-# Read args
-
-
-    # Settings
-# Suggested crontab:
-## Oppdater resultater annenhver time mellom kl 8 og 22 samt kl 23 og 01...
-#0 8-22/2,23,1 * * * nice -n 11 /uio/arkimedes/s01/dmheggo/wikipedia/UKBot/bot.sh
-## ... og ved midnatt tirsdag til søndag (2-6,0)
-#0 0 * * 2-6,0 nice -n 11 /uio/arkimedes/s01/dmheggo/wikipedia/UKBot/bot.sh
-## Midnatt natt til mandag avslutter vi konkurransen
-#0 0 * * 1 nice -n 11 /uio/arkimedes/s01/dmheggo/wikipedia/UKBot/ended.sh
-## og så sjekker vi om det er klart for å sende ut resultater
-#20 8-23/1 * * 1-2 nice -n 11 /uio/arkimedes/s01/dmheggo/wikipedia/UKBot/close.sh
-#20 */12 * * 3-6 nice -n 11 /uio/arkimedes/s01/dmheggo/wikipedia/UKBot/close.sh
-## Hver natt kl 00.30 laster vi opp ny figur
-#30 0 * * * nice -n 11 /uio/arkimedes/s01/dmheggo/wikipedia/UKBot/uploadbot.sh
-
-#from ete2 import Tree
-
-#from progressbar import ProgressBar, Counter, Timer, SimpleProgress
-#pbar = ProgressBar(widgets = ['Processed: ', Counter(), ' revisions (', Timer(), ')']).start()
-#pbar.maxval = pbar.currval + 1
-#pbar.update(pbar.currval+1)
-#pbar.finish()
 
 
 def unix_time(dt):

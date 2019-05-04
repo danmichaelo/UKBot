@@ -44,6 +44,6 @@ To test the webinterface locally:
 
 ```
 export FLASK_DEBUG=1
-export FLASK_APP=ukbot/server.py
+export FLASK_APP=dev-server.py
 flask run
 ```

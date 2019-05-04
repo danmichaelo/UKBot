@@ -55,3 +55,4 @@ plots
 .pytest_cache
 *.sqlite
 .env
+venv

@@ -405,7 +405,7 @@ class CatFilter(Filter):
                 except CategoryLoopError as e:
                     article.errors.append(_('Encountered an infinite category loop: ')
                         + ' → '.join(['[[:%(catname)s|]]'
-                        % {'catname': c} for c in e.catpath]))
+                        % {'catname': c.replace('.wikipedia.org', '')} for c in e.catpath]))
 
                 out[article_key] = article
 

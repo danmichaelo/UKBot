@@ -1757,14 +1757,17 @@ class Contest(object):
                 mld += '\n'
 
             now = self.server_tz.localize(datetime.now())
-            yearweek = now.astimezone(self.wiki_tz).strftime('%Y-%V')
+            now_l = now.astimezone(self.wiki_tz)
+            dateargs = {
+                'year': now_l.year,
+                'week': now_l.isocalendar()[1],
+                'month': now_l.month,
+            }
             userprefix = self.sites.homesite.namespaces[2]
 
-            mld += _("Note that the contest this week is [[%(url)s|{{%(template)s|%(weekarg)s=%(week)s}}]]. Join in!") % {
-                'url': self.config['pages']['base'] + ' ' + yearweek,
-                'template': self.config['templates']['contestlist']['name'],
-                'weekarg': self.config['templates']['commonargs']['week'],
-                'week': yearweek
+            mld += self.config['award_messages']['reminder_msg'] % {
+                'url': self.config['pages']['default'] % dateargs,
+                **dateargs,
             }
             sig = _('Regards') + ' ' + ', '.join(['[[%s:%s|%s]]' % (userprefix, s, s) for s in self.ledere]) + ' ' + _('and') + ' ~~~~'
 

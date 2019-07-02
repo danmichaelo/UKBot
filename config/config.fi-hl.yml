@@ -71,8 +71,8 @@ templates:
     filters: !include filters.fi.yml
 pages:
     catignore: Käyttäjä:UKBot/cat-ignore
-    base: Wikipedia:Heinäkuun_lähdetalkoot/
-    default: Wikipedia:Heinäkuun_lähdetalkoot/%(year)d
+    base: Wikipedia:Heinäkuun lähdetalkoot/
+    default: Wikipedia:Heinäkuun lähdetalkoot/%(year)d
 contestPages:
     resultsSection: Tulokset
     participantsSection: Osallistujat

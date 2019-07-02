@@ -71,8 +71,8 @@ templates:
     filters: !include filters.fi.yml
 pages:
     catignore: Käyttäjä:UKBot/cat-ignore
-    base: Wikipedia:Elokuun_kuvitustalkoot/
-    default: Wikipedia:Elokuun_kuvitustalkoot/%(year)d
+    base: Wikipedia:Elokuun kuvitustalkoot/
+    default: Wikipedia:Elokuun kuvitustalkoot/%(year)d
 contestPages:
     resultsSection: Tulokset
     participantsSection: Osallistujat

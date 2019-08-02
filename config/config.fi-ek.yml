@@ -76,4 +76,4 @@ pages:
 contestPages:
     resultsSection: Tulokset
     participantsSection: Osallistujat
-    footer: "[[Luokka:Elokuun kuvitustalkoot|2015]]"
+    footer: "[[Luokka:Elokuun kuvitustalkoot|%(year)d]]"

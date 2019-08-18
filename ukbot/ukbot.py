@@ -106,7 +106,7 @@ class Site(mwclient.Site):
         self.key = host
         self.prefixes = prefixes
         logger.debug('Initializing site: %s', host)
-        ua = 'UKBot. Run by User:Danmichaelo. Using mwclient/' + mwclient.__ver__
+        ua = 'UKBot (http://tools.wmflabs.org/ukbot/; danmichaelo+wikipedia@gmail.com)'
         mwclient.Site.__init__(
             self,
             host,
@@ -2660,7 +2660,7 @@ def main():
     logger.info(
         'Platform: Python %s, Mwclient %s, %s %s %s',
         platform.python_version(),
-        mwclient.__ver__,
+        mwclient.__version__,
         *platform.linux_distribution()
     )
 

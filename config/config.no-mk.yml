@@ -38,9 +38,9 @@ awards:
     lilla: { file: Article purple.svg }
     brun: { file: Article brown.svg }
 award_messages:
-    winner_template: '{{UK vinner|år=%(year)s|måned=%(month)s|%(award)s=ja}}'
-    participant_template: '{{UK deltaker|år=%(year)s|måned=%(month)s|%(award)s=ja}}'
-    organizer_template: '{{UK arrangør|år=%(year)s|måned=%(month)s|%(award)s=ja|visuk=nei}}'
+    winner_template: '{{UK vinner|år=%(year)s|måned=%(month)s|%(awards)s}}'
+    participant_template: '{{UK deltaker|år=%(year)s|måned=%(month)s|%(awards)s}}'
+    organizer_template: '{{UK arrangør|år=%(year)s|måned=%(month)s|%(awards)s|visuk=nei}}'
     reminder_msg: 'Husk at denne månedens konkurranse er [[%(url)s|{{#invoke:UK navboks|contest_name|%(year)d|%(month)d}}]]. Lykke til!'
 templates:
     botinfo: Ukens konkurranse robotinfo

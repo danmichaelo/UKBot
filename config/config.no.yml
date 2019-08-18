@@ -38,9 +38,9 @@ awards:
     lilla: { file: Article purple.svg }
     brun: { file: Article brown.svg }
 award_messages:
-    winner_template: '{{UK vinner|år=%(year)s|uke=%(week)s|%(award)s=ja}}'
-    participant_template: '{{UK deltaker|år=%(year)s|uke=%(week)s|%(award)s=ja}}'
-    organizer_template: '{{UK arrangør|år=%(year)s|uke=%(week)s|%(award)s=ja|visuk=nei}}'
+    winner_template: '{{UK vinner|år=%(year)s|uke=%(week)s|%(awards)s}}'
+    participant_template: '{{UK deltaker|år=%(year)s|uke=%(week)s|%(awards)s}}'
+    organizer_template: '{{UK arrangør|år=%(year)s|uke=%(week)s|%(awards)s|visuk=nei}}'
 templates:
     botinfo: Ukens konkurranse robotinfo
     status: Ukens konkurranse status

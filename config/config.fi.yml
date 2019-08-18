@@ -33,9 +33,9 @@ awards:
     violetti: { file: Article purple.svg }
     ruskea: { file: Article brown.svg }
 award_messages:
-    winner_template: '{{VK voittaja|vuosi=%(year)s|viikko=%(week)s|%(award)s=kyllä}}'
-    participant_template: '{{VK osallistuja|vuosi=%(year)s|viikko=%(week)s|%(award)s=kyllä}}'
-    organizer_template: '{{VK järjestäjä|vuosi=%(year)s|viikko=%(week)s|%(award)s=kyllä}}'
+    winner_template: '{{VK voittaja|vuosi=%(year)s|viikko=%(week)s|%(awards)s}}'
+    participant_template: '{{VK osallistuja|vuosi=%(year)s|viikko=%(week)s|%(awards)s}}'
+    organizer_template: '{{VK järjestäjä|vuosi=%(year)s|viikko=%(week)s|%(awards)s}}'
     reminder_msg: 'Muista, että tämän viikon kilpailu on [[%(url)s|{{Viikon kilpailu luettelo|viikko=%(year)d-%(week)02d}}]]. Onnea matkaan!'
 templates:
     botinfo: Viikon kilpailu robotti-info

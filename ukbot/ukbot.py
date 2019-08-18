@@ -1670,16 +1670,18 @@ class Contest(object):
             plt.savefig(figname, dpi=200)
             logger.info('Wrote plot: %s', figname)
 
-    def format_msg(self, template_name, award):
+    def format_msg(self, template_name, awards):
         template = self.config['award_messages'][template_name]
+        arg_yes = self.config['templates']['commonargs']['yes']
+        arg_endweek = self.config['templates']['commonargs']['week2']
         args = {
             'year': str(self.year),
             'week': str(self.startweek),
             'month': str(self.month),
-            'award': award,
+            'awards': '|'.join(['%s=%s' % (award, arg_yes) for award in awards]),
         }
         if self.startweek != self.endweek:
-            args['week'] += '|%s=%s' % (self.config['templates']['commonargs']['week2'], self.endweek)
+            args['week'] += '|%s=%s' % (arg_endweek, self.endweek)
 
         return template % args
 
@@ -1714,7 +1716,6 @@ class Contest(object):
             page = self.sites.homesite.pages[pagename]
             page.save(text=body + ' ' + sig, bot=False, section='new', summary=topic)
 
-
     def deliver_prices(self, results, simulate=False):
         config = self.config
         heading = self.format_heading()
@@ -1729,32 +1730,24 @@ class Contest(object):
         # cur.close()
 
         for i, result in enumerate(results):
+            prices = []
 
-            prizefound = False
             if i == 0:
-                mld = ''
-                for r in self.prices:
-                    if r[1] == 'winner':
-                        prizefound = True
-                        mld = self.format_msg('winner_template', r[0])
-                        break
-                for r in self.prices:
-                    if r[1] == 'pointlimit' and result['points'] >= r[2]:
-                        if prizefound:
-                            mld += '|%s=%s' % (r[0], self.config['templates']['commonargs'][True])
-                        else:
-                            mld = self.format_msg('winner_template', r[0])
-                        prizefound = True
-                        break
-                mld += '\n'
-            else:
-                mld = ''
-                for r in self.prices:
-                    if r[1] == 'pointlimit' and result['points'] >= r[2]:
-                        prizefound = True
-                        mld = self.format_msg('participant_template', r[0])
-                        break
-                mld += '\n'
+                # Contest winenr
+                for price in self.prices:
+                    # Is there's a special winner's prize?
+                    if price[1] == 'winner':
+                        prices.append(price[0])
+
+            # Append the first point limit price, if any
+            for price in self.prices:
+                if price[1] == 'pointlimit' and result['points'] >= price[2]:
+                    prices.append(price[0])
+                    break
+
+            if len(prices) == 0:
+                logger.info('No price for %s', result['name'])
+                continue
 
             now = self.server_tz.localize(datetime.now())
             now_l = now.astimezone(self.wiki_tz)
@@ -1765,23 +1758,21 @@ class Contest(object):
             }
             userprefix = self.sites.homesite.namespaces[2]
 
-            mld += self.config['award_messages']['reminder_msg'] % {
+            tpl = 'winner_template' if i == 0 else 'participant_template'
+            msg = self.format_msg(tpl, prices) + '\n'
+            msg += self.config['award_messages']['reminder_msg'] % {
                 'url': self.config['pages']['default'] % dateargs,
                 **dateargs,
             }
             sig = _('Regards') + ' ' + ', '.join(['[[%s:%s|%s]]' % (userprefix, s, s) for s in self.ledere]) + ' ' + _('and') + ' ~~~~'
 
-            if prizefound:
-
-                if not simulate:
-                    cur.execute('SELECT prize_id FROM prizes WHERE contest_id=%s AND site=%s AND user=%s', [contest_id, self.sites.homesite.key, result['name']])
-                    rows = cur.fetchall()
-                    if len(rows) == 0:
-                        self.deliver_message(result['name'], heading, mld, sig)
-                        cur.execute('INSERT INTO prizes (contest_id, site, user, timestamp) VALUES (%s,%s,%s, NOW())', [contest_id, self.sites.homesite.key, result['name']])
-                        self.sql.commit()
-            else:
-                logger.info('No price for %s', result['name'])
+            if not simulate:
+                cur.execute('SELECT prize_id FROM prizes WHERE contest_id=%s AND site=%s AND user=%s', [contest_id, self.sites.homesite.key, result['name']])
+                rows = cur.fetchall()
+                if len(rows) == 0:
+                    self.deliver_message(result['name'], heading, msg, sig)
+                    cur.execute('INSERT INTO prizes (contest_id, site, user, timestamp) VALUES (%s,%s,%s, NOW())', [contest_id, self.sites.homesite.key, result['name']])
+                    self.sql.commit()
 
     def deliver_leader_notification(self):
         if 'awardstatus' not in self.config:
@@ -1795,18 +1786,18 @@ class Contest(object):
         }
         link = '%(prefix)s?title=%(page)s&action=edit&section=new&preload=%(page)s/Preload&preloadtitle=%(title)s' % args
         usertalkprefix = self.sites.homesite.namespaces[3]
-        oaward = ''
+        awards = []
         for key, award in self.config['awards'].items():
             if 'organizer' in award:
-                oaward = key
-        if oaward == '':
+                awards.append(key)
+        if len(awards) == 0:
             raise Exception('No organizer award found in config')
         for u in self.ledere:
-            mld = self.format_msg('organizer_template', oaward)
+            mld = self.format_msg('organizer_template', awards)
             mld += _('Now you must check if the results look ok. If there are error messages at the bottom of the [[%(page)s|contest page]], you should check that the related contributions have been awarded the correct number of points. Also check if there are comments or complaints on the discussion page. If everything looks fine, [%(link)s click here] (and save) to indicate that I can send out the awards at first occasion.') % {'page': self.name, 'link': link}
             sig = _('Thanks, ~~~~')
 
-            logger.info('Leverer arrangørmelding for %s', self.name )
+            logger.info('Leverer arrangørmelding for %s', self.name)
             self.deliver_message(u, heading, mld, sig)
 
 

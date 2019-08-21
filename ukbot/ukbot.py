@@ -1672,7 +1672,7 @@ class Contest(object):
 
     def format_msg(self, template_name, awards):
         template = self.config['award_messages'][template_name]
-        arg_yes = self.config['templates']['commonargs']['yes']
+        arg_yes = self.config['templates']['commonargs'][True]
         arg_endweek = self.config['templates']['commonargs']['week2']
         args = {
             'year': str(self.year),
@@ -1799,7 +1799,6 @@ class Contest(object):
 
             logger.info('Leverer arrangørmelding for %s', self.name)
             self.deliver_message(u, heading, mld, sig)
-
 
     def deliver_receipt_to_leaders(self):
         heading = self.format_heading()

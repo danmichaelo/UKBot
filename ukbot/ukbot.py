@@ -1774,7 +1774,7 @@ class Contest(object):
                     cur.execute('INSERT INTO prizes (contest_id, site, user, timestamp) VALUES (%s,%s,%s, NOW())', [contest_id, self.sites.homesite.key, result['name']])
                     self.sql.commit()
 
-    def deliver_leader_notification(self):
+    def deliver_ended_contest_notification(self):
         if 'awardstatus' not in self.config:
             return
 
@@ -1797,7 +1797,7 @@ class Contest(object):
             mld += _('Now you must check if the results look ok. If there are error messages at the bottom of the [[%(page)s|contest page]], you should check that the related contributions have been awarded the correct number of points. Also check if there are comments or complaints on the discussion page. If everything looks fine, [%(link)s click here] (and save) to indicate that I can send out the awards at first occasion.') % {'page': self.name, 'link': link}
             sig = _('Thanks, ~~~~')
 
-            logger.info('Leverer arrangørmelding for %s', self.name)
+            logger.info('Delivering notification about ended contenst to the contest organizers')
             self.deliver_message(u, heading, mld, sig)
 
     def deliver_receipt_to_leaders(self):
@@ -2168,7 +2168,7 @@ class Contest(object):
                 if count == 0:
                     logger.info('Leader notifications have already been delivered')
                 else:
-                    self.deliver_leader_notification()
+                    self.deliver_ended_contest_notification()
 
         if self.state == STATE_CLOSING:
             logger.info('Delivering prices')

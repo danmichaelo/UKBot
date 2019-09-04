@@ -3,7 +3,7 @@
 import re
 import json
 from jsonpath_rw import parse
-from ..common import _, t
+from ..common import _, ngettext
 from ..contributions import UserContribution
 from .rule import Rule
 from .decorators import family
@@ -66,7 +66,7 @@ class WikidataRule(Rule):
             for prop, n in report.items():
                 points += n * self.points
                 description.append(
-                    t.ngettext(
+                    ngettext(
                         '%(count)d %(property)s statement',
                         '%(count)d %(property)s statements',
                         n

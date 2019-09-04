@@ -2,7 +2,7 @@
 # vim: fenc=utf-8 et sw=4 ts=4 sts=4 ai
 import logging
 import weakref
-from .common import _, t
+from .common import _, ngettext
 
 logger = logging.getLogger(__name__)
 
@@ -176,7 +176,7 @@ class UserContributions(object):
         if len(entries) == 0:
             out += "''%s''" % _('No qualifying contributions registered yet')
         else:
-            out += t.ngettext('%d article', '%d articles', len(entries)) % len(entries)
+            out += ngettext('%d article', '%d articles', len(entries)) % len(entries)
             out += ', '
             out += '{{formatnum:%.2f}} kB' % (self.user().bytes / 1000.)
             out += '\n'

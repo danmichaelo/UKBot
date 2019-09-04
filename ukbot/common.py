@@ -68,8 +68,8 @@ class Localization:
 
 localization = Localization()
 
-def t(*args, **kwargs):
-    return localization.t(*args, **kwargs)
+def ngettext(*args, **kwargs):
+    return localization.t.ngettext(*args, **kwargs)
 
 def _(*args, **kwargs):
     return localization._(*args, **kwargs)

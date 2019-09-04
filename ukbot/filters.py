@@ -11,7 +11,7 @@ import urllib
 import requests
 from mwtemplates.templateeditor2 import TemplateParseError
 
-from .common import t, _, InvalidContestPage
+from .common import _, InvalidContestPage
 
 logger = logging.getLogger(__name__)
 

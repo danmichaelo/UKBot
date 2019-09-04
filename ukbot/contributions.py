@@ -1,7 +1,8 @@
-import pytz
+# encoding=utf-8
+# vim: fenc=utf-8 et sw=4 ts=4 sts=4 ai
 import logging
 import weakref
-from datetime import datetime
+from .common import _, t
 
 logger = logging.getLogger(__name__)
 
@@ -16,6 +17,7 @@ class UserContributions(object):
     def __init__(self, user):
         self.user = weakref.ref(user)
         self.contributions = []
+        self.labels = {}
 
     def add(self, contribution):
         """
@@ -38,18 +40,18 @@ class UserContributions(object):
         # Reminder to self: We do not filter out contributions that end up giving zero points after a limit.
         # This is so we can make statistics on metrics like total number of words.
 
-    def get(self, cls=None, article=None, revision=None):
+    def get(self, article=None, revision=None, rule=None):
         """
         Return contributions, optionally filtered by article and/or rule type.
 
         Params:
-            cls: Filter by rule class
             article: Filter by article
             revision: Filter by revision
+            rule: Filter by rule class
         """
         contribs = self.contributions
-        if cls is not None:
-            contribs = [contrib for contrib in self.contributions if isinstance(contrib, cls)]
+        if rule is not None:
+            contribs = [contrib for contrib in self.contributions if isinstance(contrib.rule, rule)]
         if article is not None:
             contribs = [contrib for contrib in contribs if contrib.article == article]
         if revision is not None:
@@ -65,7 +67,7 @@ class UserContributions(object):
             return contribution.raw_points
 
         article = contribution.article
-        article_contribs = self.get(article=article, cls=type(contribution.rule))
+        article_contribs = self.get(article=article, rule=type(contribution.rule))
         article_raw_points = sum([contrib.raw_points for contrib in article_contribs])
         article_points = sum([contrib.points for contrib in article_contribs])
 
@@ -74,6 +76,7 @@ class UserContributions(object):
                          contribution.rule.maxpoints, type(contribution.rule).__name__)
             # We are already at max. Only add the self if it's negative
             # and contributes to reducing the amount of points given to this article.
+            contribution.capped = True
             if contribution.is_negative() and article_raw_points + contribution.raw_points < contribution.rule.maxpoints:
                 return contribution.rule.maxpoints - article_raw_points - contribution.raw_points
             else:
@@ -84,13 +87,14 @@ class UserContributions(object):
             # to this contribution.
             logger.debug('Reaching the point limit (%.1f) for %s.',
                          contribution.rule.maxpoints, type(contribution.rule).__name__)
-            return contribution.rule.maxpoints - article_points   # TODO: Add to description in some way ' &gt; ' + _('max')
+            contribution.capped = True
+            return contribution.rule.maxpoints - article_points
 
         return contribution.raw_points
 
         # rev.points.append([pts, ptype, txt + ' &gt; ' + _('max'), points])
 
-        #elif not self.iszero(revpoints):
+        # elif not self.iszero(revpoints):
         # else:
         #     if self.iszero(points) and not include_zero:
         #         return False
@@ -140,12 +144,52 @@ class UserContributions(object):
         #         logger.debug('!! Skipping revision %d in suspension period', revid)
 
     def get_articles(self):
-        return sorted(list(set([contrib.article for contrib in self.contributions])), key=lambda article: article.name)
+        return sorted(
+            list(set([contrib.article for contrib in self.contributions])),
+            key=lambda article: article.firstrev.timestamp
+        )
 
     def sum(self):
         return sum([self.get_article_points(article) for article in self.get_articles()])
 
-    def summarize(self, wiki_tz):
+    def format(self, homesite):
+        self.fetch_labels()
+        entries = self.summarize()
+
+        award_icon = ''  # TODO '{awards}'
+
+        suspended = ''
+        if self.user().suspended_since is not None:
+            suspended = ', ' + _('suspended since') + ' %s' % self.user().suspended_since.strftime(_('%A, %H:%M'))
+
+        user_prefix = homesite.namespaces[2]
+
+        out = '=== %s [[%s:%s|%s]] (%.f p%s) ===\n' % (
+            award_icon,
+            user_prefix,
+            self.user().name,
+            self.user().name,
+            self.sum(),
+            suspended
+        )
+
+        if len(entries) == 0:
+            out += "''%s''" % _('No qualifying contributions registered yet')
+        else:
+            out += t.ngettext('%d article', '%d articles', len(entries)) % len(entries)
+            out += ', '
+            out += '{{formatnum:%.2f}} kB' % (self.user().bytes / 1000.)
+            out += '\n'
+
+        if len(entries) > 10:
+            out += _('{{Kolonner}}') + '\n'
+
+        out += '\n'.join(entries)
+        out += '\n\n'
+
+        return out
+
+    def summarize(self):
         articles = self.get_articles()
 
         articles_formatted = []
@@ -159,7 +203,7 @@ class UserContributions(object):
                 if revision_formatted is not None:
                     revisions_formatted.append(revision_formatted)
 
-            article_formatted = self.summarize_article(article, revision_formatted)
+            article_formatted = self.summarize_article(article, revisions_formatted)
 
             articles_formatted.append(article_formatted)
         
@@ -167,18 +211,21 @@ class UserContributions(object):
 
     def summarize_revision(self, revision):
 
-        revision_contribs = filter(lambda c: not is_zero(c.points), self.get(revision=revision))
+        revision_contribs = list(filter(lambda c: not is_zero(c.points), self.get(revision=revision)))
 
         if len(revision_contribs) == 0:
             return None
 
-        formatted = '[%s %s]: ' % (revision.get_link(), revision.wiki_tz.strftime(_('%A, %H:%M')))
+        formatted = '[%s %s]: ' % (revision.get_link(), revision.wiki_tz.strftime(_('%d.%m, %H:%M')))
 
         # Make a formatted string on this form:
         # 10.0 p (ny side) + 9.7 p (967 byte) + 5.4 p (54 ord) + 10.0 p (2 kilder)
         contrib_points = []
         for contribution in revision_contribs:
-            contrib_points.append('%.1f p (%s)' % (contribution.points, contribution.description))
+            desc = contribution.description
+            if contribution.capped:
+                desc += ', ' + _('capped at max')
+            contrib_points.append('%.1f p (%s)' % (contribution.points, desc))
         formatted += ' + '.join(contrib_points)
         
         # Add deductions, if any
@@ -213,47 +260,77 @@ class UserContributions(object):
         tooltip_text = ''
         try:
             cat_path = [x.split(':')[-1] for x in article.cat_path]
-            tooltip_text = "''" + _('Category hit') + "'': " + ' &gt; '.join(cat_path) + '<br />'
+            tooltip_text = "''" + _('Category hit') + "'': " + ' &gt; '.join(cat_path) + '<br>'
         except AttributeError:
             pass
-        tooltip_text += '<br />'.join(revisions_formatted)
+        tooltip_text += '<br>'.join(revisions_formatted)
 
         # if len(article.point_deductions) > 0:
         #     pds = []
         #     for points, reason in article.point_deductions:
         #         pds.append('%.f p: %s' % (-points, reason))
-        #     titletxt += '<div style="border-top:1px solid #CCC">\'\'' + _('Notes') + ':\'\'<br />%s</div>' % '<br />'.join(pds)
+        #     titletxt += '<div style="border-top:1px solid #CCC">\'\'' + _('Notes') + ':\'\'<br>%s</div>' % '<br>'.join(pds)
 
-        tooltip_text += '<div style="border-top:1px solid #CCC">' + _('Total: {{formatnum:%(bytecount)d}} bytes, %(wordcount)d words') % {
-            'bytecount': article.bytes,
-            'wordcount': article.words
-        } + '.</div>'
+        if article.words > 0:
+            tooltip_text += '<div style="border-top:1px solid #CCC">%s.</div>' % (
+                _('Total: {{formatnum:%(bytecount)d}} bytes, %(wordcount)d words') % {
+                    'bytecount': article.bytes,
+                    'wordcount': article.words
+                }
+            )
 
-        p = '%.1f p' % brutto
-        if brutto != netto:
-            p = '<s>' + p + '</s> '
-            if netto != 0.:
-                p += '%.1f p' % netto
-
-        formatted = '[[%s|%s]]' % (article.link(), article.name)
+        if article.name in self.labels:
+            formatted = '[[%s|%s]]' % (article.link(), self.labels[article.name])
+        else:
+            formatted = '[[%s|%s]]' % (article.link(), article.name)
         if article.key in self.user().disqualified_articles:
             formatted = '[[File:Qsicon Achtung.png|14px]] <s>' + formatted + '</s>'
-            tooltip_text += '<div style="border-top:1px solid red; background:#ffcccc;">' + _('<strong>Note:</strong> The contributions to this article are currently disqualified.') + '</div>'
+            tooltip_text += '<div style="border-top:1px solid red; background:#ffcccc;">%s</div>' % (
+                _('<strong>Note:</strong> The contributions to this article are currently disqualified.')
+            )
         elif brutto != netto:
             formatted = '[[File:Qsicon Achtung.png|14px]] ' + formatted
-            #titletxt += '<div style="border-top:1px solid red; background:#ffcccc;"><strong>Merk:</strong> En eller flere revisjoner er ikke talt med fordi de ble gjort mens brukeren var suspendert. Hvis suspenderingen oppheves vil bidragene telle med.</div>'
+            # titletxt += '<div style="border-top:1px solid red; background:#ffcccc;"><strong>Merk:</strong>
+            # En eller flere revisjoner er ikke talt med fordi de ble gjort mens brukeren var suspendert.
+            # Hvis suspenderingen oppheves vil bidragene telle med.</div>'
 
         if article.new:
             formatted += ' ' + _('<abbr class="newpage" title="New page">N</abbr>')
 
-        formatted += ' (<abbr class="uk-ap">%s</abbr>)' % article_points
+        if article.site().host == 'www.wikidata.org':
+            formatted += ' ' + _('<abbr class="newpage" title="Wikidata item">W</abbr>')
+
+        points = '%.1f p' % brutto
+        if brutto != netto:
+            points = '<s>' + p + '</s> '
+            if netto != 0.:
+                points += '%.1f p' % netto
+        formatted += ' (<abbr class="uk-ap">%s</abbr>)' % points
 
         formatted = '# ' + formatted
-        formatted += '<div class="uk-ap-title" style="font-size: smaller; color:#888; line-height:100%;">' + tooltip_text + '</div>'
+        formatted += '<div class="uk-ap-title" style="font-size: smaller; color:#888; line-height:100%%;">%s</div>' % (
+            tooltip_text
+        )
 
         logger.debug('    %s: %.f / %.f points', article.key, netto, brutto)
 
         return formatted
+
+    def fetch_labels(self):
+        pages = {c.article.name: c.article for c in self.contributions if c.site.host == 'www.wikidata.org'}
+        qids = list(pages.keys())
+        if len(qids) == 0:
+            return
+        wd_site = list(pages.values())[0].site()
+        for i in range(0, len(qids), 500):
+            batch = qids[i:i + 500]
+            res = wd_site.api('wbgetentities', ids='|'.join(batch))
+            print(res)
+            for qid, data in res['entities'].items():
+                for lang in ['eu', 'en']:
+                    if lang in data['labels']:
+                        self.labels[qid] = data['labels'][lang]['value']
+                        break
 
 
 class UserContribution(object):
@@ -264,6 +341,7 @@ class UserContribution(object):
         self.points = points  # Points given to this contribution when taking limits etc. into account
         self.rule = rule
         self.description = description
+        self.capped = False
 
     def is_negative(self):
         return self.raw_points < 0
@@ -273,9 +351,12 @@ class UserContribution(object):
         return self.rev.article()
 
     @property
+    def site(self):
+        return self.rev.article().site()
+
+    @property
     def user(self):
         return self.rev.article().user()
-
 
     # def get_points(self, ptype='', ignore_max=False, ignore_point_deductions=False):
     #     p = 0.0

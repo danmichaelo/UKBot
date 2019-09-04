@@ -82,6 +82,9 @@ templates:
         own: oma
         ownwork: oma teos
         maxinitialcount: makskuvienmäärä
+        wikidata: wikidata
+        properties: properties
+        require_reference: require_reference
     filter:
         name: Viikon kilpailu kriteerit
         new: uusi

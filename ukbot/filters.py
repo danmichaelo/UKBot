@@ -543,7 +543,7 @@ class BackLinkFilter(Filter):
         for page in pages:
             for linked_page in page.links(redirects=True):
                 link = '%s:%s' % (linked_page.site.key, linked_page.name.replace('_', ' '))
-                logger.debug(' - Include: %s', link)
+                # logger.debug(' - Include: %s', link)
                 self.page_keys.add(link)
 
                 # Include langlinks as well
@@ -555,8 +555,12 @@ class BackLinkFilter(Filter):
                             logger.debug(' - Include: %s', link)
                             self.page_keys.add(link)
 
-        logger.info('BackLinkFilter ready with %d links (after having expanded langlinks)',
-                    len(self.page_keys))
+        if include_langlinks:
+            logger.info('BackLinkFilter ready with %d links (after having expanded langlinks)',
+                        len(self.page_keys))
+        else:
+            logger.info('BackLinkFilter ready with %d links',
+                        len(self.page_keys))
 
 
 class ForwardLinkFilter(Filter):
@@ -700,7 +704,7 @@ class SparqlFilter(Filter):
     def fetch(self):
         logger.debug('SparqlFilter: %s', self.query)
 
-        query_variable = 'item'
+        item_var = 'item'
 
         # Implementation notes:
         # - When the contest includes multiple sites, we do one query per site. I tried using
@@ -710,32 +714,56 @@ class SparqlFilter(Filter):
         #   but when the number of items became large it resulted in "request too large".
         for site in self.sites.sites.keys():
             logger.debug('Querying site: %s', site)
-            article_variable = 'article19472065'  # "random string" to avoid matching anything in the subquery
-            query = """
-                SELECT ?%(article_variable)s
-                WHERE {
-                  { %(query)s }
-                  ?%(article_variable)s schema:about ?%(query_variable)s .
-                  ?%(article_variable)s schema:isPartOf <https://%(site)s/> .
-                }
-            """ % {
-                'query_variable': query_variable,
-                'article_variable': article_variable,
-                'query': self.query,
-                'site': site,
-            }
-            logger.debug('SparqlFilter: %s', query)
-
             t0 = time.time()
-            n = 0
-            for res in self.do_query(query)['rows']:
-                n += 1
-                article = '/'.join(res.split('/')[4:])
-                article = urllib.parse.unquote(article).replace('_', ' ')
-                page_key = '%s:%s' % (site, article)
-                self.page_keys.add(page_key)
+            s0 = len(self.page_keys)
+            if site == 'www.wikidata.org':
+                self.add_wikidata_items(site, item_var)
+            else:
+                self.add_linked_articles(site, item_var)
 
-            dt = time.time() - t0
-            logger.info('SparqlFilter: Got %d results for %s in %.1f secs', n, site, dt)
+            t1 = time.time() - t0
+            s1 = len(self.page_keys) - s0
+            logger.info('SparqlFilter: Got %d results for %s in %.1f secs', s1, site, t1)
 
         logger.info('SparqlFilter: Initialized with %d articles', len(self.page_keys))
+
+    def add_linked_articles(self, site, item_var):
+        article_var = 'article19472065'  # "random string" to avoid matching anything in the subquery
+        query = """
+            SELECT ?%(article)s
+            WHERE {
+              { %(query)s }
+              ?%(article)s schema:about ?%(item)s .
+              ?%(article)s schema:isPartOf <https://%(site)s/> .
+            }
+        """ % {
+            'item': item_var,
+            'article': article_var,
+            'query': self.query,
+            'site': site,
+        }
+        logger.debug('SparqlFilter: %s', query)
+
+        for res in self.do_query(query)['rows']:
+            article = '/'.join(res.split('/')[4:])
+            article = urllib.parse.unquote(article).replace('_', ' ')
+            page_key = '%s:%s' % (site, article)
+            self.page_keys.add(page_key)
+
+    def add_wikidata_items(self, site, item_var):
+        query = """
+            SELECT ?%(item)s
+            WHERE {
+                { %(query)s }
+            }
+        """ % {
+            'item': item_var,
+            'query': self.query,
+            'site': site,
+        }
+        logger.debug('SparqlFilter: %s', query)
+
+        for res in self.do_query(query)['rows']:
+            qid = res.split('/')[4]
+            page_key = '%s:%s' % (site, qid)
+            self.page_keys.add(page_key)

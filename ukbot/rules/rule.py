@@ -1,5 +1,8 @@
+# encoding=utf-8
+# vim: fenc=utf-8 et sw=4 ts=4 sts=4 ai
 from ..common import _
 from ..contributions import UserContribution
+from .decorators import family
 
 
 class Rule(object):
@@ -19,6 +22,8 @@ class Rule(object):
             value = self.params.get(self.trans[name])
         if value is None:
             return default
+        if datatype == list:
+            return str(value).split(',')
         return datatype(value)
 
     def get_anon_params(self):
@@ -49,6 +54,7 @@ class BonusRule(Rule):
     def get_metric(self, rev):
         raise NotImplementedError()  # Should be overridden
 
+    @family('wikipedia.org', 'wikibooks.org')
     def test(self, current_rev):
         total = 0
         this_rev = False

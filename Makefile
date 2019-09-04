@@ -12,10 +12,11 @@ TEXTDOMAIN = messages
 
 localedir = ./locale
 targetdir = ./locale
+sourcedir = ./ukbot
 
 CATALOGS = $(LINGUAS)
 MO_FILES = $(addprefix $(localedir)/, $(addsuffix .mo, $(LINGUAS)))
-
+SOURCE_FILES = $(wildcard ukbot/*.py ukbot/rules/*.py ukbot/filters/*.py)
 MSGMERGE = msgmerge
 MSGFMT   = msgfmt
 XGETTEXT = xgettext
@@ -36,8 +37,8 @@ help:
 	@echo "  install      - Install mo files"
 	@echo "  all          - All of the above"
 
-POTFILES = $(localedir)/POTFILES.in \
-	$(shell cat $(localedir)/POTFILES.in)
+#POTFILES = $(localedir)/POTFILES.in \
+#	$(shell cat $(localedir)/POTFILES.in)
 
 pot: $(TD).pot
 
@@ -50,9 +51,8 @@ clean:
 # Use xgettext to extract strings from the source code
 # files listed in POTFILESS.in
 
-$(TD).pot: $(POTFILES)
-	$(XGETTEXT) --output=$(localedir)/$(TD).pox \
-		--files-from=$(localedir)/POTFILES.in
+$(TD).pot: $(SOURCE_FILES)
+	$(XGETTEXT) --output=$(localedir)/$(TD).pox $(SOURCE_FILES)
 	rm -f $(localedir)/$@ && mv $(localedir)/$(TD).pox $(localedir)/$@
 
 install: $(MO_FILES)

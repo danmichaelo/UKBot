@@ -1,3 +1,5 @@
+# encoding=utf-8
+# vim: fenc=utf-8 et sw=4 ts=4 sts=4 ai
 from .rule import BonusRule
 
 

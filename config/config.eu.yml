@@ -5,6 +5,7 @@ wiki_timezone: Europe/Oslo
 homesite: eu.wikipedia.org
 othersites:
     - eu.wikibooks.org
+    - www.wikidata.org
 default_prefix: eu
 plot:
     datafile: plots/Lehiaketak %(year)d-%(month)02d.json
@@ -67,6 +68,9 @@ templates:
         own: self-uploaded
         ownwork: own-work
         maxinitialcount: initial limit
+        wikidata: wikidata
+        properties: properties
+        require_reference: require_reference
     filters: !include filters.eu.yml
 pages:
     base: 'Atari:Hezkuntza/Lehiaketak'

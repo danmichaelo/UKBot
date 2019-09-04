@@ -6,7 +6,7 @@ from unittest import TestCase
 
 import pytz
 
-from ukbot.rules import RefRule, TemplateRemovalRule, ByteRule, WordRule
+from ukbot.rules import RefRule, TemplateRemovalRule, ByteRule, WordRule, NewPageRule, WikidataRule
 from ukbot.contributions import UserContribution
 import unittest
 
@@ -28,7 +28,7 @@ class RuleTestCase(TestCase):
     @staticmethod
     def site_mock():
         site = mock.Mock()
-        site.host = 'mock'
+        site.host = 'test.wikipedia.org'
         site.redirect_regexp = re.compile(u'(?:%s)' % u'|'.join(['redirect']), re.I)
         return site
 
@@ -60,6 +60,30 @@ class RuleTestCase(TestCase):
         rev = Revision(article, 1, timestamp=ts)
         rev.timestamp = pytz.utc.localize(datetime.now())
         return rev
+
+
+class TestNewPageRule(RuleTestCase):
+
+    def test_it_gives_points_for_new_pages_on_wikipedia(self):
+        self.site.host = 'no.wikipedia.org'
+        self.rev.parentid = 0
+
+        points_per_page = 5
+        rule = NewPageRule(self.sites, {2: points_per_page})
+        contribs = list(rule.test(self.rev))
+
+        assert len(contribs) == 1
+        assert 5 == contribs[0].points
+
+    def test_it_does_not_give_points_for_new_pages_on_wikidata(self):
+        self.site.host = 'www.wikidata.org'
+        self.rev.parentid = 0
+
+        points_per_page = 5
+        rule = NewPageRule(self.sites, {2: points_per_page})
+        contribs = list(rule.test(self.rev))
+
+        assert len(contribs) == 0
 
 
 class TestByteRule(RuleTestCase):
@@ -168,6 +192,62 @@ class TestRefRule(RuleTestCase):
 
         assert len(contribs) == 0
 
+
+class TestWikidataRule(RuleTestCase):
+
+    def test_it_gives_points_for_statements_added(self):
+        self.site.host = 'www.wikidata.org'
+        self.rev.text = '{"claims": {"P18": [{}]}}'
+        self.rev.parenttext = '{"claims": {}}'
+
+        points_per_claim = 5
+        rule = WikidataRule(self.sites, {
+            2: points_per_claim,
+            'egenskaper': 'P18',
+        }, {
+            'properties': 'egenskaper',
+            'require_reference': 'krev_referanse',
+        })
+        contribs = list(rule.test(self.rev))
+
+        assert len(contribs) == 1
+        assert 5 == contribs[0].points
+
+    def test_it_does_not_give_points_if_required_reference_not_included(self):
+        self.site.host = 'www.wikidata.org'
+        self.rev.text = '{"claims": {"P20": [{}]}}'
+        self.rev.parenttext = '{"claims": {}}'
+
+        points_per_claim = 5
+        rule = WikidataRule(self.sites, {
+            2: points_per_claim,
+            'egenskaper': 'P20',
+            'krev_referanse': 'ja',
+        }, {
+            'properties': 'egenskaper',
+            'require_reference': 'krev_referanse',
+        })
+        contribs = list(rule.test(self.rev))
+
+        assert len(contribs) == 0
+
+    def test_it_does_give_points_if_required_reference_is_included(self):
+        self.site.host = 'www.wikidata.org'
+        self.rev.text = '{"claims": {"P20": [{"rank": "normal", "references": [{}]}]}}'
+        self.rev.parenttext = '{"claims": {}}'
+
+        points_per_claim = 5
+        rule = WikidataRule(self.sites, {
+            2: points_per_claim,
+            'egenskaper': 'P20',
+            'krev_referanse': 'ja',
+        }, {
+            'properties': 'egenskaper',
+            'require_reference': 'krev_referanse',
+        })
+        contribs = list(rule.test(self.rev))
+
+        assert len(contribs) == 1
 
 if __name__ == '__main__':
     unittest.main()

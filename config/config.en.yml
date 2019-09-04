@@ -71,6 +71,9 @@ templates:
         own: self-uploaded
         ownwork: own-work
         maxinitialcount: initial limit
+        wikidata: wikidata
+        properties: properties
+        require_reference: require_reference
     filters: !include filters.en.yml
 pages:
     catignore: User:UKBot/ignored categories

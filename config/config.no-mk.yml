@@ -90,6 +90,9 @@ templates:
         own: egetbilde
         ownwork: egetverk
         maxinitialcount: maksantallinnledningsvis
+        wikidata: wikidata
+        properties: egenskaper
+        require_reference: krevreferanse
     filters: !include filters.no.yml
 pages:
     base: Wikipedia:Konkurranser/Månedens konkurranse

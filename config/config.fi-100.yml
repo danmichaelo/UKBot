@@ -94,6 +94,9 @@ templates:
         own: oma
         ownwork: oma teos
         maxinitialcount: makskuvienmäärä
+        wikidata: wikidata
+        properties: properties
+        require_reference: require_reference
     filters: !include filters.fi.yml
 pages:
     catignore: Käyttäjä:UKBot/cat-ignore

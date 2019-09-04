@@ -101,6 +101,9 @@ class Revision(object):
 
     @property
     def words(self):
+        if self.article().site().host == 'www.wikidata.org':
+            # Don't do wordcount for wikidata
+            return 0
         try:
             return self._wordcount
         except:

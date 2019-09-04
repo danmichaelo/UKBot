@@ -7,6 +7,7 @@ import logging
 from ..common import _
 from ..contributions import UserContribution
 from .rule import Rule
+from .decorators import family
 
 logger = logging.getLogger(__name__)
 
@@ -90,6 +91,7 @@ class ImageRule(Rule):
 
         return credit
 
+    @family('wikipedia.org', 'wikibooks.org')
     def test(self, rev):
         imgs_before = list(self.get_images(rev.parenttext))
         imgs_after = list(self.get_images(rev.text))
@@ -129,10 +131,10 @@ class ImageRule(Rule):
         points = 0
         for n, img in enumerate(added):
             if self.maxinitialcount is None or len(imgs_before) + n <= self.maxinitialcount:
-                if img in counters['ownwork'] and self.points_ownwork is not None:
-                    points += self.points_ownwork
-                elif img in counters['own'] and self.points_own is not None:
-                    points += self.points_own
+                if img in counters['ownwork']:
+                    points += self.points_ownwork or self.points_own or self.points
+                elif img in counters['own']:
+                    points += self.points_own or self.points
                 else:
                     points += self.points
 

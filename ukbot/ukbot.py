@@ -1552,7 +1552,7 @@ class Contest(object):
                     'points': user.contributions.sum(),
                     'bytes': int(user.bytes),
                     'newpages': int(user.newpages),
-                    'result': user.format_result(),
+                    'result': user.contributions.format(homesite=self.sites.homesite),
                     'plotdata': user.plotdata,
                 })
 

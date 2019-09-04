@@ -1,3 +1,5 @@
+# encoding=utf-8
+# vim: fenc=utf-8 et sw=4 ts=4 sts=4 ai
 from .byte import ByteRule
 from .bytebonus import ByteBonusRule
 from .contrib import ContribRule
@@ -8,6 +10,7 @@ from .qualified import QualiRule
 from .redirect import RedirectRule
 from .ref import RefRule
 from .templateremoval import TemplateRemovalRule
+from .wikidata import WikidataRule
 from .word import WordRule
 from .wordbonus import WordBonusRule
 
@@ -23,6 +26,7 @@ rule_classes = [
     RefRule,
     # RefSectionFiRule,
     TemplateRemovalRule,
+    WikidataRule,
     WordRule,
     WordBonusRule,
 ]

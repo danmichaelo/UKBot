@@ -67,15 +67,22 @@ class Article(object):
         return '%s:%s' % (self.site().key, self.name)
 
     @property
+    def firstrev(self):
+        return self.revisions[self.revisions.firstkey()]
+    
+    @property
+    def lastrev(self):
+        return self.revisions[self.revisions.lastkey()]
+    
+
+    @property
     def redirect(self):
-        lastrev = self.revisions[self.revisions.lastkey()]
-        return lastrev.redirect
+        return self.lastrev.redirect
 
     @property
     def new(self):
         # Deprecated, compare created_at with contest start date instead!
-        firstrev = self.revisions[self.revisions.firstkey()]
-        return firstrev.new
+        return self.firstrev.new
 
     @property
     def new_non_redirect(self):

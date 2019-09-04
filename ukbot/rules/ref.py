@@ -1,3 +1,5 @@
+# encoding=utf-8
+# vim: fenc=utf-8 et sw=4 ts=4 sts=4 ai
 import re
 from lxml.html import fromstring
 import lxml
@@ -6,6 +8,7 @@ from mwtextextractor import condition_for_lxml
 from ..common import _
 from ..contributions import UserContribution
 from .rule import Rule
+from .decorators import family
 
 
 class RefRule(Rule):
@@ -58,6 +61,7 @@ class RefRule(Rule):
 
         return s1, r1
 
+    @family('wikipedia.org', 'wikibooks.org')
     def test(self, rev):
 
         s1, r1 = self.count_sources(rev.parenttext)

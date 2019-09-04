@@ -1,8 +1,11 @@
+# encoding=utf-8
+# vim: fenc=utf-8 et sw=4 ts=4 sts=4 ai
 import logging
 
 from ..common import _
 from ..contributions import UserContribution
 from .rule import Rule
+from .decorators import family
 
 logger = logging.getLogger(__name__)
 
@@ -14,9 +17,11 @@ class TemplateRemovalRule(Rule):
     def __init__(self, sites, params, trans=None):
         Rule.__init__(self, sites, params, trans)
 
+        templates = [str(tpl_name).strip() for tpl_name in self.get_anon_params()]
         templates = [
             self.sites.resolve_page(tpl_name, 10, True)
-            for tpl_name in self.get_anon_params() if tpl_name.strip() is not ''
+            for tpl_name in templates
+            if tpl_name is not ''
         ]
 
         # Make page_name -> [aliases] map
@@ -67,6 +72,7 @@ class TemplateRemovalRule(Rule):
         ct = self.count_instances(template, rev.te_text())
         return pt - ct
 
+    @family('wikipedia.org', 'wikibooks.org')
     def test(self, rev):
         if rev.redirect or rev.parentredirect:
             # skip redirects

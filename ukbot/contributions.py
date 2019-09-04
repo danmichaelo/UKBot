@@ -302,7 +302,7 @@ class UserContributions(object):
 
         points = '%.1f p' % brutto
         if brutto != netto:
-            points = '<s>' + p + '</s> '
+            points = '<s>' + points + '</s> '
             if netto != 0.:
                 points += '%.1f p' % netto
         formatted += ' (<abbr class="uk-ap">%s</abbr>)' % points

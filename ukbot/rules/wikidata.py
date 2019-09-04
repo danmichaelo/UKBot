@@ -2,11 +2,14 @@
 # vim: fenc=utf-8 et sw=4 ts=4 sts=4 ai
 import re
 import json
+import logging
 from jsonpath_rw import parse
 from ..common import _, ngettext
 from ..contributions import UserContribution
 from .rule import Rule
 from .decorators import family
+
+logger = logging.getLogger(__name__)
 
 
 class WikidataRule(Rule):
@@ -49,8 +52,13 @@ class WikidataRule(Rule):
 
     @family('wikidata.org')
     def test(self, rev):
-        statements_before = self.count_statements(rev.parenttext)
-        statements_after = self.count_statements(rev.text)
+        try:
+            statements_before = self.count_statements(rev.parenttext)
+            statements_after = self.count_statements(rev.text)
+        except json.decoder.JSONDecodeError:
+            logger.error('Failed to parse Wikidata revision %s' % rev.revid)
+
+            return
         statements_added = {}
         report = {}
 

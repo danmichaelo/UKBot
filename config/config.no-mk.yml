@@ -24,8 +24,8 @@ plot:
 othersites:
     - nn.wikipedia.org
     - se.wikipedia.org
+    - www.wikidata.org
     # - commons.wikimedia.org
-    # - www.wikidata.org
 awards:
     blå: { file: Article blue.svg, winner: true }
     rød: { file: Article red.svg, winner: true }

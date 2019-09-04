@@ -7,8 +7,8 @@ msgid ""
 msgstr ""
 "Project-Id-Version: UKBot\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2019-09-05 01:12+0200\n"
-"PO-Revision-Date: 2019-09-05 00:57+0200\n"
+"POT-Creation-Date: 2019-09-05 01:57+0200\n"
+"PO-Revision-Date: 2019-09-05 01:56+0200\n"
 "Last-Translator: Dan Michael O. Heggø <danmichaelo@gmail.com>\n"
 "Language-Team: \n"
 "Language: fi\n"
@@ -31,21 +31,17 @@ msgid "No qualifying contributions registered yet"
 msgstr "Hyväksyttyjä muokkauksia ei ole vielä rekisteröity"
 
 #: ukbot/contributions.py:179
-#, fuzzy, python-format
+#, python-format
 msgid "%d article"
 msgid_plural "%d articles"
-msgstr[0] ""
-"%(articlecount)d {{subst:PLURAL:%(articlecount)d|artikkeli|artikkelia}}"
-msgstr[1] ""
-"%(articlecount)d {{subst:PLURAL:%(articlecount)d|artikkeli|artikkelia}}"
+msgstr[0] "%d artikkeli"
+msgstr[1] "%d artikkelia"
 
 #: ukbot/contributions.py:185
-#, fuzzy
 msgid "{{Kolonner}}"
-msgstr "{{Sarakkeet}}\n"
+msgstr "{{Sarakkeet}}"
 
 #: ukbot/contributions.py:219
-#, fuzzy
 msgid "%d.%m, %H:%M"
 msgstr "%e. %Bta %Y kello %H.%M"
 
@@ -389,7 +385,7 @@ msgstr "bonus %(words)d {{subst:PLURAL:%(words)d|sana|sanaa}}"
 msgid "removal of {{tl|%(template)s}}"
 msgstr "mallineen {{tl|%(template)s}} poisto"
 
-#: ukbot/rules/wikidata.py:70
+#: ukbot/rules/wikidata.py:78
 #, python-format
 msgid "%(count)d %(property)s statement"
 msgid_plural "%(count)d %(property)s statements"

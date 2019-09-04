@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: UKBot\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2019-09-05 01:12+0200\n"
+"POT-Creation-Date: 2019-09-05 01:57+0200\n"
 "PO-Revision-Date: 2019-09-05 00:55+0200\n"
 "Last-Translator: Dan Michael O. Heggø <danmichaelo@gmail.com>\n"
 "Language-Team: \n"
@@ -392,7 +392,7 @@ msgstr "bonus %(words)d {{subst:PLURAL:%(words)d|ord}}"
 msgid "removal of {{tl|%(template)s}}"
 msgstr "fjerning av {{ml|%(template)s}}"
 
-#: ukbot/rules/wikidata.py:70
+#: ukbot/rules/wikidata.py:78
 #, python-format
 msgid "%(count)d %(property)s statement"
 msgid_plural "%(count)d %(property)s statements"

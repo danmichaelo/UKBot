@@ -7,8 +7,8 @@ msgid ""
 msgstr ""
 "Project-Id-Version: UKBot\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2019-09-05 01:12+0200\n"
-"PO-Revision-Date: 2019-09-05 00:56+0200\n"
+"POT-Creation-Date: 2019-09-05 01:57+0200\n"
+"PO-Revision-Date: 2019-09-05 01:57+0200\n"
 "Last-Translator: Galder Gonzalez <galder158@hotmail.com>\n"
 "Language-Team: \n"
 "Language: eu\n"
@@ -38,12 +38,10 @@ msgstr[0] "artikulu"
 msgstr[1] "artikulu"
 
 #: ukbot/contributions.py:185
-#, fuzzy
 msgid "{{Kolonner}}"
-msgstr "{{Multicol}}\n"
+msgstr "{{Multicol}}"
 
 #: ukbot/contributions.py:219
-#, fuzzy
 msgid "%d.%m, %H:%M"
 msgstr "%Y %B %e, %H:%M"
 
@@ -388,7 +386,7 @@ msgstr "bonus %(words)d hitz"
 msgid "removal of {{tl|%(template)s}}"
 msgstr "{{tx|%(template)s}} txantiloia kentzea"
 
-#: ukbot/rules/wikidata.py:70
+#: ukbot/rules/wikidata.py:78
 #, python-format
 msgid "%(count)d %(property)s statement"
 msgid_plural "%(count)d %(property)s statements"

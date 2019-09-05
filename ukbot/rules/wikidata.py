@@ -39,8 +39,13 @@ class WikidataRule(Rule):
                 ]
 
     def count_statements(self, txt):
-        data = json.loads(txt)
         out = {}
+        for prop in self.jps.keys():
+            out[prop] = 0
+        if txt == '':
+            # New page
+            return out
+        data = json.loads(txt)
         for prop, jps in self.jps.items():
             n = 0
             for jp in jps:
@@ -57,7 +62,6 @@ class WikidataRule(Rule):
             statements_after = self.count_statements(rev.text)
         except json.decoder.JSONDecodeError:
             logger.error('Failed to parse Wikidata revision %s' % rev.revid)
-
             return
         statements_added = {}
         report = {}

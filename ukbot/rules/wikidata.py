@@ -35,7 +35,7 @@ class WikidataRule(Rule):
             else:
                 self.jps[prop] = [
                     parse('claims.%s' % prop),
-                    parse('claims.*.qualifiers.%s' % prop),
+                    parse('claims.*[*].qualifiers.%s' % prop),
                 ]
 
     def count_statements(self, txt):

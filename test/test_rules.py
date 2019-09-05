@@ -213,6 +213,24 @@ class TestWikidataRule(RuleTestCase):
         assert len(contribs) == 1
         assert 5 == contribs[0].points
 
+    def test_it_gives_points_for_qualifiers_added(self):
+        self.site.host = 'www.wikidata.org'
+        self.rev.text = '{"claims": {"P18": [{"qualifiers": {"P2096": [{}]}}]}}'
+        self.rev.parenttext = '{"claims": {}}'
+
+        points_per_claim = 5
+        rule = WikidataRule(self.sites, {
+            2: points_per_claim,
+            'egenskaper': 'P2096',
+        }, {
+            'properties': 'egenskaper',
+            'require_reference': 'krev_referanse',
+        })
+        contribs = list(rule.test(self.rev))
+
+        assert len(contribs) == 1
+        assert 5 == contribs[0].points
+
     def test_it_does_not_give_points_if_required_reference_not_included(self):
         self.site.host = 'www.wikidata.org'
         self.rev.text = '{"claims": {"P20": [{}]}}'

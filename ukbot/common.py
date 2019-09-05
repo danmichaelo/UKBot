@@ -69,7 +69,11 @@ class Localization:
 localization = Localization()
 
 def ngettext(*args, **kwargs):
-    return localization.t.ngettext(*args, **kwargs)
+    try:
+        return localization.t.ngettext(*args, **kwargs)
+    except AttributeError:
+        # During tests, Localization might not be initialized
+        return args[0]
 
 def _(*args, **kwargs):
     return localization._(*args, **kwargs)

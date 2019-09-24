@@ -401,18 +401,19 @@ class User(object):
                     fulltexts_query_params.append((rev.parentid, site_key, rev.parenttext))
 
         # Insert all revisions
-        if len(contribs_query_params) > 0:
-            logger.info('Adding %d contributions to database', len(contribs_query_params))
-            t0 = time.time()
+        chunk_size = 1000
+        for n in range(0, len(contribs_query_params), chunk_size):
+            data = contribs_query_params[n:n+chunk_size]
+            logger.info('Adding %d contributions to database', len(data))
 
+            t0 = time.time()
             cur.executemany("""
                 insert into contribs (revid, site, parentid, user, page, timestamp, size, parentsize, parsedcomment, ns)
                 values (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)
-                """, contribs_query_params
+                """, data
             )
-
             dt = time.time() - t0
-            logger.info('Added %d contributions to database in %.2f secs', len(contribs_query_params), dt)
+            logger.info('Added %d contributions to database in %.2f secs', len(data), dt)
 
         chunk_size = 100
         for n in range(0, len(fulltexts_query_params), chunk_size):

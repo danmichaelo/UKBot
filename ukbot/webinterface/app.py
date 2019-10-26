@@ -32,11 +32,11 @@ contest_setups = [
         "name": "Viikon kilpailu",
         "url": "https://fi.wikipedia.org/wiki/WP:VK",
     },
-    {
-        "id": "fi-hl",
-        "name": "Heinäkuun lähdetalkoot",
-        "url": "https://fi.wikipedia.org/wiki/Wikipedia:Heinäkuun lähdetalkoot/2019",
-    },
+    # {
+    #     "id": "fi-hl",
+    #     "name": "Heinäkuun lähdetalkoot",
+    #     "url": "https://fi.wikipedia.org/wiki/Wikipedia:Heinäkuun lähdetalkoot/2019",
+    # },
     # {
     #     "id": "fi-pln",
     #     "name": "Punaisten linkkien naiset",

@@ -16,7 +16,7 @@ START=$(date +%s)
 . www/python/venv/bin/activate
 
 # set -o pipefail  # doesn't work when run through the task schedueler
-ukbot config/config.${CONTEST}.yml --action "uploadplot" "$@" 2>&1 | tee -a $logfile
+stdbuf -oL -eL ukbot config/config.${CONTEST}.yml --action "uploadplot" "$@" 2>&1 | tee -a $logfile
 status="${PIPESTATUS[0]}"
 
 echo "$(date) : Job $JOB_NAME ($JOB_ID) on $HOSTNAME finished with exit code $status" | tee -a $logfile

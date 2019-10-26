@@ -118,3 +118,4 @@ ignore:
     - clientsitelink-update  # Wikidata: Page moved from .. to ..
     - clientsitelink-remove  # Wikidata: Removed sitelink
     - '#temporary_batch'  # QuickStatements Author Disambiguator o.l.
+    - '#quickstatements'  # QuickStatements

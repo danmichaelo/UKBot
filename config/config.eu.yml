@@ -1,4 +1,4 @@
-_extends: include/euwiki.yml
+_extends: sites/euwiki.yml
 pages:
     base: 'Atari:Hezkuntza/Lehiaketak'
     default: 'Atari:Hezkuntza/Lehiaketak/%(year)d/%(month)02d'

@@ -2,6 +2,7 @@
 import re
 from datetime import datetime
 import mock
+import json
 from unittest import TestCase
 
 import pytz
@@ -195,9 +196,11 @@ class TestRefRule(RuleTestCase):
 
 class TestWikidataRule(RuleTestCase):
 
-    def test_it_gives_points_for_statements_added(self):
+    def test_it_gives_points_for_the_first_statement_added(self):
+        # If no P18 statements exist, points will be given for the first P18
+        # statement added, but not for additional ones.
         self.site.host = 'www.wikidata.org'
-        self.rev.text = '{"claims": {"P18": [{}]}}'
+        self.rev.text = '{"claims": {"P18": [{},{},{}]}}'
         self.rev.parenttext = '{"claims": {}}'
 
         points_per_claim = 5
@@ -206,7 +209,48 @@ class TestWikidataRule(RuleTestCase):
             'egenskaper': 'P18',
         }, {
             'properties': 'egenskaper',
-            'require_reference': 'krev_referanse',
+            'require_reference': 'krevreferanse',
+            'all': 'alle',
+        })
+        contribs = list(rule.test(self.rev))
+
+        assert len(contribs) == 1
+        assert 5 == contribs[0].points
+
+    def test_it_does_not_give_points_for_additional_statements_added(self):
+        # If a P18 statement already exists, points will not be given for
+        # additional P18 statement added.
+        self.site.host = 'www.wikidata.org'
+        self.rev.text = '{"claims": {"P18": [{},{}]}}'
+        self.rev.parenttext = '{"claims": {"P18": [{}]}}'
+
+        points_per_claim = 5
+        rule = WikidataRule(self.sites, {
+            2: points_per_claim,
+            'egenskaper': 'P18',
+        }, {
+            'properties': 'egenskaper',
+            'require_reference': 'krevreferanse',
+            'all': 'alle',
+        })
+        contribs = list(rule.test(self.rev))
+
+        assert len(contribs) == 0
+
+    def test_it_gives_points_for_additional_statements_added_if_specified(self):
+        self.site.host = 'www.wikidata.org'
+        self.rev.text = '{"claims": {"P18": [{},{}]}}'
+        self.rev.parenttext = '{"claims": {"P18": [{}]}}'
+
+        points_per_claim = 5
+        rule = WikidataRule(self.sites, {
+            2: points_per_claim,
+            'egenskaper': 'P18',
+            'alle': 'ja',
+        }, {
+            'properties': 'egenskaper',
+            'require_reference': 'krevreferanse',
+            'all': 'alle',
         })
         contribs = list(rule.test(self.rev))
 
@@ -224,7 +268,8 @@ class TestWikidataRule(RuleTestCase):
             'egenskaper': 'P2096',
         }, {
             'properties': 'egenskaper',
-            'require_reference': 'krev_referanse',
+            'require_reference': 'krevreferanse',
+            'all': 'alle',
         })
         contribs = list(rule.test(self.rev))
 
@@ -240,10 +285,11 @@ class TestWikidataRule(RuleTestCase):
         rule = WikidataRule(self.sites, {
             2: points_per_claim,
             'egenskaper': 'P20',
-            'krev_referanse': 'ja',
+            'krevreferanse': 'ja',
         }, {
             'properties': 'egenskaper',
-            'require_reference': 'krev_referanse',
+            'require_reference': 'krevreferanse',
+            'all': 'alle',
         })
         contribs = list(rule.test(self.rev))
 
@@ -258,10 +304,11 @@ class TestWikidataRule(RuleTestCase):
         rule = WikidataRule(self.sites, {
             2: points_per_claim,
             'egenskaper': 'P20',
-            'krev_referanse': 'ja',
+            'krevreferanse': 'ja',
         }, {
             'properties': 'egenskaper',
-            'require_reference': 'krev_referanse',
+            'require_reference': 'krevreferanse',
+            'all': 'alle',
         })
         contribs = list(rule.test(self.rev))
 

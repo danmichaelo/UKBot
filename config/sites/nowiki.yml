@@ -63,6 +63,7 @@ templates:
         wikidata: wikidata
         properties: egenskaper
         require_reference: krevreferanse
+        all: alle
     filters:
         name: Ukens konkurranse kriterium
         params:

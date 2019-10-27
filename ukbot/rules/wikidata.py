@@ -27,6 +27,7 @@ class WikidataRule(Rule):
         self.properties = self.get_param('properties', datatype=list, default=[])
         self.properties = [re.sub('[^P0-9]', '', property.upper()) for property in self.properties]
         self.require_reference = self.get_param('require_reference', datatype=bool, default=False)
+        self.all = self.get_param('all', datatype=bool, default=False)
 
         self.jps = {}
         for prop in self.properties:
@@ -34,8 +35,8 @@ class WikidataRule(Rule):
                 self.jps[prop] = [parse('claims.%s[*].references[0]' % prop)]
             else:
                 self.jps[prop] = [
-                    parse('claims.%s' % prop),
-                    parse('claims.*[*].qualifiers.%s' % prop),
+                    parse('claims.%s[*]' % prop),
+                    parse('claims.*[*].qualifiers.%s[*]' % prop),
                 ]
 
     def count_statements(self, txt):
@@ -68,8 +69,12 @@ class WikidataRule(Rule):
 
         for prop in self.jps.keys():
             statements_added[prop] = statements_after[prop] - statements_before[prop]
+
             if statements_added[prop] > 0:
-                report[prop] = statements_added[prop]
+                if self.all is True:
+                    report[prop] = statements_added[prop]
+                elif statements_before[prop] == 0:
+                    report[prop] = 1  # max 1   
 
         if len(report.keys()) > 0:
             points = 0

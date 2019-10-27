@@ -59,6 +59,7 @@ templates:
         wikidata: wikidata
         properties: properties
         require_reference: require_reference
+        all: alle
     filters:
         name: Viikon kilpailu kriteerit
         params:

@@ -70,7 +70,7 @@ class WikidataRule(Rule):
             self.matchers['prop:%s' % prop] = {
                 'rules': rules,
                 'msg': _('%(property)s statement'),
-                'msg_plural': '%(count)d %(property)s statements',
+                'msg_plural': _('%(count)d %(property)s statements'),
                 'opts': {'property': prop},
             }
 

@@ -14,10 +14,11 @@ def is_zero(f):
 
 class UserContributions(object):
 
-    def __init__(self, user):
+    def __init__(self, user, config):
         self.user = weakref.ref(user)
         self.contributions = []
         self.labels = {}
+        self.wikidata_languages = config['wikidata_languages']
 
     def add(self, contribution):
         """
@@ -329,9 +330,8 @@ class UserContributions(object):
         for i in range(0, len(qids), requestlimit):
             batch = qids[i:i + requestlimit]
             res = wd_site.api('wbgetentities', ids='|'.join(batch))
-            print(res)
             for qid, data in res['entities'].items():
-                for lang in ['eu', 'en']:
+                for lang in self.wikidata_languages:
                     if lang in data['labels']:
                         self.labels[qid] = data['labels'][lang]['value']
                         break

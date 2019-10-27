@@ -100,7 +100,7 @@ class User(object):
         self.revisions = odict()
         self.contest = weakref.ref(contest)
         self.suspended_since = None
-        self.contributions = UserContributions(self)
+        self.contributions = UserContributions(self, contest.config)
         self.disqualified_articles = []
         self.point_deductions = []
 

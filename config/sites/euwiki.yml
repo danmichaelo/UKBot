@@ -7,6 +7,7 @@ othersites:
     - eu.wikibooks.org
     - www.wikidata.org
 default_prefix: eu
+wikidata_languages: ['eu', 'en']
 contestPages:
     participantsSection: 'Parte-hartzaileak'
     footer: ""

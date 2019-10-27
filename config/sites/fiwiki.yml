@@ -4,6 +4,7 @@ server_timezone: UTC
 wiki_timezone: Europe/Helsinki
 homesite: fi.wikipedia.org
 default_prefix: fi
+wikidata_languages: ['fi', 'sv', 'en']
 pages:
     catignore: Käyttäjä:UKBot/cat-ignore
 contestPages:

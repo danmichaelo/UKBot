@@ -10,6 +10,7 @@ othersites:
     - www.wikidata.org
     # - commons.wikimedia.org
 default_prefix: no
+wikidata_languages: ['nb', 'nn', 'en']
 contestPages:
     resultsSection: Resultater
     participantsSection: 'Delta[kg]ere'

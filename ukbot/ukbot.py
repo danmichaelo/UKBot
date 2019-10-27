@@ -1127,7 +1127,7 @@ class Contest(object):
 
         t0 = float(unix_time(self.start))
 
-        datediff = self.end - self.start
+        datediff = self.end.date() - self.start.date()  # Compare just dates to avoid issues with daylight saving time
         ndays = datediff.days + 1
 
         xt = t0 + np.arange(ndays + 1) * 86400

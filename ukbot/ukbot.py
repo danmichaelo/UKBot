@@ -767,14 +767,21 @@ class FilterTemplate(object):
 
         self.type = get_type(self.anon_params[1].lower(), translations)
 
+    def get_localized_name(self, name):
+        return pydash.get(
+            self.translations,
+            'params.%s.params.%s' % (self.type, name),
+            'params._all.params.%s' % (name)
+        )
+
     def has_param(self, name):
-        return self.template.has_param(self.translations['params'][self.type]['params'][name])
+        return self.template.has_param(self.get_localized_name(name))
 
     def get_param(self, name):
-        return self.named_params[self.translations['params'][self.type]['params'][name]]
+        return self.named_params[self.get_localized_name(name)]
 
     def get_raw_param(self, name):
-        return self.named_params_raw_values[self.translations['params'][self.type]['params'][name]]
+        return self.named_params_raw_values[self.get_localized_name(name)]
 
     def make(self, contest):
         filter_cls = {

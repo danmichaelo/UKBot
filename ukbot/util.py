@@ -39,22 +39,35 @@ def cleanup_input(value):
     return value
 
 
-class YamlLoader(yaml.SafeLoader):
+def merge(source, destination):
+    """
+    Simple dict merge
 
-    def __init__(self, stream):
+    >>> a = { 'first' : { 'all_rows' : { 'pass' : 'dog', 'number' : '1' } } }
+    >>> b = { 'first' : { 'all_rows' : { 'fail' : 'cat', 'number' : '5' } } }
+    >>> merge(b, a) == { 'first' : { 'all_rows' : { 'pass' : 'dog', 'fail' : 'cat', 'number' : '5' } } }
+    True
+    """
+    for key, value in source.items():
+        if isinstance(value, dict):
+            # get node or create one
+            node = destination.setdefault(key, {})
+            merge(value, node)
+        else:
+            destination[key] = value
 
-        self._root = os.path.split(stream.name)[0]
+    return destination
 
-        super(YamlLoader, self).__init__(stream)
-
-    def include(self, node):
-
-        filename = os.path.join(self._root, self.construct_scalar(node))
-
-        with open(filename, encoding='utf-8') as fp:
-            return yaml.load(fp, YamlLoader)
-
-YamlLoader.add_constructor('!include', YamlLoader.include)
 
 def load_config(fp):
-    return yaml.load(fp, YamlLoader)
+    folder = os.path.split(fp.name)[0]
+
+    main_config = yaml.safe_load(fp)
+    if '_extends' in main_config:
+        filename = os.path.join(folder, main_config['_extends'])
+        with open(filename, encoding='utf-8') as fp2:
+            base_config = yaml.safe_load(fp2)
+    else:
+        base_config = {}
+
+    return merge(base_config, main_config)

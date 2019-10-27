@@ -1,9 +1,12 @@
-locale: fi_FI
-rollbar_token: 88f5bd483f7348ea8b0564449c8d77cd
-server_timezone: UTC
-wiki_timezone: Europe/Helsinki
-homesite: fi.wikipedia.org
-default_prefix: fi
+_extends: sites/fiwiki.yml
+pages:
+    base: Wikipedia:Heinäkuun lähdetalkoot/
+    default: Wikipedia:Heinäkuun lähdetalkoot/%(year)d
+contestPages:
+    footer: ""
+templates:
+    infobox:
+        name: Viikon kilpailun tietolaatikko
 plot:
     datafile: plots/fi-hl.json
     figname: plots/Fiwp Heinäkuun lähdetalkoot %(year)d.svg
@@ -21,68 +24,3 @@ plot:
         {{PD-self}}
         
         [[Category:Heinäkuun lähdetalkoot]]
-templates:
-    botinfo: Viikon kilpailu robotti-info
-    status: Viikon kilpailu tilanne
-    commonargs:
-        year: vuosi
-        week: viikko
-        week2: loppuviikko
-        yes: kyllä
-        no: ei
-    infobox:
-        name: Viikon kilpailun tietolaatikko
-        status: tilanne
-        start: alkaa
-        end: loppuu
-        organizer: järjestäjät
-        winner: voittaja
-    suspended:
-        name: VK osallistuja hylätty
-    disqualified:
-        name: VK muokkaus hylätty
-    penalty:
-        name: VK pisteidenhylkäys
-    bonus:
-        name: VK bonus
-    contestlist:
-        name: Viikon kilpailu luettelo
-    rule:
-        name: Viikon kilpailu pisteet
-        new: uusi
-        qualified: NOT-IN-USE
-        contrib: NOT-IN-USE
-        redirect: ohjaus
-        refsectionfi: refsectionfi
-        byte: tavu
-        word: sana
-        maxpoints: makspisteet
-        site: site
-        image: kuva
-        external_link: aiheesta muualla
-        ref: ref
-        templateremoval: mallineen poisto
-        bytebonus: tavubonus
-        wordbonus: sanabonus
-        alias: alias
-        own: oma
-        ownwork: oma teos
-        maxinitialcount: makskuvienmäärä
-        wikidata: wikidata
-        properties: properties
-        require_reference: require_reference
-    filters: !include filters.fi.yml
-pages:
-    catignore: Käyttäjä:UKBot/cat-ignore
-    base: Wikipedia:Heinäkuun lähdetalkoot/
-    default: Wikipedia:Heinäkuun lähdetalkoot/%(year)d
-contestPages:
-    resultsSection: Tulokset
-    participantsSection: Osallistujat
-    footer: ""
-ignore:
-    - muokkaukset kumottiin ja sivu palautettiin # MediaWiki:Revertpage
-    - ^Hylättiin (viimeisin tekstimuutos|viimeisimmät .* tekstimuutosta) # MediaWiki:Revreview-reject-summary-cur/fi
-    - ^Kumottu muokkaus # MediaWiki:Undo-summary/fi
-    - clientsitelink-update  # Wikidata: Page moved from .. to ..
-    - clientsitelink-remove  # Wikidata: Removed sitelink

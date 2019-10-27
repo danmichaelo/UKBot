@@ -1,9 +1,19 @@
-locale: [nb_NO, no_NO]
-rollbar_token: 88f5bd483f7348ea8b0564449c8d77cd
-server_timezone: UTC
-wiki_timezone: Europe/Oslo
-homesite: no.wikipedia.org
-default_prefix: "no"
+# Configuration file for "Månedens konkurranse" @ nowiki
+_extends: sites/nowiki.yml
+pages:
+    base: Wikipedia:Konkurranser/Månedens konkurranse
+    default: Wikipedia:Konkurranser/Månedens konkurranse %(year)d-%(month)02d
+    redirect: WP:MK
+contestPages:
+    footer: "{{Månedens konkurranse %(year)s}}\n[[Kategori:Artikkelkonkurranser]]"
+templates:
+    contestlist:
+        name: Månedens konkurranse
+award_messages:
+    winner_template: '{{UK vinner|år=%(year)s|måned=%(month)s|%(awards)s}}'
+    participant_template: '{{UK deltaker|år=%(year)s|måned=%(month)s|%(awards)s}}'
+    organizer_template: '{{UK arrangør|år=%(year)s|måned=%(month)s|%(awards)s|visuk=nei}}'
+    reminder_msg: 'Husk at denne månedens konkurranse er [[%(url)s|{{#invoke:UK navboks|contest_name|%(year)d|%(month)d}}]]. Lykke til!'
 plot:
     datafile: 'plots/Nowp Månedens konkurranse %(year)d-%(month)02d.json'
     figname: 'plots/Nowp Månedens konkurranse %(year)d-%(month)02d.svg'
@@ -21,101 +31,3 @@ plot:
         {{PD-self}}
         
         [[Category:Månedens konkurranse %(year)s]]
-othersites:
-    - nn.wikipedia.org
-    - se.wikipedia.org
-    - www.wikidata.org
-    # - commons.wikimedia.org
-awards:
-    blå: { file: Article blue.svg, winner: true }
-    rød: { file: Article red.svg, winner: true }
-    gul: { file: Article yellow.svg, organizer: true }
-    oransj: { file: Article orange.svg, winner: true }
-    orange: { file: Article orange.svg, winner: true }
-    grønn: { file: Article green.svg }
-    grå: { file: Article grey.svg }
-    lyslilla: { file: Article MediumPurple.svg }
-    lilla: { file: Article purple.svg }
-    brun: { file: Article brown.svg }
-award_messages:
-    winner_template: '{{UK vinner|år=%(year)s|måned=%(month)s|%(awards)s}}'
-    participant_template: '{{UK deltaker|år=%(year)s|måned=%(month)s|%(awards)s}}'
-    organizer_template: '{{UK arrangør|år=%(year)s|måned=%(month)s|%(awards)s|visuk=nei}}'
-    reminder_msg: 'Husk at denne månedens konkurranse er [[%(url)s|{{#invoke:UK navboks|contest_name|%(year)d|%(month)d}}]]. Lykke til!'
-templates:
-    botinfo: Ukens konkurranse robotinfo
-    status: Ukens konkurranse status
-    commonargs:
-        year: år
-        week: uke
-        week2: ukefler
-        month: måned
-        yes: ja
-        no: nei
-    infobox:
-        name: Infoboks Wikipedia-konkurranse
-        status: status
-        start: start
-        end: slutt
-        organizer: leder
-        winner: vinner
-    suspended:
-        name: UK bruker suspendert
-    disqualified:
-        name: UK bidrag diskvalifisert
-    penalty:
-        name: UK poengtrekk
-    bonus:
-        name: UK poeng
-    contestlist:
-        name: Månedens konkurranse
-    rule:
-        name: Ukens konkurranse poeng
-        new: ny
-        redirect: omdirigering
-        refsectionfi: refsectionfi
-        qualified: kvalifisert
-        contrib: endring
-        byte: byte
-        word: ord
-        maxpoints: makspoeng
-        site: nettsted
-        image: bilde
-        external_link: ekstern lenke
-        ref: ref
-        templateremoval: malfjerning
-        bytebonus: bytebonus
-        wordbonus: ordbonus
-        alias: alias
-        own: egetbilde
-        ownwork: egetverk
-        maxinitialcount: maksantallinnledningsvis
-        wikidata: wikidata
-        properties: egenskaper
-        require_reference: krevreferanse
-    filters: !include filters.no.yml
-pages:
-    base: Wikipedia:Konkurranser/Månedens konkurranse
-    default: Wikipedia:Konkurranser/Månedens konkurranse %(year)d-%(month)02d
-    redirect: WP:MK
-contestPages:
-    resultsSection: Resultater
-    participantsSection: 'Delta[kg]ere'
-    footer: "{{Månedens konkurranse %(year)s}}\n[[Kategori:Artikkelkonkurranser]]"
-awardstatus:
-    pagename: Bruker:UKBot/Premieutsendelse
-    wait: Venter
-    send: Send ut
-    sent: Sendt
-ignore:
-    - Tilbakestilte endring # MediaWiki:Revertpage/nb
-    - Attenderulla endring  # MediaWiki:Revertpage/nn
-    - rievdadusat sihkkojuvvui ja siidu  # MediaWiki:Revertpage/se
-    - Reverted edits by  # MediaWiki:Revertpage/en
-    - Fjerner revisjon # MediaWiki:Undo-summary/nb
-    - Rullar attende versjon # MediaWiki:Undo-summary/nn
-    - Undo revision # MediaWiki:Revertpage/en
-    - clientsitelink-update  # Wikidata: Page moved from .. to ..
-    - clientsitelink-remove  # Wikidata: Removed sitelink
-    - '#temporary_batch'  # QuickStatements Author Disambiguator o.l.
-    - '#quickstatements'  # QuickStatements

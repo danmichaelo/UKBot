@@ -1,9 +1,14 @@
-locale: fi_FI
-rollbar_token: 88f5bd483f7348ea8b0564449c8d77cd
-server_timezone: UTC
-wiki_timezone: Europe/Helsinki
-homesite: fi.wikipedia.org
-default_prefix: fi
+_extends: sites/fiwiki.yml
+pages:
+    base: Wikipedia:Elokuun kuvitustalkoot/
+    default: Wikipedia:Elokuun kuvitustalkoot/%(year)d
+contestPages:
+    resultsSection: Tulokset
+    participantsSection: Osallistujat
+    footer: "[[Luokka:Elokuun kuvitustalkoot|%(year)d]]"
+templates:
+    infobox:
+        name: Viikon kilpailun tietolaatikko
 plot:
     datafile: plots/fi-ek.json
     figname: plots/Fiwp Elokuun kuvitustalkoot %(year)d.svg
@@ -21,62 +26,3 @@ plot:
         {{PD-self}}
         
         [[Category:Elokuun kuvitustalkoot]]
-templates:
-    botinfo: Viikon kilpailu robotti-info
-    status: Viikon kilpailu tilanne
-    commonargs:
-        year: vuosi
-        week: viikko
-        week2: ukefler
-        yes: kyllä
-        no: ei
-    infobox:
-        name: Viikon kilpailun tietolaatikko
-        status: tilanne
-        start: alkaa
-        end: loppuu
-        organizer: järjestäjät
-        winner: voittaja
-    suspended:
-        name: VK osallistuja hylätty
-    disqualified:
-        name: VK muokkaus hylätty
-    bonus:
-        name: UK poeng
-    penalty:
-        name: VK pisteidenhyläys
-    contestlist:
-        name: Viikon kilpailu luettelo
-    rule:
-        name: Viikon kilpailu pisteet
-        new: uusi
-        qualified: NOT-IN-USE
-        contrib: NOT-IN-USE
-        redirect: uudelleenohjaus
-        refsectionfi: refsectionfi
-        byte: tavu
-        word: sana
-        maxpoints: makspisteet
-        site: site
-        image: kuva
-        external_link: aiheesta muualla
-        ref: ref
-        templateremoval: mallineen poisto
-        bytebonus: tavubonus
-        wordbonus: sanabonus
-        alias: alias
-        own: oma
-        ownwork: oma teos
-        maxinitialcount: makskuvienmäärä
-        wikidata: wikidata
-        properties: properties
-        require_reference: require_reference
-    filters: !include filters.fi.yml
-pages:
-    catignore: Käyttäjä:UKBot/cat-ignore
-    base: Wikipedia:Elokuun kuvitustalkoot/
-    default: Wikipedia:Elokuun kuvitustalkoot/%(year)d
-contestPages:
-    resultsSection: Tulokset
-    participantsSection: Osallistujat
-    footer: "[[Luokka:Elokuun kuvitustalkoot|%(year)d]]"

@@ -1,0 +1,106 @@
+locale: [eu_ES,en_US]
+rollbar_token: 88f5bd483f7348ea8b0564449c8d77cd
+server_timezone: UTC
+wiki_timezone: Europe/Oslo
+homesite: eu.wikipedia.org
+othersites:
+    - eu.wikibooks.org
+    - www.wikidata.org
+default_prefix: eu
+contestPages:
+    participantsSection: 'Parte-hartzaileak'
+    footer: ""
+templates:
+    botinfo: UKB botinfo
+    status: UKB status
+    commonargs:
+        year: year
+        week: week
+        week2: week2
+        yes: yes
+        no: no
+    infobox:
+        name: UKB infotaula
+        status: status
+        start: hasiera
+        end: amaiera
+        organizer: organizer
+        winner: winner
+    suspended:
+        name: UKB participant suspended
+    disqualified:
+        name: UKB contribution disqualified
+    penalty:
+        name: UKB puntuak kentzea
+    bonus:
+        name: UK bonus
+    rule:
+        name: UKB puntuak
+        new: berria
+        redirect: birzuzenketa
+        refsectionfi: refsectionfi
+        qualified: qualified
+        contrib: edizioa
+        byte: byte
+        word: hitza
+        maxpoints: maxpoints
+        site: site
+        image: irudia
+        external_link: kanpo lotura
+        ref: erreferentzia
+        templateremoval: txantiloia kentzea
+        bytebonus: bytebonus
+        wordbonus: hitzbonus
+        alias: alias
+        own: self-uploaded
+        ownwork: own-work
+        maxinitialcount: initial limit
+        wikidata: wikidata
+        properties: properties
+        require_reference: require_reference
+    filters:
+        name: UKB irizpide
+        params:
+            _all:
+                params:
+                    site: site
+            new:
+                name: berria
+                params:
+                    redirects: redirects
+            existing:
+                name: bazegoen
+            template:
+                name: txantiloia
+            bytes:
+                name: byte
+            category:
+                name: kategoria
+                ignore_page: User:UKBot/ignored categories
+                params:
+                    ignore: exclude
+                    maxdepth: maxdepth
+            backlink:
+                name: lotuta dago
+            forwardlink:
+                name: lotzen du
+            pages:
+                name: orrialdeak
+            namespace:
+                name: izen-tartea
+                params:
+                    site: site
+            sparql:
+                name: sparql  # as in {{ ukb criterion | sparql }}
+                params:
+                    query: query    # as in {{ ukb criterion | sparql | query=... }}
+ignore:
+    - Tilbakestilte endring # MediaWiki:Revertpage/nb
+    - Attenderulla endring  # MediaWiki:Revertpage/nn
+    - rievdadusat sihkkojuvvui ja siidu  # MediaWiki:Revertpage/se
+    - Reverted edits by  # MediaWiki:Revertpage/en
+    - Fjerner revisjon # MediaWiki:Undo-summary/nb
+    - Rullar attende versjon # MediaWiki:Undo-summary/nn
+    - Undo revision # MediaWiki:Revertpage/en
+    - clientsitelink-update  # Wikidata: Page moved from .. to ..
+    - clientsitelink-remove  # Wikidata: Removed sitelink

@@ -1,9 +1,4 @@
-locale: fi_FI
-rollbar_token: 88f5bd483f7348ea8b0564449c8d77cd
-server_timezone: UTC
-wiki_timezone: Europe/Helsinki
-homesite: fi.wikipedia.org
-default_prefix: fi
+_extends: sites/fiwiki.yml
 othersites:
     - ast.wikipedia.org
     - az.wikipedia.org
@@ -31,6 +26,16 @@ othersites:
     - pt.wikipedia.org
     - zh.wikipedia.org
     - vep.wikipedia.org
+pages:
+    base: "Wikiprojekti:Suomi 100"
+    default: Wikiprojekti:Suomi 100/International Challenge
+contestPages:
+    resultsSection: Results
+    participantsSection: Participants
+    footer: "{{Viikon kilpailut %(year)s}}\n[[Luokka:Viikon kilpailut %(year)s]]"
+templates:
+    infobox:
+        name: UKB no infobox
 plot:
     datafile: ../plots/fi-100.json
     figname: Suomi 100.svg
@@ -47,68 +52,3 @@ plot:
         {{PD-self}}
         
         [[Category:Viikon kilpailu]]
-templates:
-    botinfo: Viikon kilpailu robotti-info
-    status: Viikon kilpailu tilanne
-    commonargs:
-        year: vuosi
-        week: viikko
-        week2: loppuviikko
-        yes: kyllä
-        no: ei
-    infobox: 
-        name: UKB no infobox
-        status: tilanne
-        start: alkaa
-        end: loppuu
-        organizer: järjestäjät
-        winner: voittaja
-    suspended:
-        name: VK osallistuja hylätty
-    disqualified:
-        name: VK muokkaus hylätty
-    penalty:
-        name: VK pisteidenhylkäys
-    bonus:
-        name: VK bonus
-    contestlist:
-        name: Viikon kilpailu luettelo
-    rule:
-        name: Viikon kilpailu pisteet
-        new: uusi
-        qualified: NOT-IN-USE
-        contrib: NOT-IN-USE
-        redirect: ohjaus
-        refsectionfi: refsectionfi
-        byte: tavu
-        word: sana
-        maxpoints: makspisteet
-        site: site
-        image: kuva
-        external_link: aiheesta muualla
-        ref: ref
-        templateremoval: mallineen poisto
-        bytebonus: tavubonus
-        wordbonus: sanabonus
-        alias: alias
-        own: oma
-        ownwork: oma teos
-        maxinitialcount: makskuvienmäärä
-        wikidata: wikidata
-        properties: properties
-        require_reference: require_reference
-    filters: !include filters.fi.yml
-pages:
-    catignore: Käyttäjä:UKBot/cat-ignore
-    base: "Wikiprojekti:Suomi 100"
-    default: Wikiprojekti:Suomi 100/International Challenge
-contestPages:
-    resultsSection: Results
-    participantsSection: Participants
-    footer: "{{Viikon kilpailut %(year)s}}\n[[Luokka:Viikon kilpailut %(year)s]]"
-ignore:
-    - muokkaukset kumottiin ja sivu palautettiin # MediaWiki:Revertpage
-    - ^Hylättiin (viimeisin tekstimuutos|viimeisimmät .* tekstimuutosta) # MediaWiki:Revreview-reject-summary-cur/fi
-    - ^Kumottu muokkaus # MediaWiki:Undo-summary/fi
-    - clientsitelink-update  # Wikidata: Page moved from .. to ..
-    - clientsitelink-remove  # Wikidata: Removed sitelink

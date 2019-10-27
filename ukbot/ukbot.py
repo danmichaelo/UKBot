@@ -255,7 +255,7 @@ class User(object):
 
         while len(revids) > 0:
             ids = '|'.join(revids[:cur_apilim])
-            logger.info('Checking %d revisions: %s', cur_apilim, ids)
+            logger.info('Fetching revisions %d-%d of %d', len(revs) + 1, min([len(revs) + cur_apilim, len(revids)]), len(revids))
             res = site.api('query', prop='revisions', rvprop=props, revids=ids, rvslots='main', uselang='nb')
             if pydash.get(res, 'warnings.result.*') is not None:
                 # We ran into Manual:$wgAPIMaxResultSize, try reducing
@@ -298,7 +298,7 @@ class User(object):
         parentids = [str(i) for i in parentids]
         while len(parentids) > 0:
             ids = '|'.join(parentids[:cur_apilim])
-            logger.info('Checking %d revisions: %s', cur_apilim, ids)
+            logger.info('Fetching revisions %d-%d of %d', nr + 1, min([nr + cur_apilim, len(parentids)]), len(parentids))
             res = site.api('query', prop='revisions', rvprop=props, revids=ids, rvslots='main', uselang='nb')
             if pydash.get(res, 'warnings.result.*') is not None:
                 # We ran into Manual:$wgAPIMaxResultSize, try reducing
@@ -404,7 +404,7 @@ class User(object):
         chunk_size = 1000
         for n in range(0, len(contribs_query_params), chunk_size):
             data = contribs_query_params[n:n+chunk_size]
-            logger.info('Adding %d contributions to database', len(data))
+            # logger.info('Adding %d contributions to database', len(data))
 
             t0 = time.time()
             cur.executemany("""
@@ -418,7 +418,7 @@ class User(object):
         chunk_size = 100
         for n in range(0, len(fulltexts_query_params), chunk_size):
             data = fulltexts_query_params[n:n+chunk_size]
-            logger.info('Adding %d fulltexts to database', len(data))
+            # logger.info('Adding %d fulltexts to database', len(data))
             t0 = time.time()
 
             cur.executemany("""

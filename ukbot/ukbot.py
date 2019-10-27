@@ -777,11 +777,11 @@ class FilterTemplate(object):
     def has_param(self, name):
         return self.template.has_param(self.get_localized_name(name))
 
-    def get_param(self, name):
-        return self.named_params[self.get_localized_name(name)]
+    def get_param(self, name, default=None):
+        return self.named_params.get(self.get_localized_name(name), default)
 
-    def get_raw_param(self, name):
-        return self.named_params_raw_values[self.get_localized_name(name)]
+    def get_raw_param(self, name, default=None):
+        return self.named_params_raw_values.get(self.get_localized_name(name), default)
 
     def make(self, contest):
         filter_cls = {

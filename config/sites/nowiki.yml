@@ -68,9 +68,6 @@ templates:
     filters:
         name: Ukens konkurranse kriterium
         params:
-            _all:
-                params:
-                    site: nettsted
             new:
                 name: ny
                 params:

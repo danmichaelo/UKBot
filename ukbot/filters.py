@@ -50,10 +50,7 @@ class Filter(object):
     def filter(self, articles):
         out = odict()
         for article_key, article in articles.items():
-            if article.site().key not in self.sites.keys():
-                # Not relevant for this filter => auto-pass
-                out[article_key] = article
-            elif self.test_page(article):
+            if self.test_page(article):
                 out[article_key] = article
         logger.info(' - %s: Articles reduced from %d to %d',
                     type(self).__name__, len(articles), len(out))
@@ -237,6 +234,7 @@ class CatFilter(Filter):
 
         self.ignore = ignore
         self.include = ['%s:%s' % (x.site.key, x.name) for x in categories]
+        self.covers_sites = set([x.site.key for x in categories])
         self.maxdepth = int(maxdepth)
         logger.debug("Initializing CatFilter: %s, maxdepth=%d",
                     " OR ".join(self.include), maxdepth)
@@ -377,8 +375,8 @@ class CatFilter(Filter):
 
             article = articles[article_key]
 
-            if article.site().key not in self.sites.keys():
-                # Not relevant for this filter => auto-pass
+            if article.site().key not in self.covers_sites:
+                # This article belongs to a site not covered by this filter => Auto-pass it
                 out[article_key] = article
                 continue
 
@@ -625,23 +623,28 @@ class NamespaceFilter(Filter):
         params = {
             'sites': tpl.sites,
             'namespaces': [x.strip() for x in tpl.anon_params[2:]],
+            'site': tpl.get_param('site'),
         }
         return cls(**params)
 
-    def __init__(self, sites, namespaces):
+    def __init__(self, sites, namespaces, site):
         """
         Args:
             sites (SiteManager): References to the sites part of this contest
             namespaces (list): List of namespaces to include
+            site (str): Filter by site (optional)
         """
         Filter.__init__(self, sites)
         self.namespaces = namespaces
+        self.site = site
         logger.info('NamespaceFilter: namespaces: %s', ','.join(self.namespaces))
 
     def test_page(self, page):
         """
         Return True if the page matches the current filter, False otherwise.
         """
+        if self.site is not None and self.site != page.site.host:
+            return False
         return page.ns in self.namespaces
 
 

@@ -64,9 +64,6 @@ templates:
     filters:
         name: UKB criterion
         params:
-            _all:
-                params:
-                    site: site
             new:
                 name: new
                 params:

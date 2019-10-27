@@ -906,10 +906,10 @@ class Contest(object):
 
         nfilters = 0
         # print dp.templates.keys()
-        trans = config['templates']['filters']
-        if trans['name'] in dp.templates:
-            for templ in dp.templates[trans['name']]:
-                filter_tpl = FilterTemplate(templ, trans, self.sites)
+        filter_template_config = config['templates']['filters']
+        if filter_template_config['name'] in dp.templates:
+            for template in dp.templates[filter_template_config['name']]:
+                filter_tpl = FilterTemplate(template, filter_template_config, self.sites)
 
                 if filter_tpl.type in ['new', 'existing', 'namespace']:
                     op = 'AND'
@@ -922,7 +922,7 @@ class Contest(object):
                     raise InvalidContestPage(
                         _('Could not parse {{tlx|%(template)s|%(firstarg)s}} template: %(err)s') 
                         % {
-                            'template': trans['name'],
+                            'template': filter_template_config['name'],
                             'firstarg': filter_tpl.anon_params[1],
                             'err': str(exp)
                         }
@@ -976,10 +976,10 @@ class Contest(object):
 
         sucfg = self.config['templates']['suspended']
         if sucfg['name'] in dp.templates:
-            for templ in dp.templates[sucfg['name']]:
-                uname = cleanup_input(templ.parameters[1].value)
+            for template in dp.templates[sucfg['name']]:
+                uname = cleanup_input(template.parameters[1].value)
                 try:
-                    sdate = self.wiki_tz.localize(datetime.strptime(cleanup_input(templ.parameters[2].value), '%Y-%m-%d %H:%M'))
+                    sdate = self.wiki_tz.localize(datetime.strptime(cleanup_input(template.parameters[2].value), '%Y-%m-%d %H:%M'))
                 except ValueError:
                     raise InvalidContestPage(_("Couldn't parse the date given to the {{tl|%(template)s}} template.") % sucfg['name'])
 
@@ -998,11 +998,11 @@ class Contest(object):
         dicfg = self.config['templates']['disqualified']
         if dicfg['name'] in dp.templates:
             logger.info('Disqualified contributions:')
-            for templ in dp.templates[dicfg['name']]:
-                uname = cleanup_input(templ.parameters[1].value)
-                anon = templ.get_anonymous_parameters()
+            for template in dp.templates[dicfg['name']]:
+                uname = cleanup_input(template.parameters[1].value)
+                anon = template.get_anonymous_parameters()
                 uname = anon[1]
-                if not templ.has_param('s'):
+                if not template.has_param('s'):
                     for article_name in anon[2:]:
                         page = self.sites.resolve_page(article_name)
                         article_key = page.site.key + ':' + page.name

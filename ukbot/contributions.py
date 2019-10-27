@@ -322,8 +322,12 @@ class UserContributions(object):
         if len(qids) == 0:
             return
         wd_site = list(pages.values())[0].site()
-        for i in range(0, len(qids), 500):
-            batch = qids[i:i + 500]
+        if 'bot' in wd_site.rights:
+            requestlimit = 500
+        else:
+            requestlimit = 50
+        for i in range(0, len(qids), requestlimit):
+            batch = qids[i:i + requestlimit]
             res = wd_site.api('wbgetentities', ids='|'.join(batch))
             print(res)
             for qid, data in res['entities'].items():

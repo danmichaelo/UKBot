@@ -196,6 +196,15 @@ class TestRefRule(RuleTestCase):
 
 class TestWikidataRule(RuleTestCase):
 
+    translations = {
+        'properties': 'egenskaper',
+        'require_reference': 'krevreferanse',
+        'all': 'alle',
+        'labels': 'etiketter',
+        'aliases': 'alias',
+        'descriptions': 'descriptions',
+    }
+
     def test_it_gives_points_for_the_first_statement_added(self):
         # If no P18 statements exist, points will be given for the first P18
         # statement added, but not for additional ones.
@@ -207,11 +216,7 @@ class TestWikidataRule(RuleTestCase):
         rule = WikidataRule(self.sites, {
             2: points_per_claim,
             'egenskaper': 'P18',
-        }, {
-            'properties': 'egenskaper',
-            'require_reference': 'krevreferanse',
-            'all': 'alle',
-        })
+        }, self.translations)
         contribs = list(rule.test(self.rev))
 
         assert len(contribs) == 1
@@ -228,11 +233,7 @@ class TestWikidataRule(RuleTestCase):
         rule = WikidataRule(self.sites, {
             2: points_per_claim,
             'egenskaper': 'P18',
-        }, {
-            'properties': 'egenskaper',
-            'require_reference': 'krevreferanse',
-            'all': 'alle',
-        })
+        }, self.translations)
         contribs = list(rule.test(self.rev))
 
         assert len(contribs) == 0
@@ -247,11 +248,7 @@ class TestWikidataRule(RuleTestCase):
             2: points_per_claim,
             'egenskaper': 'P18',
             'alle': 'ja',
-        }, {
-            'properties': 'egenskaper',
-            'require_reference': 'krevreferanse',
-            'all': 'alle',
-        })
+        }, self.translations)
         contribs = list(rule.test(self.rev))
 
         assert len(contribs) == 1
@@ -266,11 +263,7 @@ class TestWikidataRule(RuleTestCase):
         rule = WikidataRule(self.sites, {
             2: points_per_claim,
             'egenskaper': 'P2096',
-        }, {
-            'properties': 'egenskaper',
-            'require_reference': 'krevreferanse',
-            'all': 'alle',
-        })
+        }, self.translations)
         contribs = list(rule.test(self.rev))
 
         assert len(contribs) == 1
@@ -286,11 +279,7 @@ class TestWikidataRule(RuleTestCase):
             2: points_per_claim,
             'egenskaper': 'P20',
             'krevreferanse': 'ja',
-        }, {
-            'properties': 'egenskaper',
-            'require_reference': 'krevreferanse',
-            'all': 'alle',
-        })
+        }, self.translations)
         contribs = list(rule.test(self.rev))
 
         assert len(contribs) == 0
@@ -305,14 +294,26 @@ class TestWikidataRule(RuleTestCase):
             2: points_per_claim,
             'egenskaper': 'P20',
             'krevreferanse': 'ja',
-        }, {
-            'properties': 'egenskaper',
-            'require_reference': 'krevreferanse',
-            'all': 'alle',
-        })
+        }, self.translations)
         contribs = list(rule.test(self.rev))
 
         assert len(contribs) == 1
+
+
+    def test_it_gives_points_for_adding_labels_in_specified_languages(self):
+        self.site.host = 'www.wikidata.org'
+        self.rev.text = '{"labels": {"fi": {"language": "fi", "value": "Test"}, "en": {"language": "en", "value": "Test"}}}'
+        self.rev.parenttext = '{"labels": {"en": {"language": "en", "value": "Test"}}}'
+
+        points_per_claim = 5
+        rule = WikidataRule(self.sites, {
+            2: points_per_claim,
+            'etiketter': 'se,fi',
+        }, self.translations)
+        contribs = list(rule.test(self.rev))
+
+        assert len(contribs) == 1
+        assert 5 == contribs[0].points
 
 if __name__ == '__main__':
     unittest.main()

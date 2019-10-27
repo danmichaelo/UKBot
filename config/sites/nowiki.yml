@@ -63,6 +63,9 @@ templates:
         maxinitialcount: maksantallinnledningsvis
         wikidata: wikidata
         properties: egenskaper
+        labels: etiketter
+        aliases: alias
+        descriptions: beskrivelser
         require_reference: krevreferanse
         all: alle
     filters:

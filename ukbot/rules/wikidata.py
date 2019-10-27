@@ -4,7 +4,7 @@ import re
 import json
 import logging
 from jsonpath_rw import parse
-from ..common import _, ngettext
+from ..common import _
 from ..contributions import UserContribution
 from .rule import Rule
 from .decorators import family
@@ -24,57 +24,92 @@ class WikidataRule(Rule):
 
         Rule.__init__(self, sites, params, trans)
 
+        self.labels = self.get_param('labels', datatype=list, default=[])
+        self.labels = [re.sub('[^a-z-]', '', x.lower()) for x in self.labels]
+
+        self.descriptions = self.get_param('descriptions', datatype=list, default=[])
+        self.descriptions = [re.sub('[^a-z-]', '', x.lower()) for x in self.descriptions]
+
+        self.aliases = self.get_param('aliases', datatype=list, default=[])
+        self.aliases = [re.sub('[^a-z-]', '', x.lower()) for x in self.aliases]
+
         self.properties = self.get_param('properties', datatype=list, default=[])
         self.properties = [re.sub('[^P0-9]', '', property.upper()) for property in self.properties]
+
         self.require_reference = self.get_param('require_reference', datatype=bool, default=False)
+
         self.all = self.get_param('all', datatype=bool, default=False)
 
-        self.jps = {}
+        self.matchers = {}
+        for lang in self.labels:
+            self.matchers['label:%s' % lang] = {
+                'rules': [parse('labels.%s' % lang)],
+                'msg': _('label (%(lang)s)'),
+                'opts': {'lang': lang},
+            }
+        for lang in self.descriptions:
+            self.matchers['description:%s' % lang] = {
+                'rule': [parse('descriptions.%s' % lang)],
+                'msg': _('description (%(lang)s)'),
+                'opts': {'lang': lang},
+            }
+        for lang in self.aliases:
+            self.matchers['alias:%s' % lang] = {
+                'rule': [parse('aliases.%s' % lang)],
+                'msg': _('alias (%(lang)s)'),
+                'opts': {'lang': lang},
+            }
         for prop in self.properties:
             if self.require_reference:
-                self.jps[prop] = [parse('claims.%s[*].references[0]' % prop)]
+                rules = [parse('claims.%s[*].references[0]' % prop)]
             else:
-                self.jps[prop] = [
+                rules = [
                     parse('claims.%s[*]' % prop),
                     parse('claims.*[*].qualifiers.%s[*]' % prop),
                 ]
+            self.matchers['prop:%s' % prop] = {
+                'rules': rules,
+                'msg': _('%(property)s statement'),
+                'msg_plural': '%(count)d %(property)s statements',
+                'opts': {'property': prop},
+            }
 
-    def count_statements(self, txt):
+    def count(self, txt):
         out = {}
-        for prop in self.jps.keys():
+        for prop in self.matchers.keys():
             out[prop] = 0
         if txt == '':
             # New page
             return out
         data = json.loads(txt)
-        for prop, jps in self.jps.items():
+        for key, matcher in self.matchers.items():
             n = 0
-            for jp in jps:
+            for jp in matcher['rules']:
                 matches = jp.find(data)
                 n += len(matches)
-            out[prop] = n
+            out[key] = n
 
         return out
 
     @family('wikidata.org')
     def test(self, rev):
         try:
-            statements_before = self.count_statements(rev.parenttext)
-            statements_after = self.count_statements(rev.text)
+            before = self.count(rev.parenttext)
+            after = self.count(rev.text)
         except json.decoder.JSONDecodeError:
             logger.error('Failed to parse Wikidata revision %s' % rev.revid)
             return
-        statements_added = {}
+        added = {}
         report = {}
 
-        for prop in self.jps.keys():
-            statements_added[prop] = statements_after[prop] - statements_before[prop]
+        for prop in self.matchers.keys():
+            added[prop] = after[prop] - before[prop]
 
-            if statements_added[prop] > 0:
+            if added[prop] > 0:
                 if self.all is True:
-                    report[prop] = statements_added[prop]
-                elif statements_before[prop] == 0:
-                    report[prop] = 1  # max 1   
+                    report[prop] = added[prop]
+                elif before[prop] == 0:
+                    report[prop] = 1  # max 1
 
         if len(report.keys()) > 0:
             points = 0
@@ -82,16 +117,13 @@ class WikidataRule(Rule):
 
             for prop, n in report.items():
                 points += n * self.points
-                description.append(
-                    ngettext(
-                        '%(count)d %(property)s statement',
-                        '%(count)d %(property)s statements',
-                        n
-                    ) % {
-                        'count': n,
-                        'property': prop,
-                    }
-                )
+
+                opts = self.matchers[prop]['opts']
+                opts['count'] = n
+                if 'msg_plural' in self.matchers[prop] and n > 1:
+                    description.append(self.matchers[prop]['msg_plural'] % opts)
+                else:
+                    description.append(self.matchers[prop]['msg'] % opts)
 
             yield UserContribution(rev=rev, points=points, rule=self,
                                    description=', '.join(description))

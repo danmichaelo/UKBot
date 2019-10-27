@@ -58,6 +58,9 @@ templates:
         maxinitialcount: initial limit
         wikidata: wikidata
         properties: properties
+        labels: labels
+        aliases: aliases
+        descriptions: descriptions
         require_reference: require_reference
         all: alle
     filters:

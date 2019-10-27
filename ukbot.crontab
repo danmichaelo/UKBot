@@ -1,27 +1,28 @@
 # m h  dom mon dow   command
 MAILTO=""
 
+0 10 * * * jsub -once -j y -cwd jobs/cleanup.sh
 
-0 0 * * * jsub -once -j y -cwd jobs/cleanup.sh
-##
-# 20 */2 * * * jsub -once -j y -cwd -N no -mem 1524m -o logs/no.log jobs/run.sh
-# 40 23 * * * jsub -once -j y -cwd -N no -mem 1524m -o logs/no.log jobs/upload.sh
-##
-0 * * * * jsub -once -j y -cwd -N no-mk -mem 1524m -o logs/no-mk.log jobs/run.sh
-30 23 * * * jsub -once -j y -cwd -N no-mk -mem 1524m -o logs/no-mk.log jobs/upload.sh
-#
-30 * * * * jsub -once -j y -cwd -N fi -mem 1524m -o logs/fi.log jobs/run.sh
-55 22 * * * jsub -once -j y -cwd -N fi -mem 1524m -o logs/fi.log jobs/upload.sh
-#
-30 * * * * jsub -once -j y -cwd -N fi-pln -mem 1024m -o logs/fi-pln.log jobs/run.sh
-55 22 * * * jsub -once -j y -cwd -N fi-pln -mem 256m -o logs/fi-pln.log jobs/upload.sh
+# --- no-mk ------------------------
+0 * * * * jsub -once -j y -cwd -N no-mk -mem 2048m -o logs/no-mk.log jobs/run.sh
+30 23 * * * jsub -once -j y -cwd -N no-mk -mem 2048m -o logs/no-mk.log jobs/upload.sh
 
+# --- eu ---------------------------
 0 */2 * * * jsub -once -j y -cwd -N eu -mem 1524m -o logs/eu.log jobs/run.sh
 15 23 * * * jsub -once -j y -cwd -N eu -mem 1524m -o logs/eu.log jobs/upload.sh
 
-#
-#40 * * * * jsub -once -j y -cwd -N fi-ek -mem 1524m -o logs/fi-ek.log jobs/run.sh
-#55 21 * * * jsub -once -j y -cwd -N fi-ek -mem 256m -o logs/fi-ek.log jobs/upload.sh
-#
-#40 * * * * jsub -once -j y -cwd -N fi-hl -mem 2524m -o logs/fi-hl.log jobs/run.sh
-#55 21 * * * jsub -once -j y -cwd -N fi-hl -mem 256m -o logs/fi-hl.log jobs/upload.sh
+# --- fi-vk ---------------------------
+30 * * * * jsub -once -j y -cwd -N fi-vk -mem 1524m -o logs/fi-vk.log jobs/run.sh
+55 22 * * * jsub -once -j y -cwd -N fi-vk -mem 1524m -o logs/fi-vk.log jobs/upload.sh
+
+# --- fi-pln -----------------------
+# 30 * * * * jsub -once -j y -cwd -N fi-pln -mem 2024m -o logs/fi-pln.log jobs/run.sh
+# 55 22 * * * jsub -once -j y -cwd -N fi-pln -mem 256m -o logs/fi-pln.log jobs/upload.sh
+
+# --- fi-ek ------------------------
+# 40 * * * * jsub -once -j y -cwd -N fi-ek -mem 1524m -o logs/fi-ek.log jobs/run.sh
+# 55 21 * * * jsub -once -j y -cwd -N fi-ek -mem 256m -o logs/fi-ek.log jobs/upload.sh
+
+# --- fi-hl ------------------------
+# 40 * * * * jsub -once -j y -cwd -N fi-hl -mem 2524m -o logs/fi-hl.log jobs/run.sh
+# 55 21 * * * jsub -once -j y -cwd -N fi-hl -mem 256m -o logs/fi-hl.log jobs/upload.sh

@@ -28,7 +28,7 @@ contest_setups = [
         "url": "https://no.wikipedia.org/wiki/WP:MK",
     },
     {
-        "id": "fi",
+        "id": "fi-vk",
         "name": "Viikon kilpailu",
         "url": "https://fi.wikipedia.org/wiki/WP:VK",
     },

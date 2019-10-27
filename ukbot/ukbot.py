@@ -759,13 +759,13 @@ class FilterTemplate(object):
         ]
         self.translations = translations
 
-        def get_type(value, translations):
+        def get_type(value):
             for k, v in translations['params'].items():
-                if v['name'] == value:
+                if v.get('name') == value:
                     return k
             raise InvalidContestPage(_('The filter name "%s" was not understood') % value)
 
-        self.type = get_type(self.anon_params[1].lower(), translations)
+        self.type = get_type(self.anon_params[1].lower())
 
     def get_localized_name(self, name):
         return pydash.get(
@@ -2106,8 +2106,16 @@ def get_contest_pages(sql, homesite, config, wiki_tz, server_tz, page_title=None
 class SiteManager(object):
 
     def __init__(self, sites, homesite):
+        """
+
+        :param sites: (dict) Dictionary {key: Site} of sites, including the homesite
+        :param homesite: (Site)
+        """
         self.sites = sites
         self.homesite = homesite
+
+    def keys(self):
+        return self.sites.keys()
     
     def resolve_page(self, value, default_ns=0, force_ns=False):
         logger.debug('Resolving: %s', value)
@@ -2147,6 +2155,13 @@ class SiteManager(object):
         return page
 
     def from_prefix(self, key, raise_on_error=False):
+        """
+        Get Site instance from interwiki prefix.
+
+        :param key: interwiki prefix (e.g. "no", "nn", "wikidata", "d", ...)
+        :param raise_on_error: Throw error if site not found, otherwise return None
+        :return: Site
+        """
         for site in self.sites.values():
             if site.match_prefix(key):
                 return site
@@ -2154,6 +2169,9 @@ class SiteManager(object):
             raise InvalidContestPage(_('Could not found a site matching the prefix "%(key)s"') % {
                 'key': key
             })
+
+    def only(self, sites):
+        return SiteManager(sites, self.homesite)
 
 
 def init_sites(config):

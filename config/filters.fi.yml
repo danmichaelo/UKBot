@@ -1,7 +1,10 @@
 ---
 name: Viikon kilpailu kriteerit
 params:
-    new: 
+    _all:
+        params:
+            site: site
+    new:
         name: uusi
         params:
             redirects: ohjaukset

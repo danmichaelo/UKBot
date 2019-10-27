@@ -1,6 +1,9 @@
 ---
 name: UKB irizpide
 params:
+    _all:
+        params:
+            site: site
     new:
         name: berria
         params:

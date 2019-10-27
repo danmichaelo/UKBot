@@ -32,7 +32,7 @@ class Filter(object):
     def __init__(self, sites):
         """
         Args:
-            sites (SiteManager): References to the sites part of this contest
+            sites (SiteManager): A SiteManager instance with the sites relevant for this filter.
         """
         self.sites = sites
         self.page_keys = set()
@@ -50,7 +50,10 @@ class Filter(object):
     def filter(self, articles):
         out = odict()
         for article_key, article in articles.items():
-            if self.test_page(article):
+            if article.site().key not in self.sites.keys():
+                # Not relevant for this filter => auto-pass
+                out[article_key] = article
+            elif self.test_page(article):
                 out[article_key] = article
         logger.info(' - %s: Articles reduced from %d to %d',
                     type(self).__name__, len(articles), len(out))
@@ -371,19 +374,20 @@ class CatFilter(Filter):
 
         # loop over articles
         for article_key, article_cats in cats.items():
-            #if debug:
-            #    print
+
             article = articles[article_key]
+
+            if article.site().key not in self.sites.keys():
+                # Not relevant for this filter => auto-pass
+                out[article_key] = article
+                continue
+
             lang = article_key.split(':')[0]
             if debug:
                 logger.debug("CatFilter: %s", article.name)
                 for l, ca in enumerate(article_cats):
                     logger.debug('CatFilter [%d] %s', l, ', '.join(ca))
 
-            #print
-            #print article_key
-            #print article_cats
-            #print
             catname = self.check_article_cats(article_cats)
             if catname:
 

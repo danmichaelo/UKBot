@@ -1,2 +1,2 @@
-_extends: include/enwiki.yml
+_extends: sites/enwiki.yml
 

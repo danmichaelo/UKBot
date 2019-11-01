@@ -253,9 +253,10 @@ class User(object):
 
         cur_apilim = apilim
 
+        rev_count = len(revids)
         while len(revids) > 0:
             ids = '|'.join(revids[:cur_apilim])
-            logger.info('Fetching revisions %d-%d of %d', len(revs) + 1, min([len(revs) + cur_apilim, len(revids)]), len(revids))
+            logger.info('Fetching revisions %d-%d of %d', len(revs) + 1, min([len(revs) + cur_apilim, len(revids)]), rev_count)
             res = site.api('query', prop='revisions', rvprop=props, revids=ids, rvslots='main', uselang='nb')
             if pydash.get(res, 'warnings.result.*') is not None:
                 # We ran into Manual:$wgAPIMaxResultSize, try reducing
@@ -296,9 +297,10 @@ class User(object):
         nr = 0
 
         parentids = [str(i) for i in parentids]
+        rev_count = len(parentids)
         while len(parentids) > 0:
             ids = '|'.join(parentids[:cur_apilim])
-            logger.info('Fetching revisions %d-%d of %d', nr + 1, min([nr + cur_apilim, len(parentids)]), len(parentids))
+            logger.info('Fetching revisions %d-%d of %d', nr + 1, min([nr + cur_apilim, len(parentids)]), rev_count)
             res = site.api('query', prop='revisions', rvprop=props, revids=ids, rvslots='main', uselang='nb')
             if pydash.get(res, 'warnings.result.*') is not None:
                 # We ran into Manual:$wgAPIMaxResultSize, try reducing

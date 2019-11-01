@@ -67,3 +67,9 @@ class Site(mwclient.Site):
             return ':%s' % page.name
         else:
             return ':%s:%s' % (self.prefixes[0], page.name)
+
+
+class WildcardPage:
+
+    def __init__(self, site):
+        self.site = site

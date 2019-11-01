@@ -12,6 +12,7 @@ import requests
 from mwtemplates.templateeditor2 import TemplateParseError
 
 from .common import _, InvalidContestPage
+from .site import WildcardPage
 
 logger = logging.getLogger(__name__)
 
@@ -233,8 +234,19 @@ class CatFilter(Filter):
         Filter.__init__(self, sites)
 
         self.ignore = ignore
-        self.include = ['%s:%s' % (x.site.key, x.name) for x in categories]
-        self.covers_sites = set([x.site.key for x in categories])
+
+        self.include = [
+            '%s:%s' % (page.site.key, page.name)
+            for page in categories
+            if not isinstance(page, WildcardPage)
+        ]
+
+        # Sites for which we should accept all contributions
+        self.wildcard_include = [
+            page.site.key
+            for page in categories
+            if isinstance(page, WildcardPage)
+        ]
         self.maxdepth = int(maxdepth)
         logger.debug("Initializing CatFilter: %s, maxdepth=%d",
                     " OR ".join(self.include), maxdepth)
@@ -375,8 +387,8 @@ class CatFilter(Filter):
 
             article = articles[article_key]
 
-            if article.site().key not in self.covers_sites:
-                # This article belongs to a site not covered by this filter => Auto-pass it
+            if article.site().key in self.wildcard_include:
+                # Auto-pass all articles from this site
                 out[article_key] = article
                 continue
 
@@ -655,7 +667,6 @@ class SparqlFilter(Filter):
     def make(cls, tpl, cfg, **kwargs):
         if not tpl.has_param('query'):
             raise RuntimeError(_('No "%s" parameter given') % cfg['params']['query'])
-        
         params = {
             'query': tpl.get_raw_param('query'),
             'sites': tpl.sites,

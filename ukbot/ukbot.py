@@ -39,7 +39,7 @@ from .rules import rule_classes
 from .filters import *
 from .db import db_conn
 from .util import cleanup_input, load_config, unix_time
-from .site import Site
+from .site import Site, WildcardPage
 from .article import Article
 
 # ----------------------------------------------------------
@@ -2147,11 +2147,14 @@ class SiteManager(object):
         value = '%s:%s' % (ns, article_name)
         logger.debug('proceed: %s', value)
 
-        page = site.pages[value]
-        if not page.exists:
-            raise InvalidContestPage(_('Page does not exist: [[%(pagename)s]]') % {
-                'pagename': site.link_to(page)
-            })
+        if article_name == '*':
+            page = WildcardPage(site)
+        else:
+            page = site.pages[value]
+            if not page.exists:
+                raise InvalidContestPage(_('Page does not exist: [[%(pagename)s]]') % {
+                    'pagename': site.link_to(page)
+                })
         return page
 
     def from_prefix(self, key, raise_on_error=False):

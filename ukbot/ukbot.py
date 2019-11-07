@@ -37,7 +37,7 @@ from .rules import NewPageRule, ByteRule, WordRule, RefRule, ImageRule, Template
 from .common import get_mem_usage, Localization, _
 from .rules import rule_classes
 from .filters import *
-from .db import db_conn
+from .db import db_conn, result_iterator
 from .util import cleanup_input, load_config, unix_time
 from .site import Site, WildcardPage
 from .article import Article
@@ -356,7 +356,7 @@ class User(object):
                 'SELECT name, created_at FROM articles WHERE site=%s AND name IN (' + ','.join(['%s' for x in range(len(article_keys))]) + ')',
                 [site.name] + article_keys
             )
-            for row in cur.fetchall():
+            for row in result_iterator(cur):
                 article = articles_by_site[site][row[0]]
                 article._created_at = pytz.utc.localize(row[1])
 
@@ -508,7 +508,7 @@ class User(object):
             """,
             (self.name, ts_start, ts_end)
         )
-        for row in cur.fetchall():
+        for row in result_iterator(cur):
 
             rev_id, site_key, parent_id, article_title, ts, size, parentsize, parsedcomment, ns, rev_text, parent_rev_txt = row
             article_key = site_key + ':' + article_title
@@ -1406,7 +1406,7 @@ class Contest(object):
         ts_end = self.end.astimezone(pytz.utc).strftime('%F %T')
         ndel = 0
         cur.execute(u"SELECT site,revid,parentid FROM contribs WHERE timestamp >= %s AND timestamp <= %s", (ts_start, ts_end))
-        for row in cur.fetchall():
+        for row in result_iterator(cur):
             cur2.execute(u"DELETE FROM fulltexts WHERE site=%s AND revid=%s", [row[0], row[1]])
             ndel += cur2.rowcount
             cur2.execute(u"DELETE FROM fulltexts WHERE site=%s AND revid=%s", [row[0], row[2]])

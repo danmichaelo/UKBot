@@ -157,7 +157,7 @@ class UserContributions(object):
         self.fetch_labels()
         entries = self.summarize()
 
-        award_icon = ''  # TODO '{awards}'
+        award_icon = '{awards}'
 
         suspended = ''
         if self.user().suspended_since is not None:

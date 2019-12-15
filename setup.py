@@ -1,10 +1,7 @@
 #!/usr/bin/env python
 # encoding=utf-8
-from setuptools import setup
+from setuptools import setup, find_packages
 import os, sys
-
-needs_pytest = set(['pytest', 'test', 'ptr']).intersection(sys.argv)
-pytest_runner = ['pytest-runner'] if needs_pytest else []
 
 setup(name='ukbot',
       version='1.0.0',
@@ -14,7 +11,7 @@ setup(name='ukbot',
       author_email='danmichaelo@gmail.com',
       url='https://github.com/danmichaelo/ukbot',
       license='MIT',
-      packages=['ukbot'],
+      packages=find_packages(),
       include_package_data=True,
       entry_points={
         'console_scripts': [
@@ -50,9 +47,4 @@ setup(name='ukbot',
         'psutil',
         'python-dotenv',
         'pydash',
-      ],
-      setup_requires=pytest_runner,
-      tests_require=['pytest', 'pytest-pep8', 'pytest-cache', 'pytest-cov',
-                     'responses>=0.3.0', 'responses!=0.6.0', 'mock'],
-      zip_safe=True
-      )
+      ])

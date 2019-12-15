@@ -1272,8 +1272,9 @@ class Contest(object):
         prefix = self.sites.homesite.namespaces[3]
         prefixed = prefix + ':' + username
 
-        flinfo = self.sites.homesite.api(action='query', prop='flowinfo', titles=prefixed)
-        flow_enabled = ('enabled' in list(flinfo['query']['pages'].values())[0]['flowinfo']['flow'])
+        res = self.sites.homesite.api(action='query', prop='flowinfo', titles=prefixed)
+        pageinfo = list(res['query']['pages'].values())[0]
+        flow_enabled = 'missing' not in pageinfo and 'enabled' in pageinfo['flowinfo']['flow']
 
         pagename = '%s:%s' % (prefix, username)
 

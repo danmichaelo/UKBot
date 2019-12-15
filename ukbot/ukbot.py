@@ -1261,10 +1261,13 @@ class Contest(object):
         return template % args
 
     def format_heading(self):
-        if self.startweek == self.endweek:
-            return _('Weekly contest for week %(week)d') % {'week': self.startweek}
+        if self.config.get('contest_type') == 'weekly':
+            if self.startweek == self.endweek:
+                return _('Weekly contest for week %(week)d') % {'week': self.startweek}
+            else:
+                return _('Weekly contest for week %(startweek)d–%(endweek)d') % {'startweek': self.startweek, 'endweek': self.endweek}
         else:
-            return _('Weekly contest for week %(startweek)d–%(endweek)d') % {'startweek': self.startweek, 'endweek': self.endweek}
+            return self.config.get('name') % {'month': self.month, 'year': self.year}
 
     def deliver_message(self, username, topic, body, sig='~~~~'):
         logger.info('Delivering message to %s', username)

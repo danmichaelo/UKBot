@@ -1,4 +1,5 @@
 _extends: sites/fiwiki.yml
+name: Punaisten linkkien naiset %(year)s
 othersites:
     - se.wikipedia.org
 pages:

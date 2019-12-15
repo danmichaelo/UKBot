@@ -1,5 +1,6 @@
 # Configuration file for "Månedens konkurranse" @ nowiki
 _extends: sites/nowiki.yml
+name: Månedens konkurranse %(year)d-%(month)02d
 pages:
     base: Wikipedia:Konkurranser/Månedens konkurranse
     default: Wikipedia:Konkurranser/Månedens konkurranse %(year)d-%(month)02d

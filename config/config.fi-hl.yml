@@ -1,4 +1,5 @@
 _extends: sites/fiwiki.yml
+name: Heinäkuun lähdetalkoot %(year)d
 pages:
     base: Wikipedia:Heinäkuun lähdetalkoot/
     default: Wikipedia:Heinäkuun lähdetalkoot/%(year)d

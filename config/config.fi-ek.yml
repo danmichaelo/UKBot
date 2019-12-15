@@ -1,4 +1,5 @@
 _extends: sites/fiwiki.yml
+name: Elokuun kuvitustalkoot %(year)d
 pages:
     base: Wikipedia:Elokuun kuvitustalkoot/
     default: Wikipedia:Elokuun kuvitustalkoot/%(year)d

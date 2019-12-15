@@ -1,5 +1,6 @@
 # Configuration file for "Ukens konkurranse" @ nowiki
 _extends: sites/nowiki.yml
+contest_type: weekly
 pages:
     base: Wikipedia:Konkurranser/Ukens konkurranse
     default: Wikipedia:Konkurranser/Ukens konkurranse %(year)d-%(week)02d

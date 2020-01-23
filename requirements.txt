@@ -1,0 +1,4 @@
+.
+pytest
+responses
+mock

@@ -7,8 +7,7 @@ python:
 
 # command to install dependencies, e.g. 
 install: 
-  - python setup.py install
-  - pip install pytest mock
+  - pip install -r requirements.txt
 
 script:
-  - pytest
+  - pytest -v

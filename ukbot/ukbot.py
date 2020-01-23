@@ -92,6 +92,18 @@ syslog.addFilter(AppFilter())
 
 load_dotenv()
 
+
+def sum_stats_by(obj, key=None, user=None):
+    the_sum = 0
+    for x in obj:
+        if key is not None and key != obj['key']:
+            continue
+        if user is not None and user != obj['user']:
+            continue
+        the_sum += obj['value']
+    return the_sum
+
+
 class User(object):
 
     def __init__(self, username, contest):
@@ -602,17 +614,23 @@ class User(object):
         for a in self.articles.keys():
             logger.debug(' - %s', a)
 
-    @property
-    def bytes(self):
-        return np.sum([a.bytes for a in self.articles.values()])
+    def count_article_stats_per_site(self, key, fn):
+        keyed = []
+        for article in self.articles.values():
+            keyed[article.site.key] = keyed.get(article.site.key, 0) + fn(article)
+        return [{'user': self.name, 'site': k, 'key': key, 'value': v} for k, v in keyed.items()]
 
-    @property
-    def newpages(self):
-        return np.sum([1 for a in self.articles.values() if a.new_non_redirect])
+    def count_bytes_per_site(self):
+        return self.count_article_stats_per_site('bytes', lambda a: a.bytes)
 
-    @property
-    def words(self):
-        return np.sum([a.words for a in self.articles.values()])
+    def count_words_per_site(self):
+        return self.count_article_stats_per_site('words', lambda a: a.words)
+
+    def count_pages_per_site(self):
+        return self.count_article_stats_per_site('pages', lambda a: 1 if not a.redirect else 0)
+
+    def count_newpages_per_site(self):
+        return self.count_article_stats_per_site('newpages', lambda a: 1 if a.new_non_redirect else 0)
 
     def analyze(self, rules):
         x = []
@@ -1494,9 +1512,8 @@ class Contest(object):
         # Loop over users
 
         narticles = 0
-        nbytes = 0
-        nwords = 0
-        nnewpages = 0
+
+        stats = []
 
         # extraargs = {'namespace': 0}
         extraargs = {}
@@ -1543,10 +1560,11 @@ class Contest(object):
                 logger.info('%s: %.f points (calculated in %.1f secs)', user.name,
                             user.contributions.sum(), tp1 - tp0)
 
-                narticles += len(user.articles)
-                nbytes += user.bytes
-                nwords += user.words
-                nnewpages += user.newpages
+                stats.extend(user.count_bytes_per_site())
+                stats.extend(user.count_words_per_site())
+                stats.extend(user.count_pages_per_site())
+                stats.extend(user.count_newpages_per_site())
+
                 tp2 = time.time()
                 logger.info('Wordcount done in %.1f secs', tp2 - tp1)
 
@@ -1564,8 +1582,6 @@ class Contest(object):
                 results.append({
                     'name': user.name,
                     'points': user.contributions.sum(),
-                    'bytes': int(user.bytes),
-                    'newpages': int(user.newpages),
                     'result': user.contributions.format(homesite=self.sites.homesite),
                     'plotdata': user.plotdata,
                 })
@@ -1592,42 +1608,36 @@ class Contest(object):
         out = ''
         #out += '[[File:Nowp Ukens konkurranse %s.svg|thumb|400px|Resultater (oppdateres normalt hver natt i halv ett-tiden, viser kun de ti med høyest poengsum)]]\n' % self.start.strftime('%Y-%W')
 
-        sammen = ''
+        summary_tpl = None
         if 'status' in config['templates']:
-            sammen = '{{%s' % config['templates']['status']
 
-            # ft = [type(f) for f in self.filters]
-            # rt = [type(r) for r in self.rules]
-
-            #if StubFilter in ft:
-            #    sammen += '|avstubbet=%d' % narticles
+            summary_tpl_args = ['|pages=%d' % sum_stats_by(stats, key='pages')]
 
             trn = 0
             for rule in self.rules:
                 if isinstance(rule, NewPageRule):
-                    sammen += '|%s=%d' % (rule.key, nnewpages)
+                    summary_tpl_args.append('%s=%d' % (rule.key, sum_stats_by(stats, key='newpages')))
                 elif isinstance(rule, ByteRule):
+                    nbytes = sum_stats_by(stats, key='bytes')
                     if nbytes >= 10000:
-                        sammen += '|kilo%s=%.f' % (rule.key, nbytes / 1000.)
+                        summary_tpl_args.append('kilo%s=%.f' % (rule.key, nbytes / 1000.))
                     else:
-                        sammen += '|%s=%d' % (rule.key, nbytes)
+                        summary_tpl_args.append('%s=%d' % (rule.key, nbytes))
                 elif isinstance(rule, WordRule):
-                    sammen += '|%s=%d' % (rule.key, nwords)
+                    summary_tpl_args.append('%s=%d' % (rule.key, sum_stats_by(stats, key='words')))
                 elif isinstance(rule, RefRule):
-                    sammen += '|%s=%d' % (rule.key, rule.totalsources)
+                    summary_tpl_args.append('%s=%d' % (rule.key, rule.totalsources))
                 # elif isinstance(rule, RefSectionFiRule):
-                #     sammen += '|%s=%d' % (rule.key, rule.total)
+                #     summary_tpl_args.append('|%s=%d' % (rule.key, rule.total)
                 elif isinstance(rule, ImageRule):
-                    sammen += '|%s=%d' % (rule.key, rule.total)
+                    summary_tpl_args.append('%s=%d' % (rule.key, rule.total))
                 elif isinstance(rule, TemplateRemovalRule):
                     for tpl in rule.templates:
                         trn += 1
-                        sammen += '|%(key)s%(idx)d=%(tpl)s|%(key)s%(idx)dn=%(cnt)d' % {
-                            'key': rule.key, 'idx': trn, 'tpl': tpl['name'], 'cnt': tpl['total']}
+                        summary_tpl_args.append('%(key)s%(idx)d=%(tpl)s' % {'key': rule.key, 'idx': trn, 'tpl': tpl['name']})
+                        summary_tpl_args.append('%(key)s%(idx)dn=%(cnt)d' % {'key': rule.key, 'idx': trn, 'cnt': tpl['total']})
 
-            sammen += '}}'
-
-        #out += sammen + '\n'
+            summary_tpl = '{{%s|%s}}' % (config['templates']['status'], '|'.join(summary_tpl_args))
 
         now = self.server_tz.localize(datetime.now())
         if self.state == STATE_ENDING:
@@ -1680,11 +1690,9 @@ class Contest(object):
         if not simulate:
             txt = self.page.text()
             tp = TemplateEditor(txt)
-            #print "---"
-            #print sammen
-            #print "---"
-            if sammen != '':
-                tp.templates[ib['name']][0].parameters[ib['status']] = sammen
+
+            if summary_tpl is not None:
+                tp.templates[ib['name']][0].parameters[ib['status']] = summary_tpl
             txt = tp.wikitext()
             secstart = -1
             secend = -1
@@ -1757,16 +1765,48 @@ class Contest(object):
 
             cur = self.sql.cursor()
 
-            for result in results:
-                arg = [self.sites.homesite.key, self.name, result['name'], int(self.startweek), result['points'], result['bytes'], result['newpages'], 0]
-                if self.startweek != self.endweek:
-                    arg[-1] = int(self.endweek)
-                #print arg
-                if not simulate:
-                    cur.execute(u"INSERT INTO users (site, contest, user, week, points, bytes, newpages, week2) VALUES (%s,%s,%s,%s,%s,%s,%s,%s)", arg)
+            # Aggregate stats
+            stats_agg = {}
+            for stat in stats:
+                if stat['key'] not in stats_agg:
+                    stats_agg[stat['key']] = {}
+                if stat['site'] not in stats_agg[stat['key']]:
+                    stats_agg[stat['key']][stat['site']] = 0
+                stats_agg[stat['key']][stat['site']] += stat['value']
 
             if not simulate:
-                cur.execute('UPDATE contests SET closed=1 WHERE site=%s AND name=%s', [self.sites.homesite.key, self.name])
+
+                # Store stats
+                for result in results:
+                    cur.execute(
+                        'INSERT INTO users (site, contest, user, points, bytes, pages, newpages) VALUES (%s,%s,%s,%s,%s,%s,%s)',
+                        [
+                            self.sites.homesite.key,
+                            self.name,
+                            result['name'],
+                            result['points'],
+                            sum_stats_by(stats, user=result['name'], key='bytes'),
+                            sum_stats_by(stats, user=result['name'], key='pages'),
+                            sum_stats_by(stats, user=result['name'], key='newpages'),
+                        ]
+                    )
+
+                    for dimension, values in stats_agg.items():
+                        for contribsite, value in values.items():
+                            cur.execute(
+                                'INSERT INTO stats (contestsite, contest, contribsite, dimension, value) VALUES (%s,%s,%s,%s,%s)',
+                                [
+                                    self.sites.homesite.key,
+                                    self.name,
+                                    contribsite,
+                                    dimension,
+                                    value,
+                                ]
+                            )
+                cur.execute(
+                    'UPDATE contests SET closed=1 WHERE site=%s AND name=%s',
+                    [self.sites.homesite.key, self.name]
+                )
                 self.sql.commit()
 
             cur.close()

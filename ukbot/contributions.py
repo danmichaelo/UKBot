@@ -177,9 +177,10 @@ class UserContributions(object):
         if len(entries) == 0:
             out += "''%s''" % _('No qualifying contributions registered yet')
         else:
+            sum_bytes = sum([item['value'] for item in self.user().count_bytes_per_site()])
             out += ngettext('%d article', '%d articles', len(entries)) % len(entries)
             out += ', '
-            out += '{{formatnum:%.2f}} kB' % (self.user().bytes / 1000.)
+            out += '{{formatnum:%.2f}} kB' % (sum_bytes / 1000.)
             out += '\n'
 
         if len(entries) > 10:

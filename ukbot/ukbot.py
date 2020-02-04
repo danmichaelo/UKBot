@@ -93,14 +93,14 @@ syslog.addFilter(AppFilter())
 load_dotenv()
 
 
-def sum_stats_by(obj, key=None, user=None):
+def sum_stats_by(values, key=None, user=None):
     the_sum = 0
-    for x in obj:
-        if key is not None and key != obj['key']:
+    for value in values:
+        if key is not None and key != value['key']:
             continue
-        if user is not None and user != obj['user']:
+        if user is not None and user != value['user']:
             continue
-        the_sum += obj['value']
+        the_sum += value['value']
     return the_sum
 
 
@@ -615,9 +615,9 @@ class User(object):
             logger.debug(' - %s', a)
 
     def count_article_stats_per_site(self, key, fn):
-        keyed = []
+        keyed = {}
         for article in self.articles.values():
-            keyed[article.site.key] = keyed.get(article.site.key, 0) + fn(article)
+            keyed[article.site().key] = keyed.get(article.site().key, 0) + int(fn(article))
         return [{'user': self.name, 'site': k, 'key': key, 'value': v} for k, v in keyed.items()]
 
     def count_bytes_per_site(self):

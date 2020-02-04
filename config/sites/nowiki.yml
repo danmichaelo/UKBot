@@ -14,7 +14,7 @@ wikidata_languages: ['nb', 'nn', 'en']
 contestPages:
     resultsSection: Resultater
     participantsSection: 'Delta[kg]ere'
-    footer: "[[Kategori:Artikkelkonkurranser]]"
+    footer: "{{Månedens konkurranse %(year)s}}\n[[Kategori:Artikkelkonkurranser]]"
 templates:
     commonargs:
         year: år

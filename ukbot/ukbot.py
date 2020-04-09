@@ -2301,7 +2301,7 @@ def main():
         'Platform: Python %s, Mwclient %s, %s %s %s',
         platform.python_version(),
         mwclient.__version__,
-        *platform.linux_distribution()
+        platform.platform()
     )
 
     status_template = config['templates']['botinfo']

@@ -706,17 +706,23 @@ class SparqlFilter(Filter):
         self.fetch()
 
     def do_query(self, querystring):
-        response = requests_retry_session().get(
-            'https://query.wikidata.org/sparql',
-            params={
-                'query': querystring,
-            },
-            headers={
-                'accept': 'application/sparql-results+json',
-                'accept-encoding': 'gzip, deflate, br',
-                'user-agent': 'UKBot/1.0, run by User:Danmichaelo',
-            }
-        )
+        logger.info('Running SPARQL query: %s', querystring)
+        try:
+            response = requests_retry_session().get(
+                'https://query.wikidata.org/sparql',
+                params={
+                    'query': querystring,
+                },
+                headers={
+                    'accept': 'application/sparql-results+json',
+                    'accept-encoding': 'gzip, deflate, br',
+                    'user-agent': 'UKBot/1.0, run by User:Danmichaelo',
+                }
+            )
+        except Exception as ex:
+            logger.error('SPARQL query failed')
+            raise ex
+
         if not response.ok:
             raise IOError('SPARQL query returned status %s', response.status_code)
 

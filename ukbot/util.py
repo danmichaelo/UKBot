@@ -4,7 +4,7 @@ import sys
 import unicodedata
 import logging
 import os
-
+from copy import deepcopy
 import pytz
 import yaml
 
@@ -39,24 +39,25 @@ def cleanup_input(value):
     return value
 
 
-def merge(source, destination):
+def merge(base, current):
     """
-    Simple dict merge
+    Merges `current` onto `base`.
 
     >>> a = { 'first' : { 'all_rows' : { 'pass' : 'dog', 'number' : '1' } } }
     >>> b = { 'first' : { 'all_rows' : { 'fail' : 'cat', 'number' : '5' } } }
-    >>> merge(b, a) == { 'first' : { 'all_rows' : { 'pass' : 'dog', 'fail' : 'cat', 'number' : '5' } } }
+    >>> merge(a, b) == { 'first' : { 'all_rows' : { 'pass' : 'dog', 'fail' : 'cat', 'number' : '5' } } }
     True
     """
-    for key, value in source.items():
+    out = deepcopy(base)
+    for key, value in current.items():
         if isinstance(value, dict):
             # get node or create one
-            node = destination.setdefault(key, {})
+            node = out.setdefault(key, {})
             merge(value, node)
         else:
-            destination[key] = value
+            out[key] = value
 
-    return destination
+    return out
 
 
 def load_config(fp):

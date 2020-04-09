@@ -53,7 +53,7 @@ def merge(base, current):
         if isinstance(value, dict):
             # get node or create one
             node = out.setdefault(key, {})
-            merge(value, node)
+            out[key] = merge(node, value)
         else:
             out[key] = value
 

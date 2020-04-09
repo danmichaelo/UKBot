@@ -4,6 +4,11 @@ import logging
 import re
 import os
 import mwclient
+from requests import Session
+from requests.adapters import HTTPAdapter
+from requests.packages.urllib3.util.retry import Retry
+from requests_oauthlib import OAuth1
+
 
 logger = logging.getLogger(__name__)
 
@@ -11,6 +16,16 @@ logger = logging.getLogger(__name__)
 class Site(mwclient.Site):
 
     def __init__(self, host, prefixes, **kwargs):
+        session = Session()
+        retries = Retry(total=5, backoff_factor=1, status_forcelist=[ 502, 503, 504 ])
+        session.mount('https://', HTTPAdapter(max_retries=retries))
+
+        consumer_token = os.getenv('MW_CONSUMER_TOKEN')
+        consumer_secret = os.getenv('MW_CONSUMER_SECRET')
+        access_token = os.getenv('MW_ACCESS_TOKEN')
+        access_secret = os.getenv('MW_ACCESS_SECRET')
+        session.auth = OAuth1(consumer_token, consumer_secret, access_token, access_secret)
+        session.headers['User-Agent'] = 'UKBot (http://tools.wmflabs.org/ukbot/; danmichaelo+wikipedia@gmail.com)'
 
         self.errors = []
         self.name = host
@@ -18,16 +33,7 @@ class Site(mwclient.Site):
         self.prefixes = prefixes
         logger.debug('Initializing site: %s', host)
         ua = 'UKBot (http://tools.wmflabs.org/ukbot/; danmichaelo+wikipedia@gmail.com)'
-        mwclient.Site.__init__(
-            self,
-            host,
-            clients_useragent=ua,
-            consumer_token=os.getenv('MW_CONSUMER_TOKEN'),
-            consumer_secret=os.getenv('MW_CONSUMER_SECRET'),
-            access_token=os.getenv('MW_ACCESS_TOKEN'),
-            access_secret=os.getenv('MW_ACCESS_SECRET'),
-            **kwargs
-        )
+        mwclient.Site.__init__(self, host, pool=session, **kwargs)
 
         res = self.api('query', meta='siteinfo', siprop='magicwords|namespaces|namespacealiases|interwikimap')['query']
 

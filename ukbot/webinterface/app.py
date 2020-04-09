@@ -37,11 +37,11 @@ contest_setups = [
     #     "name": "Heinäkuun lähdetalkoot",
     #     "url": "https://fi.wikipedia.org/wiki/Wikipedia:Heinäkuun lähdetalkoot/2019",
     # },
-    # {
-    #     "id": "fi-pln",
-    #     "name": "Punaisten linkkien naiset",
-    #     "url": "https://fi.wikipedia.org/wiki/Wikiprojekti:Punaisten_linkkien_naiset",
-    # },
+    {
+        "id": "fi-pln",
+        "name": "Punaisten linkkien naiset",
+        "url": "https://fi.wikipedia.org/wiki/Wikiprojekti:Punaisten_linkkien_naiset",
+    },
     {
         "id": "eu",
         "name": "Atari:Hezkuntza/Lehiaketak",

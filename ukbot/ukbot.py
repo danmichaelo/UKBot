@@ -2298,7 +2298,7 @@ def main():
                 mainstart.strftime('%F %T'),
                 mainstart.astimezone(wiki_tz).strftime('%F %T'))
     logger.info(
-        'Platform: Python %s, Mwclient %s, %s %s %s',
+        'Platform: Python %s, Mwclient %s, %s',
         platform.python_version(),
         mwclient.__version__,
         platform.platform()

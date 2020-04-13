@@ -11,8 +11,9 @@
     <script src="/ukbot/static/assets/d3.v3.min.js"></script>
     <script src="/ukbot/static/assets/nv.d3.js"></script>
     -->
-    <script src="/ukbot/static/assets/jquery-1.10.2.min.js"></script>
-    <script src="https://tools-static.wmflabs.org/cdnjs/ajax/libs/twitter-bootstrap/4.0.0/js/bootstrap.min.js" type="text/javascript"></script>
+    <script src="https://tools-static.wmflabs.org/cdnjs/ajax/libs/jquery/3.4.1/jquery.slim.min.js" type="text/javascript"></script>
+    <script src="https://tools-static.wmflabs.org/cdnjs/ajax/libs/popper.js/1.16.1/popper.min.js" type="text/javascript"></script>
+    <script src="https://tools-static.wmflabs.org/cdnjs/ajax/libs/twitter-bootstrap/4.4.0/js/bootstrap.min.js" type="text/javascript"></script>
 	{% block header %}{% endblock %}
 </head>
 <body>
@@ -31,12 +32,14 @@
     ('/ukbot/wordcount', 'wordcount', 'Word count test')
 ] -%}
 {% set active_page = active_page|default('index') -%}
-      <div class="navbar-nav mr-auto">
+      <ul class="navbar-nav mr-auto">
         {% for href, id, caption in navigation_bar %}
-            <a class="nav-item nav-link{% if id == active_page %} active{% endif %}"
+        <li class="nav-item">
+            <a class="nav-link{% if id == active_page %} active{% endif %}"
                 href="{{ href|e }}">{{ caption|e }}</a>
+        </li>
         {% endfor %}
-      </div>
+      </ul>
       <span class="navbar-text">
         {{ current_time.strftime('%F %T') }}
       </span>

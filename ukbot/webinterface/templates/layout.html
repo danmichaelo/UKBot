@@ -5,11 +5,11 @@
 	<meta charset="utf-8" />
 	<title>{% block title %}{% endblock %} | UKBot</title>
     <link rel="stylesheet" type="text/css" href="https://tools-static.wmflabs.org/cdnjs/ajax/libs/twitter-bootstrap/4.0.0/css/bootstrap.min.css">
-    <link rel="stylesheet" href="/ukbot/static/site.css">
+    <link rel="stylesheet" href="/static/site.css">
     <!--
-    <link rel="stylesheet" href="/ukbot/static/assets/nv.d3.css">
-    <script src="/ukbot/static/assets/d3.v3.min.js"></script>
-    <script src="/ukbot/static/assets/nv.d3.js"></script>
+    <link rel="stylesheet" href="/static/assets/nv.d3.css">
+    <script src="/static/assets/d3.v3.min.js"></script>
+    <script src="/static/assets/nv.d3.js"></script>
     -->
     <script src="https://tools-static.wmflabs.org/cdnjs/ajax/libs/jquery/3.4.1/jquery.slim.min.js" type="text/javascript"></script>
     <script src="https://tools-static.wmflabs.org/cdnjs/ajax/libs/popper.js/1.16.1/popper.min.js" type="text/javascript"></script>
@@ -19,7 +19,7 @@
 <body>
 
   <nav class="navbar navbar-expand-lg navbar-light bg-light">
-    <a class="navbar-brand" href="/ukbot/">
+    <a class="navbar-brand" href="/">
       UKBot
     </a>
     <button class="navbar-toggler" type="button" data-toggle="collapse" data-target="#navbarSupportedContent" aria-controls="navbarSupportedContent" aria-expanded="false" aria-label="Toggle navigation">
@@ -27,9 +27,9 @@
     </button>
     <div class="collapse navbar-collapse" id="navbarSupportedContent">
 {% set navigation_bar = [
-    ('/ukbot/', 'home', 'Status'),
-    ('/ukbot/contests', 'contests', 'Contests'),
-    ('/ukbot/wordcount', 'wordcount', 'Word count test')
+    ('/', 'home', 'Status'),
+    ('/contests', 'contests', 'Contests'),
+    ('/wordcount', 'wordcount', 'Word count test')
 ] -%}
 {% set active_page = active_page|default('index') -%}
       <ul class="navbar-nav mr-auto">

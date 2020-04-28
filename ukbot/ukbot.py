@@ -31,6 +31,8 @@ import locale
 import rollbar
 import platform
 from dotenv import load_dotenv
+import pymysql
+from retry import retry
 
 from .contributions import UserContributions
 from .rules import NewPageRule, ByteRule, WordRule, RefRule, ImageRule, TemplateRemovalRule
@@ -489,6 +491,7 @@ class User(object):
 
         cur.close()
 
+    @retry(pymysql.err.OperationalError, tries=3, delay=30)
     def add_contribs_from_db(self, sql, start, end, sites):
         """
         Populates self.articles with entries from MySQL DB
@@ -501,7 +504,6 @@ class User(object):
         # logger.info('Reading user contributions from database')
 
         cur = sql.cursor()
-        cur2 = sql.cursor()
         ts_start = start.astimezone(pytz.utc).strftime('%F %T')
         ts_end = end.astimezone(pytz.utc).strftime('%F %T')
         nrevs = 0
@@ -559,7 +561,6 @@ class User(object):
                     self.backfill_text(sql, sites[site_key], rev)
 
         cur.close()
-        cur2.close()
 
         # Always sort after we've added contribs
         self.sort_contribs()

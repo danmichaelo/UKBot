@@ -47,4 +47,5 @@ setup(name='ukbot',
         'psutil',
         'python-dotenv',
         'pydash',
+        'retry',
       ])

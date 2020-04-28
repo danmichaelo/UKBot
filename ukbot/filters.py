@@ -203,6 +203,10 @@ class TemplateFilter(Filter):
 class CatFilter(Filter):
     """ Filters articles that belong to a given overcategory """
 
+    ignore_sites = [
+        'www.wikidata.org',
+    ]
+
     @staticmethod
     def get_ignore_list(tpl, page_name):
         if page_name is None or page_name == '':
@@ -304,6 +308,9 @@ class CatFilter(Filter):
         #    ctree.add_child( name = p.encode('utf-8') )
 
         for site_key, site in self.sites.sites.items():
+
+            if site_key in self.ignore_sites:
+                continue
 
             if 'bot' in site.rights:
                 requestlimit = 500

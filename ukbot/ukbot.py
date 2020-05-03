@@ -827,13 +827,13 @@ class FilterTemplate(object):
 
 class Contest(object):
 
-    def __init__(self, page, state, sites, sql, config, wiki_tz, server_tz, project_dir, job_id):
+    def __init__(self, page, state, sites, sql, config, wiki_tz, server_tz, project_dir, job_id, username=None):
         """
             page: mwclient.Page object
             sites: list
             sql: mysql Connection object
         """
-        logger.info('Initializing contest [[%s]], state: %s', page.name, state)
+        logger.info('<<< Initializing contest [[%s]], state: %s >>>', page.name, state)
         self.page = page
         self.state = state
         self.name = self.page.name
@@ -847,7 +847,11 @@ class Contest(object):
         self.server_tz = server_tz
 
         self.sites = sites
-        self.users = [User(n, self) for n in self.extract_userlist(txt)]
+        if username is None:
+            self.users = [User(n, self) for n in self.extract_userlist(txt)]
+        else:
+            self.users = [User(username, self)]
+
         self.rules, self.filters = self.extract_rules(txt, self.config.get('catignore', ''))
 
         logger.info("- %d participants", len(self.users))
@@ -2266,6 +2270,7 @@ def main():
     parser = argparse.ArgumentParser(description='The UKBot')
     parser.add_argument('config', help='Config file', type=argparse.FileType('r', encoding='UTF-8'))
     parser.add_argument('--page', required=False, help='Name of the contest page to work with')
+    parser.add_argument('--user', required=False, help='For testing, check the contributions of a single user.')
     parser.add_argument('--simulate', action='store_true', default=False, help='Do not write results to wiki')
     parser.add_argument('--output', nargs='?', default='', help='Write results to file')
     parser.add_argument('--log', nargs='?', default='', help='Log file')
@@ -2327,7 +2332,8 @@ def main():
                               wiki_tz=wiki_tz,
                               server_tz=server_tz,
                               project_dir=working_dir,
-                              job_id=args.job_id)
+                              job_id=args.job_id,
+                              username=args.user)
         except InvalidContestPage as e:
             if args.simulate:
                 logger.error(e.msg)

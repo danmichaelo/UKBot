@@ -15,6 +15,8 @@ logger = logging.getLogger(__name__)
 
 class Site(mwclient.Site):
 
+    key: str = None
+
     def __init__(self, host, prefixes, **kwargs):
         session = Session()
         retries = Retry(total=5, backoff_factor=1, status_forcelist=[ 502, 503, 504 ])

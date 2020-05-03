@@ -15,7 +15,7 @@ logger = logging.getLogger(__name__)
 
 class Site(mwclient.Site):
 
-    key: str = None
+    key = None
 
     def __init__(self, host, prefixes, **kwargs):
         session = Session()

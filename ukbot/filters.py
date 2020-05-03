@@ -3,9 +3,9 @@
 import sys
 import re
 from copy import copy
+
 from more_itertools import first
 import logging
-import json
 import time
 import urllib
 import requests
@@ -13,9 +13,16 @@ from collections import OrderedDict
 from requests.adapters import HTTPAdapter
 from requests.packages.urllib3.util.retry import Retry
 from mwtemplates.templateeditor2 import TemplateParseError
-
 from .common import _, InvalidContestPage
 from .site import WildcardPage
+
+from typing import List, Union, Optional
+from typing import TYPE_CHECKING
+if TYPE_CHECKING:
+    from .ukbot import FilterTemplate, SiteManager
+    from .article import Article
+    from mwclient.page import Page
+    Articles = OrderedDict[str, 'Article']
 
 logger = logging.getLogger(__name__)
 
@@ -53,7 +60,7 @@ class CategoryLoopError(Exception):
 
 class Filter(object):
 
-    def __init__(self, sites):
+    def __init__(self, sites: 'SiteManager'):
         """
         Args:
             sites (SiteManager): A SiteManager instance with the sites relevant for this filter.
@@ -62,7 +69,7 @@ class Filter(object):
         self.page_keys = set()
 
     @classmethod
-    def make(cls, tpl, **kwargs):
+    def make(cls, tpl: 'FilterTemplate', **kwargs):
         return cls(tpl.sites)
 
     def test_page(self, page):
@@ -71,7 +78,7 @@ class Filter(object):
         """
         return page.key in self.page_keys
 
-    def filter(self, articles):
+    def filter(self, articles: 'Articles'):
         out = OrderedDict()
         for article_key, article in articles.items():
             if self.test_page(article):
@@ -209,7 +216,7 @@ class CatFilter(Filter):
     ]
 
     @staticmethod
-    def get_ignore_list(tpl, page_name):
+    def get_ignore_list(tpl: 'FilterTemplate', page_name: str):
         if page_name is None or page_name == '':
             return []
 
@@ -226,16 +233,16 @@ class CatFilter(Filter):
             raise RuntimeError(_('Could not parse the catignore page'))
 
     @classmethod
-    def make(cls, tpl, cfg, **kwargs):
+    def make(cls, tpl: 'FilterTemplate', **kwargs):
         if len(tpl.anon_params) < 3:
             raise RuntimeError(_('No category values given!'))
 
         params = {
             'sites': tpl.sites,
-            'ignore': cls.get_ignore_list(tpl, cfg.get('ignore_page')),
+            'ignore': cls.get_ignore_list(tpl, kwargs.get('cfg', {}).get('ignore_page')),
             'categories': [
                 tpl.sites.resolve_page(cat_name, 14, True)
-                for cat_name in tpl.anon_params[2:] if cat_name.strip() is not ''
+                for cat_name in tpl.anon_params[2:] if cat_name.strip() != ''
             ],
         }
 
@@ -250,7 +257,8 @@ class CatFilter(Filter):
 
         return cls(**params)
 
-    def __init__(self, sites, categories, maxdepth=5, ignore=[]):
+    def __init__(self, sites: 'SiteManager', categories: List[Union['Page', WildcardPage]], maxdepth: int = 5,
+                 ignore: List[str] = []):
         """
         Arguments:
             sites (SiteManager): References to the sites part of this contest
@@ -263,10 +271,12 @@ class CatFilter(Filter):
         self.ignore = ignore
 
         self.include = [
-            '%s:%s' % (page.site.key, page.name)
+            '%s:%s' % (page.site.key, page.name)  # Includes namespace prefix
             for page in categories
             if not isinstance(page, WildcardPage)
         ]
+
+        self.categories_cache = {site_key: {} for site_key in self.sites.keys()}
 
         # Sites for which we should accept all contributions
         self.wildcard_include = [
@@ -275,41 +285,18 @@ class CatFilter(Filter):
             if isinstance(page, WildcardPage)
         ]
         self.maxdepth = int(maxdepth)
-        logger.debug("Initializing CatFilter: %s, maxdepth=%d",
-                    " OR ".join(self.include), maxdepth)
+        logger.debug('Initializing CatFilter with categories: "%s", maxdepth: %d',
+                     '" OR "'.join(self.include), maxdepth)
 
-    def fetchcats(self, articles, debug=False):
-        """ Fetches categories an overcategories for a set of articles """
+    def add_to_category_cache(self, articles: 'Articles'):
+        """
+        Fetch n levels of categories for a set of articles from the API, and store the category memberhips in
+        the flat `self.categories_cache` dictionary. The `self.categories_cache` is retained for the whole bot
+        run, so we only have to query the API once for each page/category, even if multiple users have contributed
+        to the same page/category.
+        """
 
-        # Make a list of the categories of a given article, with one list for each level
-        # > cats[article_key][level] = [cat1, cat2, ...]
-
-        cats = {p: [[] for n in range(self.maxdepth + 1)] for p in articles}
-
-        # Also, for each article, keep a list of category parents, so we can build
-        # a path along the category tree from any matched category to the article
-        # > parents[article_key][category] = parent_category
-        #
-        # Example:
-        #                   /- cat 2
-        #             /- cat1 -|
-        # no:giraffe -|        \-
-        #             \-
-        #
-        # parents['no:giraffe']['cat2'] = 'cat1'
-        # parents['no:giraffe']['cat1'] = 'giraffe'
-        #
-        # We could also build full category trees for each article from the available
-        # information, but they can grow quite big and slow to search
-
-        parents = {p: {} for p in articles}
-
-        #ctree = Tree()
-        #for p in pages:
-        #    ctree.add_child( name = p.encode('utf-8') )
-
-        for site_key, site in self.sites.sites.items():
-
+        for site_key, site in self.sites.items():
             if site_key in self.ignore_sites:
                 continue
 
@@ -321,139 +308,170 @@ class CatFilter(Filter):
                 returnlimit = 500
 
             # Titles of articles that belong to this site
-            titles = [article.name for article in articles.values() if article.site().key == site_key]
+            titles_to_check = set([page.name for page in articles.values() if page.site().key == site_key])
 
-            # logger.debug(' ['+site_key+':'+str(len(titles))+']')
-            #.flush()
-            if len(titles) > 0:
+            if len(titles_to_check) == 0:
+                continue
 
-                for level in range(self.maxdepth + 1):
+            logger.debug('CatFilter [%s]: Planning to fetch categories for %d articles', site_key, len(titles_to_check))
 
-                    titles0 = copy(titles)
-                    titles = []  # make a new list of titles to search
-                    nc = 0
-                    nnc = 0
+            for level in range(self.maxdepth + 1):
 
-                    for s0 in range(0, len(titles0), requestlimit):
-                        logger.debug('Getting categories at level %d: %d titles. Batch %d to %d', level, len(titles0), s0, s0+requestlimit)
-                        ids = '|'.join(titles0[s0:s0+requestlimit])
+                titles0 = copy(titles_to_check)
+                titles_to_check = set()  # make a new list of titles to search
+                cache_misses = []
 
-                        cont = True
-                        clcont = {'continue': ''}
-                        while cont:
-                            # print clcont
-                            args = {'prop': 'categories', 'titles': ids, 'cllimit': returnlimit}
-                            args.update(clcont)
-                            q = site.api('query', **args)
+                for member_title in titles0:
+                    if member_title in self.categories_cache[site_key]:
+                        for category_title in self.categories_cache[site_key][member_title]:
+                            titles_to_check.add(category_title)
+                    else:
+                        cache_misses.append(member_title)
 
-                            if 'warnings' in q:
-                                raise RuntimeError(q['warnings']['query']['*'])
+                logger.debug('CatFilter [%s, level %d]: Cache hits: %d, cache misses: %d', site_key, level, len(titles0) - len(cache_misses), len(cache_misses))
 
-                            for pageid, page in q['query']['pages'].items():
-                                fulltitle = page['title']
-                                shorttitle = fulltitle.split(':', 1)[-1]
-                                article_key = site_key + ':' + fulltitle
-                                if 'categories' in page:
-                                    for cat in page['categories']:
-                                        cat_title = cat['title']
-                                        cat_short = cat_title.split(':', 1)[1]
-                                        site_cat = site_key + ':' + cat_title
-                                        follow = True
-                                        for d in self.ignore:
-                                            if re.search(d, cat_short):
-                                                logger.debug(' - Ignore: "%s" matched "%s"', cat_title, d)
-                                                follow = False
-                                        if follow:
-                                            nc += 1
-                                            titles.append(cat_title)
-                                            if level == 0:
-                                                cats[article_key][level].append(site_cat)
-                                                parents[article_key][site_cat] = article_key
-                                                #print cat_short
-                                                # use iter_search_nodes instead?
-                                                #ctree.search_nodes( name = fulltitle.encode('utf-8') )[0].add_child( name = cat_short.encode('utf-8') )
-                                            else:
-                                                for article_key2, ccc in cats.items():
-                                                    if article_key in ccc[level-1]:
-                                                        ccc[level].append(site_cat)
-                                                        parents[article_key2][site_cat] = article_key
-                                                        # print '>',article_key2, ':', site_cat,' = ',article_key
+                for s0 in range(0, len(cache_misses), requestlimit):
+                    logger.debug('CatFilter [%s, level %d] Fetching categories for %d pages. Batch %d to %d', site_key, level, len(cache_misses), s0, s0+requestlimit)
+                    ids = '|'.join(cache_misses[s0:s0+requestlimit])
 
-                                                        #for node in ctree.search_nodes( name = shorttitle.encode('utf-8') ):
-                                                        #    if not cat_short.encode('utf-8') in [i.name for i in node.get_children()]:
-                                                        #        node.add_child(name = cat_short.encode('utf-8'))
-                                        else:
-                                            nnc += 1
-                            if 'continue' in q:
-                                clcont = q['continue']
-                            else:
-                                cont = False
-                    titles = list(set(titles))  # to remove duplicates (not order preserving)
-                    #if level == 0:
-                    #    cattree = [p for p in titles]
-                    # logger.debug(' %d', len(titles))
-                    #.stdout.flush()
-                    #print "Found %d unique categories (%d total) at level %d (skipped %d categories)" % (len(titles), nc, level, nnc)
-        
-        return cats, parents
+                    cont = True
+                    clcont = {'continue': ''}
+                    while cont:
+                        args = {'prop': 'categories', 'titles': ids, 'cllimit': returnlimit}
+                        args.update(clcont)
+                        q = site.api('query', **args)
 
-    def check_article_cats(self, article_cats):
-        """ Checks if article_cats contains any of the cats given in self.include """
-        # loop over levels
-        for inc in self.include:
-            for cats in article_cats:
-                if inc in cats:
-                    return inc
-        return None
+                        if 'warnings' in q:
+                            raise RuntimeError(q['warnings']['query']['*'])
 
-    def filter(self, articles, debug=False):
+                        for category_member in q['query']['pages'].values():
+                            member_title = category_member['title']
+                            if 'categories' not in category_member:
+                                continue
+                            for category in category_member['categories']:
+                                category_title = category['title']  # Includes Category: prefix
+                                category_short_name = category_title.split(':', 1)[1]
+                                follow = True
+                                for d in self.ignore:
+                                    if re.search(d, category_short_name):
+                                        logger.debug(' - Ignore: "%s" matched "%s"', category_title, d)
+                                        follow = False
+                                if follow:
+                                    titles_to_check.add(category_title)
 
-        cats, parents = self.fetchcats(articles, debug=debug)
+                                    if member_title not in self.categories_cache[site_key]:
+                                        self.categories_cache[site_key][member_title] = set()
 
-        out = odict()
+                                    self.categories_cache[site_key][member_title].add(category_title)
 
-        # loop over articles
-        for article_key, article_cats in cats.items():
+                        if 'continue' in q:
+                            clcont = q['continue']
+                        else:
+                            cont = False
 
-            article = articles[article_key]
+                for member_title in titles0:
+                    for category_title in self.categories_cache[site_key].get(member_title, []):
+                        titles_to_check.add(category_title)
 
-            if article.site().key in self.wildcard_include:
+    def filter(self, articles: 'Articles') -> 'Articles':
+        """
+        Filter a set of articles using category data from `self.category_cache`.
+
+        Side effects:
+            If an articles matches any of the categories in `self.include`, a category path is attached
+            to the article, which can be used to explain why the article matched. If an article 'X' is a
+            direct member of 'Category 1', which is a member of 'Category 2', which is itself member of
+            the 'Matching category', the resulting cat_path will be:
+
+                 artice.cat_path = ['Matching category', 'Child category 2', 'Child category 1']
+
+            If a category path cannot be found due to category loops, an error will be attached to
+            article.errors instead, but the article will still be returned as a match.
+        """
+
+        self.add_to_category_cache(articles)
+
+        t0 = time.time()
+        logger.debug('CatFilter: Checking %d articles', len(articles))
+
+        out = OrderedDict()
+        site_keys = set(self.sites.keys())
+
+        for article_key, article in articles.items():
+            site_key = article.site().key
+
+            if site_key in self.ignore_sites or site_key not in site_keys:
+                continue
+
+            if site_key in self.wildcard_include:
                 # Auto-pass all articles from this site
                 out[article_key] = article
                 continue
 
-            lang = article_key.split(':')[0]
-            if debug:
-                logger.debug("CatFilter: %s", article.name)
-                for l, ca in enumerate(article_cats):
-                    logger.debug('CatFilter [%d] %s', l, ', '.join(ca))
+            categories = []
+            categories_rev = {}
 
-            catname = self.check_article_cats(article_cats)
-            if catname:
+            new_buffer = [article.name]
+            for level in range(self.maxdepth + 1):
+                buffer = copy(new_buffer)
+                new_buffer = []
+                for page_name in buffer:
+                    member_key = site_key + ':' + page_name
 
-                # Add category path to the article object, so we can check how the article matched
-                article.cat_path = [catname]
-                # print '[%s]' % (article_key)
-                try:
-                    i = 0
-                    aname = article.site().key + ':' + article.name
-                    while not catname == aname:
-                        # print ' [%d] %s' % (i,catname)
-                        if not parents[article_key][catname] == aname:
-                            article.cat_path.append(parents[article_key][catname])
-                        catname = parents[article_key][catname]
-                        i += 1
-                        if i > 50:
-                            raise CategoryLoopError(article.cat_path)
-                except CategoryLoopError as e:
-                    article.errors.append(_('Encountered an infinite category loop: ')
-                        + ' → '.join(['[[:%(catname)s|]]'
-                        % {'catname': c.replace('.wikipedia.org', '')} for c in e.catpath]))
+                    for category_name in self.categories_cache[site_key].get(page_name, []):
+                        category_key = site_key + ':' + category_name
 
+                        categories.append(category_key)
+                        categories_rev[category_key] = member_key
+
+                        new_buffer.append(category_name)
+
+            # It should be slightly more efficient to first populate a list, and then
+            # convert it a set for uniqueness, rather than working with a set all the way.
+            categories = set(categories)
+
+            matching_category = self.get_first_matching_category(categories)
+            if matching_category is not None:
                 out[article_key] = article
+                try:
+                    article.cat_path = self.get_category_path(
+                        categories_rev,
+                        matching_category,
+                        article_key
+                    )
+                except CategoryLoopError as err:
+                    loop = ' → '.join(['[[:%s|]]' % c.replace('.wikipedia.org', '') for c in err.catpath])
+                    article.errors.append(_('Encountered an infinite category loop: ') + loop)
 
-        logger.info(" - CatFilter: Articles reduced from %d to %d", len(articles), len(out))
+        dt = time.time() - t0
+        logger.debug('CatFilter: Checked categories for %d articles in %.1f secs', len(articles), dt)
+        logger.info(' - CatFilter: Articles reduced from %d to %d', len(articles), len(out))
         return out
+
+    def get_first_matching_category(self, article_cats: set) -> Optional[str]:
+        """ Checks if article_cats contains any of the cats given in self.include """
+        for category_name in self.include:
+            if category_name in article_cats:
+                return category_name
+        return None
+
+    @staticmethod
+    def get_category_path(members: dict, category_key: str, article_key: str) -> List[str]:
+        """
+        Try to find a path from a category to an article:
+
+            [category_key, ..., article_key]
+        """
+        cat_path = [category_key]
+        i = 0
+        while category_key != article_key:
+            if members[category_key] != article_key:
+                cat_path.append(members[category_key])
+            category_key = members[category_key]
+            i += 1
+            if i > 50:
+                raise CategoryLoopError(cat_path)
+        return cat_path
 
 
 class ByteFilter(Filter):
@@ -562,7 +580,7 @@ class BackLinkFilter(Filter):
     def make(cls, tpl, cfg, **kwargs):
         params = {
             'sites': tpl.sites,
-            'pages': [tpl.sites.resolve_page(x) for x in tpl.anon_params[2:] if x.strip() is not ''],
+            'pages': [tpl.sites.resolve_page(x) for x in tpl.anon_params[2:] if x.strip() != ''],
             'include_langlinks': cfg.get('include_langlinks', False),
         }
         return cls(**params)
@@ -595,7 +613,7 @@ class BackLinkFilter(Filter):
                     for langlink in linked_page.langlinks():
                         site = self.sites.from_prefix(langlink[0])
                         if site is not None:
-                            link = '%s:%s' % (site.host, langlink[1].replace('_', ' '))
+                            link = '%s:%s' % (site.key, langlink[1].replace('_', ' '))
                             logger.debug(' - Include: %s', link)
                             self.page_keys.add(link)
 
@@ -615,7 +633,7 @@ class ForwardLinkFilter(Filter):
 
         params = {
             'sites': tpl.sites,
-            'pages': [tpl.sites.resolve_page(x) for x in tpl.anon_params[2:] if x.strip() is not ''],
+            'pages': [tpl.sites.resolve_page(x) for x in tpl.anon_params[2:] if x.strip() != ''],
         }
         return cls(**params)
 
@@ -642,7 +660,7 @@ class PageFilter(Filter):
     def make(cls, tpl, **kwargs):
         params = {
             'sites': tpl.sites,
-            'pages': [tpl.sites.resolve_page(x) for x in tpl.anon_params[2:] if x.strip() is not '']
+            'pages': [tpl.sites.resolve_page(x) for x in tpl.anon_params[2:] if x.strip() != '']
         }
         return cls(**params)
 
@@ -685,7 +703,7 @@ class NamespaceFilter(Filter):
         """
         Return True if the page matches the current filter, False otherwise.
         """
-        if self.site is not None and self.site != page.site.host:
+        if self.site is not None and self.site != page.site.key:
             return False
         return page.ns in self.namespaces
 
@@ -766,7 +784,7 @@ class SparqlFilter(Filter):
         #   almost doubled for each additional site, making timeouts likely.
         # - I also tested doing two separate queries rather than one query with a subquery,
         #   but when the number of items became large it resulted in "request too large".
-        for site in self.sites.sites.keys():
+        for site in self.sites.keys():
             logger.debug('Querying site: %s', site)
             t0 = time.time()
             s0 = len(self.page_keys)

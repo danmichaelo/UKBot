@@ -2171,7 +2171,10 @@ class SiteManager(object):
 
     def keys(self):
         return self.sites.keys()
-    
+
+    def items(self):
+        return self.sites.items()
+
     def resolve_page(self, value, default_ns=0, force_ns=False):
         logger.debug('Resolving: %s', value)
         values = value.lstrip(':').split(':')

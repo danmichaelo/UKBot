@@ -65,13 +65,13 @@ class AppFilter(logging.Filter):
     @staticmethod
     def format_as_mins_and_secs(msecs):
         secs = msecs / 1000.
-        mins = secs / 60.
-        secs = secs % 60.
+        mins = int(secs / 60.)
+        secs = int(secs % 60.)
         return '%3.f:%02.f' % (mins, secs)
 
     def filter(self, record):
         record.mem_usage = '%.0f' % (get_mem_usage(),)
-        record.relativeSecs = AppFilter.format_as_mins_and_secs(record.relativeCreated)
+        record.relative_time = AppFilter.format_as_mins_and_secs(record.relativeCreated)
         return True
 
 
@@ -86,7 +86,7 @@ logger.setLevel(logging.DEBUG)
 syslog = logging.StreamHandler()
 logger.addHandler(syslog)
 syslog.setLevel(logging.INFO)
-formatter = logging.Formatter('[%(relativeSecs)s] {%(mem_usage)s MB} %(name)-20s %(levelname)s : %(message)s')
+formatter = logging.Formatter('[%(relative_time)s] {%(mem_usage)s MB} %(name)-20s %(levelname)s : %(message)s')
 syslog.setFormatter(formatter)
 syslog.addFilter(AppFilter())
 

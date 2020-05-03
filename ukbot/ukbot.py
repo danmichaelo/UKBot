@@ -20,7 +20,7 @@ from isoweek import Week  # Sort-of necessary until datetime supports %V, see ht
 import re
 import json
 import os
-from odict import odict
+from collections import OrderedDict
 import urllib
 import argparse
 import codecs
@@ -33,6 +33,7 @@ import platform
 from dotenv import load_dotenv
 import pymysql
 from retry import retry
+from more_itertools import first
 
 from .contributions import UserContributions
 from .rules import NewPageRule, ByteRule, WordRule, RefRule, ImageRule, TemplateRemovalRule
@@ -46,7 +47,7 @@ from .article import Article
 
 # ----------------------------------------------------------
 
-STATE_NORMAL='normal'
+STATE_NORMAL ='normal'
 STATE_ENDING = 'ending'
 STATE_CLOSING = 'closing'
 
@@ -110,8 +111,8 @@ class User(object):
 
     def __init__(self, username, contest):
         self.name = username
-        self.articles = odict()
-        self.revisions = odict()
+        self.articles = OrderedDict()
+        self.revisions = OrderedDict()
         self.contest = weakref.ref(contest)
         self.suspended_since = None
         self.contributions = UserContributions(self, contest.config)
@@ -125,10 +126,10 @@ class User(object):
 
         # sort revisions by revision id
         for article in self.articles.values():
-            article.revisions.sort(key=lambda x: x[0])   # sort by key (revision id)
+            article.revisions = OrderedDict(sorted(article.revisions.items(), key=lambda x: x[0]))   # sort by key (revision id)
 
         # sort articles by first revision id
-        self.articles.sort(key=lambda x: x[1].revisions.firstkey())
+        self.articles = OrderedDict(sorted(self.articles.items(), key=lambda x: first(x[1].revisions)))
 
     def add_article_if_necessary(self, site, article_title, ns):
         article_key = site.key + ':' + article_title
@@ -232,10 +233,13 @@ class User(object):
 
         # If revisions were moved from one article to another, and the redirect was not created by the same user,
         # some articles may now have zero revisions. We should drop them
+        to_drop = set()
         for article_key, article in self.articles.items():
             if len(article.revisions) == 0:
-                logger.info('Dropping article "%s" due to zero remaining revisions', article.name)
-                del self.articles[article_key]
+                to_drop.add(article_key)
+        for article_key in to_drop:
+            logger.debug('Dropping article "%s" due to zero remaining revisions', article_key)
+            del self.articles[article_key]
 
         # Always sort after we've added contribs
         new_articles = len(self.articles) - n_articles
@@ -588,7 +592,7 @@ class User(object):
                 # Apply filters in parallel (OR)
                 if len(filters) == 0:  # Interpret empty tuple as "filtering nothing" rather than "filter everything"
                     return articles
-                res = odict([])
+                res = OrderedDict()
                 logger.debug('%s Union of %d filters (OR):', '>' * depth, len(filters))
                 for f in filters:
                     for o in apply_filters(articles, f, depth + 1):

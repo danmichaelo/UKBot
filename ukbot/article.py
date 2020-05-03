@@ -2,10 +2,12 @@
 # vim: fenc=utf-8 et sw=4 ts=4 sts=4 ai
 import time
 import weakref
+from collections import OrderedDict
 from datetime import datetime
 import pytz
 import logging
-from odict import odict
+
+from more_itertools import first, last
 import numpy as np
 
 from .revision import Revision
@@ -26,7 +28,7 @@ class Article(object):
         self.disqualified = False
         self._created_at = None
 
-        self.revisions = odict()
+        self.revisions = OrderedDict()
         self.errors = []
 
     def __eq__(self, other):
@@ -68,11 +70,11 @@ class Article(object):
 
     @property
     def firstrev(self):
-        return self.revisions[self.revisions.firstkey()]
+        return self.revisions[first(self.revisions)]
     
     @property
     def lastrev(self):
-        return self.revisions[self.revisions.lastkey()]
+        return self.revisions[last(self.revisions)]
     
 
     @property
@@ -87,7 +89,7 @@ class Article(object):
     @property
     def new_non_redirect(self):
         # Deprecated, compare created_at with contest start date instead!
-        firstrev = self.revisions[self.revisions.firstkey()]
+        firstrev = self.revisions[first(self.revisions)]
         return firstrev.new and not firstrev.redirect
 
     def add_revision(self, revid, **kwargs):

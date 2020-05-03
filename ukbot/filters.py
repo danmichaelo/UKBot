@@ -3,12 +3,13 @@
 import sys
 import re
 from copy import copy
-from odict import odict
+from more_itertools import first
 import logging
 import json
 import time
 import urllib
 import requests
+from collections import OrderedDict
 from requests.adapters import HTTPAdapter
 from requests.packages.urllib3.util.retry import Retry
 from mwtemplates.templateeditor2 import TemplateParseError
@@ -71,7 +72,7 @@ class Filter(object):
         return page.key in self.page_keys
 
     def filter(self, articles):
-        out = odict()
+        out = OrderedDict()
         for article_key, article in articles.items():
             if self.test_page(article):
                 out[article_key] = article
@@ -97,7 +98,7 @@ class Filter(object):
 
     #def filter(self, articles):
 
-    #    out = odict()
+    #    out = OrderedDict()
     #    for article_key, article in articles.items():
 
     #        firstrevid = article.revisions.firstkey()
@@ -179,7 +180,7 @@ class TemplateFilter(Filter):
         return None
 
     def test_page(self, page):
-        rev_id = page.revisions.firstkey()
+        rev_id = first(page.revisions)
         rev = page.revisions[rev_id]
 
         try:

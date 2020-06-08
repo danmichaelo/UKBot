@@ -855,22 +855,13 @@ class Contest(object):
         self.rules, self.filters = self.extract_rules(txt, self.config.get('catignore', ''))
 
         logger.info("- %d participants", len(self.users))
-        # logger.info("- %d filter(s):" % len(self.filters))
-        # for filter in self.filters:
-        #     logger.info("  - %s" % filter.__class__.__name__)
-
-        logger.info("%d rule(s)" % len(self.rules))
+        logger.info("- %d rule(s)" % len(self.rules))
         for rule in self.rules:
             logger.info("  - %s" % rule.__class__.__name__)
 
         logger.info('- Open from %s to %s',
                     self.start.strftime('%F %T'),
                     self.end.strftime('%F %T'))
-
-        # if self.startweek == self.endweek:
-        #     logger.info(' - Week %d', self.startweek)
-        # else:
-        #     logger.info(' - Week %d–%d', self.startweek, self.endweek)
 
     def extract_userlist(self, txt):
         lst = []
@@ -2276,7 +2267,6 @@ def main():
     parser.add_argument('--user', required=False, help='For testing, check the contributions of a single user.')
     parser.add_argument('--simulate', action='store_true', default=False, help='Do not write results to wiki')
     parser.add_argument('--output', nargs='?', default='', help='Write results to file')
-    parser.add_argument('--log', nargs='?', default='', help='Log file')
     parser.add_argument('--verbose', action='store_true', default=False, help='More verbose logging')
     parser.add_argument('--close', action='store_true', help='Close contest')
     parser.add_argument('--action', nargs='?', default='', help='"uploadplot" or "run"')
@@ -2288,14 +2278,10 @@ def main():
     else:
         syslog.setLevel(logging.INFO)
 
-    if args.log != '':
-        logfile = open(args.log, 'a')
-
     config = load_config(args.config)
     config['filename'] = args.config.name
     args.config.close()
 
-    # rollbar.init(config['rollbar_token'], 'production')
     wiki_tz = pytz.timezone(config['wiki_timezone'])
     server_tz = pytz.timezone(config['server_timezone'])
 
@@ -2384,19 +2370,11 @@ def main():
     runend = server_tz.localize(datetime.now())
     runend_s = time.time()
 
-    runtime = runend_s - runstart_s
     logger.info('UKBot finishing at %s. Runtime was %.f seconds (total) or %.f seconds (excluding initialization).',
                 runend.strftime('%F %T'),
                 runend_s - runstart_s,
                 runend_s - mainstart_s)
 
-    #try:
-    #    main()
-    #except IOError:
-    #    rollbar.report_message('Got an IOError in the main loop', 'warning')
-    #except:
-    #    # catch-all
-    #    rollbar.report_exc_info()
 
 if __name__ == '__main__':
     main()

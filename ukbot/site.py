@@ -19,7 +19,7 @@ class Site(mwclient.Site):
 
     def __init__(self, host, prefixes, **kwargs):
         session = Session()
-        retries = Retry(total=5, backoff_factor=1, status_forcelist=[ 502, 503, 504 ])
+        retries = Retry(total=5, backoff_factor=1, status_forcelist=[502, 503, 504])
         session.mount('https://', HTTPAdapter(max_retries=retries))
 
         consumer_token = os.getenv('MW_CONSUMER_TOKEN')
@@ -34,7 +34,6 @@ class Site(mwclient.Site):
         self.key = host
         self.prefixes = prefixes
         logger.debug('Initializing site: %s', host)
-        ua = 'UKBot (http://tools.wmflabs.org/ukbot/; danmichaelo+wikipedia@gmail.com)'
         mwclient.Site.__init__(self, host, pool=session, **kwargs)
 
         res = self.api('query', meta='siteinfo', siprop='magicwords|namespaces|namespacealiases|interwikimap')['query']
@@ -46,7 +45,7 @@ class Site(mwclient.Site):
 
         redirect_words = [x['aliases'] for x in res['magicwords'] if x['name'] == 'redirect'][0]
         logger.debug('Redirect words: %s', '|'.join(redirect_words))
-        self.redirect_regexp = re.compile(u'(?:%s)' % u'|'.join(redirect_words), re.I)
+        self.redirect_regexp = re.compile('(?:%s)' % '|'.join(redirect_words), re.I)
 
         self.interwikimap = {
             x['prefix']: x['url'].split('//')[1].split('/')[0].split('?')[0] for x in res['interwikimap']

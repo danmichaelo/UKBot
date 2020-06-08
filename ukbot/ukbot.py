@@ -21,7 +21,7 @@ import re
 import json
 import os
 from collections import OrderedDict
-import urllib
+import urllib.parse
 import argparse
 import codecs
 import mwclient
@@ -513,7 +513,8 @@ class User(object):
         nrevs = 0
         narts = 0
         t0 = time.time()
-        cur.execute(u"""
+        cur.execute(
+            '''
             SELECT
                 c.revid, c.site, c.parentid, c.page, c.timestamp, c.size, c.parentsize, c.parsedcomment, c.ns,
                 ft.revtxt,
@@ -523,7 +524,7 @@ class User(object):
             LEFT JOIN fulltexts AS ft2 ON ft2.revid = c.parentid AND ft2.site = c.site
             WHERE c.user = %s
             AND c.timestamp >= %s AND c.timestamp <= %s
-            """,
+            ''',
             (self.name, ts_start, ts_end)
         )
         for row in result_iterator(cur):
@@ -756,7 +757,7 @@ class User(object):
         if len(entries) == 0:
             out += "''" + _('No qualifying contributions registered yet') + "''"
         else:
-            out += '%s, {{formatnum:%.2f}} kB\n' % (_('articles') % {'articlecount' : len(entries)}, self.bytes / 1000.)
+            out += '%s, {{formatnum:%.2f}} kB\n' % (_('articles') % {'articlecount': len(entries)}, self.bytes / 1000.)
         if len(entries) > 10:
             out += _('{{Kolonner}}\n')
         out += '\n'.join(entries)
@@ -1427,18 +1428,18 @@ class Contest(object):
         ts_start = self.start.astimezone(pytz.utc).strftime('%F %T')
         ts_end = self.end.astimezone(pytz.utc).strftime('%F %T')
         ndel = 0
-        cur.execute(u"SELECT site,revid,parentid FROM contribs WHERE timestamp >= %s AND timestamp <= %s", (ts_start, ts_end))
+        cur.execute('SELECT site,revid,parentid FROM contribs WHERE timestamp >= %s AND timestamp <= %s', (ts_start, ts_end))
         for row in result_iterator(cur):
-            cur2.execute(u"DELETE FROM fulltexts WHERE site=%s AND revid=%s", [row[0], row[1]])
+            cur2.execute('DELETE FROM fulltexts WHERE site=%s AND revid=%s', [row[0], row[1]])
             ndel += cur2.rowcount
-            cur2.execute(u"DELETE FROM fulltexts WHERE site=%s AND revid=%s", [row[0], row[2]])
+            cur2.execute('DELETE FROM fulltexts WHERE site=%s AND revid=%s', [row[0], row[2]])
             ndel += cur2.rowcount
 
         cur.execute('SELECT COUNT(*) FROM fulltexts')
         nremain = cur.fetchone()[0]
         logger.info('Cleaned %d rows from fulltexts-table. %d rows remain', ndel, nremain)
 
-        cur.execute(u"""DELETE FROM contribs WHERE timestamp >= %s AND timestamp <= %s""", (ts_start, ts_end))
+        cur.execute('DELETE FROM contribs WHERE timestamp >= %s AND timestamp <= %s', (ts_start, ts_end))
         ndel = cur.rowcount
         cur.execute('SELECT COUNT(*) FROM contribs')
         nremain = cur.fetchone()[0]
@@ -1978,7 +1979,7 @@ def parse_infobox(page_text, userprefix, config, wiki_tz):
     parsed['organizers'] = []
     if infobox_cfg['organizer'] in infobox.parameters:
         parsed['organizers'] = re.findall(
-            r'\[\[(?:User|%s):([^\|\]]+)' % userprefix,
+            r'\[\[(?:User|%s):([^|\]]+)' % userprefix,
             cleanup_input(infobox.parameters[infobox_cfg['organizer']].value),
             flags=re.I
         )

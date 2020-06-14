@@ -8,9 +8,10 @@ from unittest import TestCase
 from faker import Faker
 from mwclient.page import Page
 
+from ukbot.article import Article
 from ukbot.filters import CatFilter
 from ukbot.site import Site
-from ukbot.ukbot import SiteManager, Article
+from ukbot.sites import SiteManager
 
 fake = Faker()
 

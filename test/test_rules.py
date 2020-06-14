@@ -20,7 +20,7 @@ class RuleTestCase(TestCase):
         self.site = self.site_mock()
         self.article = self.article_mock(self.site)
         self.rev = self.make_rev(self.article)
-        self.patcher1 = mock.patch('ukbot.ukbot.SiteManager')
+        self.patcher1 = mock.patch('ukbot.sites.SiteManager')
         self.sites = self.patcher1.start()
 
     def tearDown(self) -> None:

@@ -7,7 +7,7 @@ from unittest import TestCase
 
 import pytz
 
-from ukbot.rules import RefRule, TemplateRemovalRule, ByteRule, WordRule, NewPageRule, WikidataRule
+from ukbot.rules import RefRule, TemplateRemovalRule, ByteRule, WordRule, NewPageRule, WikidataRule, SectionRule
 from ukbot.contributions import UserContribution
 import unittest
 
@@ -299,7 +299,6 @@ class TestWikidataRule(RuleTestCase):
 
         assert len(contribs) == 1
 
-
     def test_it_gives_points_for_adding_labels_in_specified_languages(self):
         self.site.host = 'www.wikidata.org'
         self.rev.text = '{"labels": {"fi": {"language": "fi", "value": "Test"}, "en": {"language": "en", "value": "Test"}}}'
@@ -314,6 +313,35 @@ class TestWikidataRule(RuleTestCase):
 
         assert len(contribs) == 1
         assert 5 == contribs[0].points
+
+
+class TestSectionRule(RuleTestCase):
+
+    translations = {
+        'description': 'description',
+    }
+
+    def test_it_yields_nothing_by_default(self):
+        self.rev.text = 'Lorem ipsum\n== Kilder ==\nLorem ipsum'
+        self.rev.parenttext = 'Lorem ipsum\nLorem ipsum'
+        self.sites.resolve_page.return_value = self.page_mock('World', [])
+
+        rule = SectionRule(self.sites, {2: 10, 3: 'Referans[ea]r'}, self.translations)
+        contribs = list(rule.test(self.rev))
+
+        assert len(contribs) == 0
+
+    def test_it_gives_points_for_adding_section(self):
+        self.rev.text = 'Lorem ipsum\n== Referanser ==\nLorem ipsum'
+        self.rev.parenttext = 'Lorem ipsum\nLorem ipsum'
+        self.sites.resolve_page.return_value = self.page_mock('World', [])
+
+        rule = SectionRule(self.sites, {2: 10, 3: 'Referans[ea]r'}, self.translations)
+        contribs = list(rule.test(self.rev))
+
+        assert len(contribs) == 1
+        assert contribs[0].points == 10
+
 
 if __name__ == '__main__':
     unittest.main()

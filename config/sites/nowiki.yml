@@ -44,7 +44,8 @@ templates:
         name: Ukens konkurranse poeng
         new: ny
         redirect: omdirigering
-        refsectionfi: refsectionfi
+        regexp: regexp
+        section: section
         qualified: kvalifisert
         contrib: endring
         byte: byte
@@ -66,6 +67,7 @@ templates:
         labels: etiketter
         aliases: alias
         descriptions: beskrivelser
+        description: beskrivelse
         require_reference: krevreferanse
         all: alle
     filters:

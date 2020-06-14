@@ -42,7 +42,8 @@ templates:
         qualified: NOT-IN-USE
         contrib: NOT-IN-USE
         redirect: ohjaus
-        refsectionfi: refsectionfi
+        regexp: regexp
+        section: section
         byte: tavu
         word: sana
         maxpoints: makspisteet
@@ -63,6 +64,7 @@ templates:
         aliases: aliases
         descriptions: descriptions
         require_reference: require_reference
+        description: description
         all: alle
     filters:
         name: Viikon kilpailu kriteerit

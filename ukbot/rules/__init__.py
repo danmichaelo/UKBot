@@ -9,6 +9,7 @@ from .new import NewPageRule
 from .qualified import QualiRule
 from .redirect import RedirectRule
 from .ref import RefRule
+from .regexp import RegexpRule, SectionRule
 from .templateremoval import TemplateRemovalRule
 from .wikidata import WikidataRule
 from .word import WordRule
@@ -24,7 +25,8 @@ rule_classes = [
     QualiRule,
     RedirectRule,
     RefRule,
-    # RefSectionFiRule,
+    RegexpRule,
+    SectionRule,
     TemplateRemovalRule,
     WikidataRule,
     WordRule,

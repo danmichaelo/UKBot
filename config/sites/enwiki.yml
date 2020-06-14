@@ -40,7 +40,8 @@ templates:
         name: UKB points
         new: new
         redirect: redirect
-        refsectionfi: refsectionfi
+        regexp: regexp
+        section: section
         qualified: qualified
         contrib: edit
         byte: byte
@@ -62,6 +63,7 @@ templates:
         labels: labels
         aliases: aliases
         descriptions: descriptions
+        description: description
         require_reference: require_reference
         all: alle
     filters:

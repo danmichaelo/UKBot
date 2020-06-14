@@ -39,7 +39,8 @@ templates:
         name: UKB puntuak
         new: berria
         redirect: birzuzenketa
-        refsectionfi: refsectionfi
+        regexp: regexp
+        section: section
         qualified: qualified
         contrib: edizioa
         byte: byte
@@ -61,6 +62,7 @@ templates:
         labels: labels
         aliases: aliases
         descriptions: descriptions
+        description: description
         require_reference: require_reference
         all: alle
     filters:

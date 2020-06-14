@@ -16,7 +16,7 @@ import codecs
 import mwclient
 from mwtemplates import TemplateEditor
 
-from .rules import NewPageRule, ByteRule, WordRule, RefRule, ImageRule, TemplateRemovalRule
+from .rules import NewPageRule, ByteRule, WordRule, RefRule, ImageRule, TemplateRemovalRule, SectionRule
 from .common import _, STATE_ENDING, STATE_CLOSING, InvalidContestPage
 from .rules import rule_classes
 from .filters import CatFilter, TemplateFilter, NewPageFilter, ExistingPageFilter, ByteFilter, SparqlFilter, \
@@ -907,8 +907,8 @@ class Contest(object):
                     summary_tpl_args.append('%s=%d' % (rule.key, sum_stats_by(stats, key='words')))
                 elif isinstance(rule, RefRule):
                     summary_tpl_args.append('%s=%d' % (rule.key, rule.totalsources))
-                # elif isinstance(rule, RefSectionFiRule):
-                #     summary_tpl_args.append('|%s=%d' % (rule.key, rule.total)
+                elif isinstance(rule, SectionRule):
+                    summary_tpl_args.append('|%s=%d' % (rule.key, rule.total))
                 elif isinstance(rule, ImageRule):
                     summary_tpl_args.append('%s=%d' % (rule.key, rule.total))
                 elif isinstance(rule, TemplateRemovalRule):

@@ -576,8 +576,9 @@ class User:
 
                 # loop over rules
                 for rule in rules:
-                    for contribution in rule.test(rev):
-                        self.contributions.add(contribution)
+                    if rule.site is None or article.site().key in rule.site:
+                        for contribution in rule.test(rev):
+                            self.contributions.add(contribution)
 
                 if not article.disqualified:
                     dt = pytz.utc.localize(datetime.fromtimestamp(rev.timestamp))

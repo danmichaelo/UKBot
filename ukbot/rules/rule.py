@@ -41,6 +41,10 @@ class Rule(object):
         return self.get_param('maxpoints', datatype=float)
 
     @property
+    def site(self):
+        return self.get_param('site', datatype=list)
+
+    @property
     def key(self):
         return self.trans[self.rule_name]
 

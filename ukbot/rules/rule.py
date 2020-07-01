@@ -15,7 +15,7 @@ class Rule(object):
         self.trans = trans or {}
         self.points = float(params[2])
 
-    def get_param(self, name, default=None, datatype=None):
+    def get_param(self, name, default=None, datatype=str):
         if isinstance(name, int):
             value = self.params.get(name)
         else:
@@ -23,7 +23,7 @@ class Rule(object):
         if value is None:
             return default
         if datatype == list:
-            return str(value).split(',')
+            return [x.strip() for x in str(value).split(',')]
         return datatype(value)
 
     def get_anon_params(self):

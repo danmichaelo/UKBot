@@ -683,7 +683,7 @@ class NamespaceFilter(Filter):
         params = {
             'sites': tpl.sites,
             'namespaces': [x.strip() for x in tpl.anon_params[2:]],
-            'site': tpl.get_param('site'),
+            'site': tpl.get_param('site', datatype=list),
         }
         return cls(**params)
 
@@ -692,18 +692,21 @@ class NamespaceFilter(Filter):
         Args:
             sites (SiteManager): References to the sites part of this contest
             namespaces (list): List of namespaces to include
-            site (str): Filter by site (optional)
+            site (list): Filter by site (optional)
         """
         Filter.__init__(self, sites)
         self.namespaces = namespaces
         self.site = site
-        logger.info('NamespaceFilter: namespaces: %s', ','.join(self.namespaces))
+        if self.site is not None:
+            logger.info('NamespaceFilter: %s @ %s', ','.join(self.namespaces), ','.join(self.site))
+        else:
+            logger.info('NamespaceFilter: %s', ','.join(self.namespaces))
 
     def test_page(self, page):
         """
         Return True if the page matches the current filter, False otherwise.
         """
-        if self.site is not None and self.site != page.site().key:
+        if self.site is not None and page.site().key not in self.site:
             return False
         return page.ns in self.namespaces
 

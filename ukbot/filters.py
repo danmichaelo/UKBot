@@ -703,7 +703,7 @@ class NamespaceFilter(Filter):
         """
         Return True if the page matches the current filter, False otherwise.
         """
-        if self.site is not None and self.site != page.site.key:
+        if self.site is not None and self.site != page.site().key:
             return False
         return page.ns in self.namespaces
 

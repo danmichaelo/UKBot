@@ -8,7 +8,7 @@ othersites:
     - nn.wikipedia.org
     - se.wikipedia.org
     - www.wikidata.org
-    # - commons.wikimedia.org
+    - commons.wikimedia.org
 default_prefix: no
 wikidata_languages: ['nb', 'nn', 'en']
 contestPages:

@@ -32,13 +32,18 @@ contest_setups = [
         "name": "Viikon kilpailu",
         "url": "https://fi.wikipedia.org/wiki/WP:VK",
     },
-    # {
-    #     "id": "fi-hl",
-    #     "name": "Heinäkuun lähdetalkoot",
-    #     "url": "https://fi.wikipedia.org/wiki/Wikipedia:Heinäkuun lähdetalkoot/2019",
-    # },
     {
-        "id": "fi-pln",
+        "id": "fi-hl",
+        "name": "Heinäkuun lähdetalkoot",
+        "url": "https://fi.wikipedia.org/wiki/Wikipedia:Heinäkuun lähdetalkoot/2020",
+    },
+    {
+        "id": "fi-ek",
+        "name": "Elokuun kuvitustalkoot",
+        "url": "https://fi.wikipedia.org/wiki/Wikipedia:Elokuun kuvitustalkoot/2020",
+    },
+    {
+        "id": "fi-pln2021",
         "name": "Punaisten linkkien naiset",
         "url": "https://fi.wikipedia.org/wiki/Wikiprojekti:Punaisten_linkkien_naiset",
     },
@@ -132,7 +137,7 @@ def show_home():
 @ws.route('/jobs/<job_id>/sock')
 def show_contest_status_sock(socket, job_id):
     contest_id, job_id = job_id.rsplit('_', 1)
-    contest_id = re.sub('[^a-z_-]', '', contest_id)
+    contest_id = re.sub('[^0-9a-z_-]', '', contest_id)
     job_id = re.sub('[^0-9]', '', job_id)
     log_file = os.path.join(project_dir, 'logs', '%s_%s.log' % (contest_id, job_id))
     status_file = os.path.join(project_dir, 'logs', '%s.status.json' % contest_id)

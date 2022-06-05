@@ -48,9 +48,7 @@ uk.db
 replica.my.cnf
 ENV
 www/python/venv
-logs
 storage
-plots
 .vscode
 .pytest_cache
 *.sqlite

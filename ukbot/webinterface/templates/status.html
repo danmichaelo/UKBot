@@ -31,7 +31,8 @@
 
 <script>
 
-var baseHref = 'wss://ukbot.toolforge.org/';
+var host = window.location.host;
+var baseHref = `wss://${host}/`;
 var jobId = "{{job_id}}";
 var socketUrl = baseHref + 'jobs/' + jobId + '/sock';
 console.log('Socket URL: ' + socketUrl);

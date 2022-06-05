@@ -6,8 +6,9 @@ Bot for updating results in writing contests at Wikipedia, deployed at [ukbot.wm
 
 Create a new Python3 virtualenv and activate it:
 
-	python3 -m venv env
-	. env/bin/activate
+	mkdir -p www/python/venv
+	python3 -m venv www/python/venv
+	. www/python/venv/bin/activate
 
 Install dependencies:
 
@@ -37,6 +38,10 @@ a sandbox contest page such as this one: https://no.wikipedia.org/wiki/Bruker:Da
 and test the bot with that page:
 
 	ukbot --page Bruker:Danmichaelo/Sandkasse5 --simulate config/config.no-mk.yml
+
+or using the wrapper script:
+
+	JOB_NAME=no-mk JOB_ID=adhoc1 ./jobs/run.sh --page Bruker:Danmichaelo/Sandkasse5
 
 To test the webinterface locally:
 

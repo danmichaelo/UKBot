@@ -283,7 +283,7 @@ class UserContributions(object):
 
         if article.name in self.labels:
             formatted = '[[%s|%s]]' % (article.link(), self.labels[article.name])
-        elif article.link() == f":{article.name}":
+        elif article.link() == ":" + article.name:
             formatted = '[[%s]]' % article.name
         else:
             formatted = '[[%s|%s]]' % (article.link(), article.name)

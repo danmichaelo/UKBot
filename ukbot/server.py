@@ -7,7 +7,7 @@ logger = logging.getLogger()
 logger.setLevel(logging.INFO)
 formatter = logging.Formatter('[%(asctime)s %(levelname)s] %(message)s')
 
-logger.info('Flask server started')
+logger.info('ukbot webserver started')
 
 fh = logging.StreamHandler()
 fh.setLevel(logging.DEBUG)

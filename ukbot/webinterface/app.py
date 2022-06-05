@@ -5,7 +5,6 @@ import time
 from flask import Flask
 from flask import request
 from flask import render_template, redirect
-from flask_uwsgi_websocket import WebSocket
 from mwclient import Site
 from requests import ConnectionError
 from mwtextextractor import get_body_text
@@ -55,7 +54,6 @@ contest_setups = [
 ]
 
 app = Flask(__name__, static_url_path='/static')
-ws = WebSocket(app)
 
 
 def touch(fname, mode=0o664):
@@ -132,53 +130,6 @@ def show_home():
 #             points=','.join(points),
 #             contests=konk
 #         )
-
-
-@ws.route('/jobs/<job_id>/sock')
-def show_contest_status_sock(socket, job_id):
-    contest_id, job_id = job_id.rsplit('_', 1)
-    contest_id = re.sub('[^0-9a-z_-]', '', contest_id)
-    job_id = re.sub('[^0-9a-zA-Z-]', '', job_id)
-    log_file = os.path.join(project_dir, 'logs', '%s_%s.log' % (contest_id, job_id))
-    status_file = os.path.join(project_dir, 'logs', '%s.status.json' % contest_id)
-    app.logger.info('Opened websocket for %s', log_file)
-
-    if not os.path.isfile(log_file):
-        socket.send('The requested log does not exist')
-        socket.close()
-        return
-
-    close_next_time = False
-
-    # Use line-buffering (buffering=1) so that we never send incomplete lines
-    with open(log_file, buffering=1, encoding='utf-8') as run_file:
-        n = 0
-        while True:
-            try:
-                # Handle ping/pong, but don't block
-                socket.recv_nb()
-
-                new_data = run_file.read()
-                if new_data != '':
-                    socket.send(new_data)
-                if close_next_time is True:
-                    socket.close()
-                    break
-            except IOError:
-                app.logger.info('WebSocket connection closed by client')
-                break
-            if n % 10 == 0:
-                try:
-                    with open(status_file) as fp:
-                        status = json.load(fp)
-                        if int(status['job_id']) == int(job_id) and status['status'] != 'running':
-                            close_next_time = True
-                except:
-                    pass
-            n += 1
-            time.sleep(1)
-
-    app.logger.info('Closed websocket for %s', log_file)
 
 
 @app.route('/jobs/<job_id>')

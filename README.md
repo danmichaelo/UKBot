@@ -45,11 +45,7 @@ or using the wrapper script:
 
 To test the webinterface locally:
 
-```
-export FLASK_DEBUG=1
-export FLASK_APP=ukbot.server
-flask run
-```
+	FLASK_UWSGI_DEBUG=true uwsgi --ini www/python/uwsgi.ini --python-autoreload 1 --master --http :5000
 
 ## Deployment
 

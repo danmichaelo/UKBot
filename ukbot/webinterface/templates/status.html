@@ -32,9 +32,10 @@
 <script>
 
 var host = window.location.host;
-var baseHref = `wss://${host}/`;
+var proto = window.location.protocol == 'http:' ? 'ws:' : 'wss:';
+var baseHref = `${proto}//${host}/`;
 var jobId = "{{job_id}}";
-var socketUrl = baseHref + 'jobs/' + jobId + '/sock';
+var socketUrl = baseHref + 'ws/logs/' + jobId ;
 console.log('Socket URL: ' + socketUrl);
 
 var socket = new WebSocket(socketUrl);

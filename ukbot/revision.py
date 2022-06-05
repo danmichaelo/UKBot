@@ -170,12 +170,16 @@ class Revision(object):
     def parentredirect(self):
         return bool(self.article().site().redirect_regexp.match(self.parenttext))
 
-    def get_link(self):
+    def get_link(self, homesite):
         """ returns a link to revision """
         q = OrderedDict([('oldid', self.revid)])
         if not self.new:
             q['diff'] = 'prev'
-        return '//' + self.article().site().host + self.article().site().site['script'] + '?' + urllib.parse.urlencode(q)
+        if self.article().site().host == homesite.host:
+            host_prefix = ''
+        else:
+            host_prefix = '//' + self.article().site().host
+        return host_prefix + self.article().site().site['script'] + '?' + urllib.parse.urlencode(q)
 
     def get_parent_link(self):
         """ returns a link to parent revision """

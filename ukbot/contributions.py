@@ -155,7 +155,7 @@ class UserContributions(object):
 
     def format(self, homesite):
         self.fetch_labels()
-        entries = self.summarize()
+        entries = self.summarize(homesite)
 
         award_icon = '{awards}'
 
@@ -191,7 +191,7 @@ class UserContributions(object):
 
         return out
 
-    def summarize(self):
+    def summarize(self, homesite):
         articles = self.get_articles()
 
         articles_formatted = []
@@ -201,7 +201,7 @@ class UserContributions(object):
             revisions = set([contrib.rev for contrib in article_contribs])
             revisions_formatted = []
             for revision in revisions:
-                revision_formatted = self.summarize_revision(revision)
+                revision_formatted = self.summarize_revision(revision, homesite)
                 if revision_formatted is not None:
                     revisions_formatted.append(revision_formatted)
 
@@ -211,14 +211,14 @@ class UserContributions(object):
         
         return articles_formatted
 
-    def summarize_revision(self, revision):
+    def summarize_revision(self, revision, homesite):
 
         revision_contribs = list(filter(lambda c: not is_zero(c.points), self.get(revision=revision)))
 
         if len(revision_contribs) == 0:
             return None
 
-        formatted = '[%s %s]: ' % (revision.get_link(), revision.wiki_tz.strftime(_('%d.%m, %H:%M')))
+        formatted = '[%s %s]: ' % (revision.get_link(homesite), revision.wiki_tz.strftime(_('%d.%m, %H:%M')))
 
         # Make a formatted string on this form:
         # 10.0 p (ny side) + 9.7 p (967 byte) + 5.4 p (54 ord) + 10.0 p (2 kilder)
@@ -275,7 +275,7 @@ class UserContributions(object):
 
         if article.words > 0:
             tooltip_text += '<div style="border-top:1px solid #CCC">%s.</div>' % (
-                _('Total: {{formatnum:%(bytecount)d}} bytes, %(wordcount)d words') % {
+                _('Total: %(bytecount)d bytes, %(wordcount)d words') % {
                     'bytecount': article.bytes,
                     'wordcount': article.words
                 }
@@ -283,6 +283,8 @@ class UserContributions(object):
 
         if article.name in self.labels:
             formatted = '[[%s|%s]]' % (article.link(), self.labels[article.name])
+        elif article.link() == f":{article.name}":
+            formatted = '[[%s]]' % article.name
         else:
             formatted = '[[%s|%s]]' % (article.link(), article.name)
         if article.key in self.user().disqualified_articles:

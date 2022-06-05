@@ -63,6 +63,10 @@ Setup crontab:
 
     crontab ukbot.crontab
 
+Create database tables from scratch (disaster recovery):
+
+    mysql --defaults-file=~/replica.my.cnf -h tools.db.svc.eqiad.wmflabs s51083__ukbot < db/init.sql
+
 ## Other notes
 
 Forenklet flytkart:

@@ -138,7 +138,7 @@ def show_home():
 def show_contest_status_sock(socket, job_id):
     contest_id, job_id = job_id.rsplit('_', 1)
     contest_id = re.sub('[^0-9a-z_-]', '', contest_id)
-    job_id = re.sub('[^0-9]', '', job_id)
+    job_id = re.sub('[^0-9a-zA-Z-]', '', job_id)
     log_file = os.path.join(project_dir, 'logs', '%s_%s.log' % (contest_id, job_id))
     status_file = os.path.join(project_dir, 'logs', '%s.status.json' % contest_id)
     app.logger.info('Opened websocket for %s', log_file)

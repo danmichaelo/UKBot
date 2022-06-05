@@ -1,36 +1,55 @@
-UKBot
-=====
+# ukbot
 
-Python bot for updating results in Ukens konkurranse and similar contests at Wikipedia.
-* [user page at no.wp](//no.wikipedia.org/wiki/Bruker:UKBot)
-* [at tool labs](//tools.wmflabs.org/ukbot/)
+Bot for updating results in writing contests at Wikipedia, deployed at [ukbot.wmflabs.org](https//ukbot.wmflabs.org).
+ 
+## Getting Started
 
-Setup
------
+Create a new Python3 virtualenv and activate it:
 
-Make a [virtualenv](http://www.virtualenv.org/) with Python 3,
-and install dependencies:
+	python3 -m venv env
+	. env/bin/activate
 
-	virtualenv ENV --no-site-packages -p /Users/danmichael/.pyenv/shims/python3
-	. ENV/bin/activate
+Install dependencies:
 
-	pip install -r requirements.txt
+	pip install .
 
-To generate locales:
+If installation fails on Mac, try
+
+	LDFLAGS=-L/opt/homebrew/lib pip install .
+
+Generate locales:
 
     make all
 
-And setup crontab:
+Start a MariaDB instance with the necesseary database tables:
 
-    crontab ukbot.crontab
+	docker compose up -d
 
-Forenklet flytkart:
-![Flowchart](https://github.com/danmichaelo/UKBot/raw/master/flowchart.png)
+Create a configuration file:
 
-Webinterface
-------------
+	cp .env.dist .env
+
+and modify it if needed. The default database credentials should work with the MariaDB instance from Docker, but you may need to add Wikimedia credentials ([Oauth 1.0a consumer-only credentials](https://meta.wikimedia.org/wiki/Special:OAuthConsumerRegistration/propose?wpownerOnly=1&wpoauthVersion=2))
+if you want to actually run the bot locally.
+
+Within the virtualenv you should now be able to run the bot. For testing purposes, you can create
+a sandbox contest page such as this one: https://no.wikipedia.org/wiki/Bruker:Danmichaelo/Sandkasse5
+and test the bot with that page:
+
+	ukbot --page Bruker:Danmichaelo/Sandkasse5 --simulate config/config.no-mk.yml
+
+To test the webinterface locally:
+
+```
+export FLASK_DEBUG=1
+export FLASK_APP=ukbot.server
+flask run
+```
+
+## Deployment
 
 At Tool Forge:
+
 ```
 python3 -m venv www/python/venv
 . www/python/venv/bin/activate
@@ -40,10 +59,12 @@ exit
 webservice --backend=kubernetes python start
 ```
 
-To test the webinterface locally:
+Setup crontab:
 
-```
-export FLASK_DEBUG=1
-export FLASK_APP=dev-server.py
-flask run
-```
+    crontab ukbot.crontab
+
+## Other notes
+
+Forenklet flytkart:
+![Flowchart](https://github.com/danmichaelo/UKBot/raw/master/flowchart.png)
+ 

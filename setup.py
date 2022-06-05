@@ -40,6 +40,7 @@ setup(name='ukbot',
         'flipflop',
         'flask',
         # 'Flask-uWSGI-WebSocket',  See https://github.com/zeekay/flask-uwsgi-websocket/pull/73
+        'flask_uwsgi_websocket',
         'requests',
         'pymysql',
         'psutil',

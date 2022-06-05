@@ -310,7 +310,7 @@ class UserContributions(object):
         formatted += ' (<abbr class="uk-ap">%s</abbr>)' % points
 
         formatted = '# ' + formatted
-        formatted += '<div class="uk-ap-title" style="font-size: smaller; color:#888; line-height:100%%;">%s</div>' % (
+        formatted += '<div class="uk-ap-title">%s</div>' % (
             tooltip_text
         )
 

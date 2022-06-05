@@ -21,7 +21,7 @@ class TemplateRemovalRule(Rule):
         templates = [
             self.sites.resolve_page(tpl_name, 10, True)
             for tpl_name in templates
-            if tpl_name is not ''
+            if tpl_name != ''
         ]
 
         # Make page_name -> [aliases] map

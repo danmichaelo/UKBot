@@ -8,7 +8,7 @@ from pathlib import Path
 logging.basicConfig(format='%(asctime)s %(levelname)-8s %(message)s', level=logging.INFO)
 logger = logging.getLogger('websockets')
 
-project_dir = Path(__file__).parent.parent.parent.parent.resolve()
+project_dir = Path(__file__).resolve().parent.parent.parent.parent
 
 
 def app(env, start_response):
@@ -41,7 +41,7 @@ def app(env, start_response):
                 new_data = stream.read()
                 if new_data != '':
                     uwsgi.websocket_send(new_data)
-                    if 'finished with exit' in new_data:
+                    if 'Job finished contest' in new_data:
                         logger.info(f"Completed streaming log: {log_file}")
                         return
                 

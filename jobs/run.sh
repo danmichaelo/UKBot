@@ -7,11 +7,10 @@ export LC_ALL=en_US.utf8
 CONTEST=$1
 JOB_ID=$(cat /proc/sys/kernel/random/uuid)
 
-projectdir=/data/project/ukbot
-
 logfile=logs/${CONTEST}_${JOB_ID}.log
 statusfile=logs/${CONTEST}.status.json
 
+echo "$(date) Starting ukbot - contest=$CONTEST job=$JOB_ID pwd=$(pwd)"
 echo "-----------------------------------------------------------------"
 echo "$(date) : Starting job contest=$CONTEST id=$JOB_ID host=$HOSTNAME" > $logfile
 

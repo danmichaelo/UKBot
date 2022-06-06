@@ -1,25 +1,24 @@
 #!/bin/bash
 
-rm plots/$CONTEST.mem.png
-rm logs/$CONTEST.mem.log
+if [ ! -d /proc ]; then
+  echo "/proc not found, memory usage will not be monitored"
+  exit 0
+fi
 
-echo "Plotting memory usage for contest: $CONTEST" | tee mem_plotter.log
-sleep 1
+echo "Monitoring memory usage for contest: $CONTEST"
+
+rm -f "plots/$JOB_ID.mem.png"
+rm -f "logs/$JOB_ID.mem.log"
+
 while true; do
-
   # Collect data
-  process_id=$(pgrep -f bin/ukbot)
-  if [[ -z "$process_id" ]]; then
-    # Process not found
-    echo "Process not found, aborting memory usage plot"
-    break
-  fi
+  mem_total=$(awk '( $1 == "MemTotal:" ) { print $2/1024 }' /proc/meminfo)
+  mem_active=$(awk '( $1 == "Active:" ) { print $2/1024 }' /proc/meminfo)
+  mem_available=$(awk '( $1 == "MemAvailable:" ) { print $2/1024 }' /proc/meminfo)
+  echo "$mem_active $mem_available" >> "logs/$JOB_ID.mem.log"
   
-  # Get Virtual Memory Size (VSZ)
-  ps -p $process_id -o vsz -o pmem | grep -v VSZ >> logs/$CONTEST.mem.log
-
   # Plot
-  echo "gnuplot now"
-  gnuplot mem_plotter.gnuplot 2>&1 | tee -a mem_plotter.log
+  JOB_ID=$JOB_ID gnuplot mem_logger.gnuplot
+
   sleep 1
-done &
+done

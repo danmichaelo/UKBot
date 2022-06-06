@@ -27,7 +27,7 @@ cleanup() {
 trap cleanup INT TERM
 
 # Start mem logger
-./mem_logger.sh &
+JOB_ID=$JOB_ID ./mem_logger.sh &
 
 . www/python/venv/bin/activate
 

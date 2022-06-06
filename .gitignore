@@ -54,3 +54,12 @@ storage
 *.sqlite
 .env
 venv
+
+# Toolforge
+.gitattributes
+.lesshst
+.nano
+.python_history
+.toolskube
+.vimrc
+.config

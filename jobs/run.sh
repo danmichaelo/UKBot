@@ -4,12 +4,16 @@
 export LANG=en_US.utf8
 export LC_ALL=en_US.utf8
 
-export CONTEST=$(echo "$JOB_NAME")  #  | cut -c7-20)
+CONTEST=$1
+JOB_ID=$(cat /proc/sys/kernel/random/uuid)
+
+projectdir=/data/project/ukbot
+
 logfile=logs/${CONTEST}_${JOB_ID}.log
 statusfile=logs/${CONTEST}.status.json
 
 echo "-----------------------------------------------------------------"
-echo "$(date) : Starting '$CONTEST' job ($JOB_ID) on $HOSTNAME." | tee $logfile
+echo "$(date) : Starting job contest=$CONTEST id=$JOB_ID host=$HOSTNAME" > $logfile
 
 START=$(date +%s)
 printf '{"status": "running", "update_date": "%s", "job_id": "%s"}' "${START}" "${JOB_ID}" >| $statusfile
@@ -28,10 +32,10 @@ trap cleanup INT TERM
 . www/python/venv/bin/activate
 
 # set -o pipefail  # doesn't work when run through the task schedueler
-stdbuf -oL -eL ukbot config/config.${CONTEST}.yml "$@" --job_id ${JOB_ID} 2>&1 | tee -a ${logfile}
+stdbuf -oL -eL ukbot config/config.${CONTEST}.yml --job_id ${JOB_ID} 2>&1 >> $logfile
 status="${PIPESTATUS[0]}"
 
-echo "$(date) : Job $JOB_NAME ($JOB_ID) on $HOSTNAME finished with exit code $status" | tee -a $logfile
+echo "$(date) : Job finished contest=$CONTEST id=$JOB_ID host=$HOSTNAME exit_code=$status" >> $logfile
 NOW=$(date +%s)
 DIFF=$(( $NOW - $START ))
 printf '{"status": "%s", "update_date": "%s", "job_id": "%s", "runtime": %s}' "${status}" "${NOW}" "${JOB_ID}" "${DIFF}" >| $statusfile

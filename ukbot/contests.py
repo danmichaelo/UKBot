@@ -85,12 +85,12 @@ def get_contest_page_titles(sql, homesite, config):
     # 2) Check if there are contests to end
 
     cursor.execute(
-        'SELECT name FROM contests WHERE site=%s AND name LIKE %s AND update_date IS NOT NULL AND ended=0 AND closed=0 AND end_date < %s',
+        'SELECT name, end_date FROM contests WHERE site=%s AND name LIKE %s AND update_date IS NOT NULL AND ended=0 AND closed=0 AND end_date < %s',
         [homesite.key, config['pages']['base'] + '%%', now_s]
     )
     for row in cursor.fetchall():
         page_title = row[0]
-        logger.info('Contest [[%s]] just ended', page_title)
+        logger.info(f"Contest [[%s]] ended at %s. Current time is %s", page_title, row[1].strftime('%F %T'), now_s)
         yield STATE_ENDING, page_title
 
     # 3) Check if there are other contests to update

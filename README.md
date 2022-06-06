@@ -45,28 +45,14 @@ or using the wrapper script:
 
 To test the webinterface locally:
 
-	FLASK_UWSGI_DEBUG=true uwsgi --ini www/python/uwsgi.ini --python-autoreload 1 --master --http :5000
+	FLASK_UWSGI_DEBUG=true uwsgi --ini uwsgi.dev.ini --python-autoreload 1 --master --http :5000
 
 ## Deployment
 
-At Tool Forge:
+The bot is deployed at [ToolForge](https://wikitech.wikimedia.org/wiki/Portal:Toolforge) under the "UKBot" account using 
+[Webservice](https://wikitech.wikimedia.org/wiki/Help:Toolforge/Web) and the [Toolforge Jobs Framework](https://wikitech.wikimedia.org/wiki/Portal:Toolforge/Admin/Kubernetes/Jobs_framework). 
 
-```
-python3 -m venv www/python/venv
-. www/python/venv/bin/activate
-webservice --backend=kubernetes python shell
-pip install -e .
-exit
-webservice --backend=kubernetes python start
-```
-
-Setup crontab:
-
-    crontab ukbot.crontab
-
-Create database tables from scratch (disaster recovery):
-
-    mysql --defaults-file=~/replica.my.cnf -h tools.db.svc.eqiad.wmflabs s51083__ukbot < db/init.sql
+See https://wikitech.wikimedia.org/wiki/Tool:UKBot for deployment notes.
 
 ## Other notes
 

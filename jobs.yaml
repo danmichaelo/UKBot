@@ -1,0 +1,32 @@
+# https://wikitech.wikimedia.org/wiki/Help:Toolforge/Jobs_framework
+---
+- name: cleanup
+  command: ./jobs/cleanup.sh
+  image: tf-python39
+  schedule: "5 3 * * *"
+  emails: onfailure
+
+- name: update-venv
+  command: ./jobs/update-venv.sh
+  image: tf-python39
+  schedule: "18 4 * * 1"
+  emails: onfailure
+
+- name: no-mk
+  command: ./jobs/run.sh no-mk
+  image: tf-python39
+  schedule: "25 * * * *"
+  emails: onfailure
+
+- name: fi-vk
+  command: ./jobs/run.sh fi-vk
+  image: tf-python39
+  schedule: "35 * * * *"
+  emails: onfailure
+
+- name: eu
+  command: ./jobs/run.sh eu
+  image: tf-python39
+  schedule: "45 * * * *"
+  emails: onfailure
+

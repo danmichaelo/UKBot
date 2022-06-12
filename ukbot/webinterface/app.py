@@ -4,7 +4,7 @@ import json
 import time
 from flask import Flask
 from flask import request
-from flask import render_template, redirect
+from flask import render_template, redirect, make_response
 from mwclient import Site
 from requests import ConnectionError
 from mwtextextractor import get_body_text
@@ -15,6 +15,7 @@ import logging
 import subprocess
 import urllib.parse
 from datetime import datetime
+from pathlib import Path
 
 logger = logging.getLogger('app')
 
@@ -137,6 +138,26 @@ def show_log(job_id):
     status = request.args.get('status', '')
 
     return render_template('status.html', job_id=job_id, status=status)
+
+
+@app.route('/jobs/<job_id>/memory')
+def show_job_memory(job_id):
+    contest_id, job_id = job_id.rsplit('_', 1)
+    contest_id = re.sub('[^0-9a-z_-]', '', contest_id)
+    job_id = re.sub('[^0-9a-zA-Z-]', '', job_id)
+    project_dir = Path(__file__).resolve().parent.parent.parent
+    status_file = project_dir.joinpath('logs', f'{job_id}.mem.log')
+    try:
+        with open(status_file) as fp:
+            data = fp.read()
+    except IOError:
+        return {"error": "could not be opened"}
+
+    # data = "vmem,data\n" + data.replace(" ", ",")
+    output = make_response(data)
+    output.headers["Content-type"] = "text/plain; charset=utf-8"
+    output.headers["Access-Control-Allow-Origin"] = "*"
+    return output
 
 
 # @app.route('/<lang>/contest/<week>/')

@@ -24,7 +24,7 @@ def app(env, start_response):
     if not os.path.isfile(log_file):
         logger.error(f"Log not found: {log_file}")
         uwsgi.websocket_send('The requested log does not exist')
-        return
+        return ['']
 
     status_file = project_dir.joinpath('logs', f'{contest_id}.status.json')
     logger.info(f"Opened websocket for {log_file}")
@@ -46,11 +46,11 @@ def app(env, start_response):
                 
                 if close_next_time:
                     logger.info(f"Completed streaming log: {log_file}")
-                    return
+                    return ['']
             except IOError as err:
                 logger.info('WebSocket connection closed by client')
                 print(err)
-                return
+                return ['']
             if n % 10 == 0:
                 try:
                     with open(status_file) as fp:

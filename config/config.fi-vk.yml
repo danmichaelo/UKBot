@@ -2,6 +2,9 @@ _extends: sites/fiwiki.yml
 contest_type: weekly
 othersites:
     - se.wikipedia.org
+    - olo.wikipedia.org
+    - smn.wikipedia.org
+    - www.wikidata.org
 pages:
     base: Wikipedia:Viikon kilpailu/Viikon kilpailu
     default: Wikipedia:Viikon kilpailu/Viikon kilpailu %(year)d-%(week)02d

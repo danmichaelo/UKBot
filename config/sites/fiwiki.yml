@@ -4,7 +4,7 @@ server_timezone: UTC
 wiki_timezone: Europe/Helsinki
 homesite: fi.wikipedia.org
 default_prefix: fi
-wikidata_languages: ['fi', 'sv', 'en']
+wikidata_languages: ['fi', 'sv', 'en', 'se', 'et', 'no', 'ru', 'smn', 'sms', 'olo']
 pages:
     catignore: Käyttäjä:UKBot/cat-ignore
 contestPages:
@@ -43,7 +43,7 @@ templates:
         contrib: NOT-IN-USE
         redirect: ohjaus
         regexp: regexp
-        section: section
+        section: osio
         byte: tavu
         word: sana
         maxpoints: makspisteet

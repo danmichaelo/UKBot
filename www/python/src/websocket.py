@@ -42,8 +42,7 @@ def app(env, start_response):
                 if new_data != '':
                     uwsgi.websocket_send(new_data)
                     if 'Job finished contest' in new_data:
-                        logger.info(f"Completed streaming log: {log_file}")
-                        return
+                        close_next_time = True
                 
                 if close_next_time:
                     logger.info(f"Completed streaming log: {log_file}")

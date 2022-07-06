@@ -7,7 +7,6 @@ export LC_ALL=en_US.utf8
 CONTEST=$1
 JOB_ID=$(cat /proc/sys/kernel/random/uuid)
 
-export CONTEST=$(echo "$JOB_NAME")  #  | cut -c7-20)
 projectdir=/data/project/ukbot
 logfile=logs/${CONTEST}.upload.log
 
@@ -19,7 +18,7 @@ START=$(date +%s)
 . www/python/venv/bin/activate
 
 # set -o pipefail  # doesn't work when run through the task schedueler
-stdbuf -oL -eL ukbot config/config.${CONTEST}.yml --action "uploadplot" "$@" 2>&1 >> $logfile
+stdbuf -oL -eL ukbot config/config.${CONTEST}.yml --job_id "$JOB_ID" --action "uploadplot" >> $logfile 2>&1
 status="${PIPESTATUS[0]}"
 
 echo "$(date) : Job $JOB_NAME ($JOB_ID) on $HOSTNAME finished with exit code $status" >> $logfile

@@ -15,10 +15,6 @@ while true; do
   mem_total=$(awk '( $1 == "MemTotal:" ) { print $2/1024 }' /proc/meminfo)
   mem_active=$(awk '( $1 == "Active:" ) { print $2/1024 }' /proc/meminfo)
   mem_available=$(awk '( $1 == "MemAvailable:" ) { print $2/1024 }' /proc/meminfo)
-  echo "$mem_active $mem_available" >> "logs/$JOB_ID.mem.log"
-  
-  # Plot
-  JOB_ID=$JOB_ID gnuplot mem_logger.gnuplot
-
+  echo "$(date +%Y-%m-%dT%H:%M:%S.%3N),$mem_active,$mem_available,$mem_total" >> "logs/$JOB_ID.mem.log"
   sleep 1
 done

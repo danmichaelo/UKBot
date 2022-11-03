@@ -17,11 +17,13 @@
   image: tf-python39
   schedule: "5 * * * *"
   emails: onfailure
+  mem: 2Gi
 - name: upload-plot-no-mk
   command: ./jobs/upload.sh no-mk
   image: tf-python39
   schedule: "30 23 * * *"
   emails: onfailure
+  mem: 2Gi
 # fi
 - name: fi-vk
   command: ./jobs/run.sh fi-vk

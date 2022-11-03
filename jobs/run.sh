@@ -31,7 +31,7 @@ JOB_ID=$JOB_ID ./mem_logger.sh &
 . www/python/venv/bin/activate
 
 # set -o pipefail  # doesn't work when run through the task schedueler
-stdbuf -oL -eL ukbot config/config.${CONTEST}.yml --job_id ${JOB_ID} >> $logfile 2>&1
+stdbuf -oL -eL ukbot config/config.${CONTEST}.yml --job_id ${JOB_ID} "${@:2}" >> $logfile 2>&1
 status="${PIPESTATUS[0]}"
 
 echo "$(date) : Job finished contest=$CONTEST id=$JOB_ID host=$HOSTNAME exit_code=$status" >> $logfile

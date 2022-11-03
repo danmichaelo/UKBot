@@ -33,6 +33,30 @@
   image: tf-python39
   schedule: "45 22 * * *"
   emails: onfailure
+# fi-hl
+#- name: fi-hl
+#  command: ./jobs/run.sh fi-hl
+#  image: tf-python39
+#  schedule: "1 * * * *"
+#  emails: onfailure
+#  mem: 2Gi
+#- name: upload-plot-fi-hl
+#  command: ./jobs/upload.sh fi-hl
+#  image: tf-python39
+#  schedule: "45 22 * * *"
+#  emails: onfailure
+# fi-ek
+#- name: fi-ek
+#  command: ./jobs/run.sh fi-ek
+#  image: tf-python39
+#  schedule: "29 * * * *"
+#  emails: onfailure
+#  mem: 2Gi
+#- name: upload-plot-fi-ek
+#  command: ./jobs/upload.sh fi-ek
+#  image: tf-python39
+#  schedule: "50 22 * * *"
+#  emails: onfailure
 # eu
 - name: eu
   command: ./jobs/run.sh eu

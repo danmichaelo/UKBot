@@ -63,6 +63,7 @@ class Site(mwclient.Site):
     def get_revertpage_regexp(self):
         msg = self.pages['MediaWiki:Revertpage'].text()
         msg = re.sub(r'\[\[[^\]]+\]\]', '.*?', msg)
+        msg = re.sub(r'(?i)\{\{PLURAL:\$\d\|(.+)\}\}', '(\1)', msg)
         return msg
 
     def match_prefix(self, prefix):

@@ -176,7 +176,7 @@ class Revision(object):
         if not self.new:
             q['diff'] = 'prev'
         if self.article().site().host == homesite.host:
-            host_prefix = ''
+            host_prefix = '{{SERVER}}'
         else:
             host_prefix = '//' + self.article().site().host
         return host_prefix + self.article().site().site['script'] + '?' + urllib.parse.urlencode(q)

@@ -3,70 +3,94 @@
 # commmon
 - name: cleanup
   command: ./jobs/cleanup.sh
-  image: tf-python39
+  image: python3.11
   schedule: "5 3 * * *"
   emails: onfailure
 - name: update-venv
   command: ./jobs/update-venv.sh
-  image: tf-python39
+  image: python3.11
   schedule: "18 4 * * 1"
   emails: onfailure
 # no
 - name: no-mk
   command: ./jobs/run.sh no-mk
-  image: tf-python39
+  image: python3.11
   schedule: "5 * * * *"
   emails: onfailure
   mem: 2Gi
 - name: upload-plot-no-mk
   command: ./jobs/upload.sh no-mk
-  image: tf-python39
+  image: python3.11
   schedule: "30 23 * * *"
   emails: onfailure
   mem: 2Gi
 # fi
 - name: fi-vk
   command: ./jobs/run.sh fi-vk
-  image: tf-python39
+  image: python3.11
   schedule: "15 * * * *"
   emails: onfailure
 - name: upload-plot-fi-vk
   command: ./jobs/upload.sh fi-vk
-  image: tf-python39
+  image: python3.11
   schedule: "45 22 * * *"
   emails: onfailure
-# fi-hl
-#- name: fi-hl
-#  command: ./jobs/run.sh fi-hl
-#  image: tf-python39
+# fi-pln
+#- name: fi-pln
+#  command: ./jobs/run.sh fi-pln2021
+#  image: python3.11
 #  schedule: "1 * * * *"
 #  emails: onfailure
 #  mem: 2Gi
-#- name: upload-plot-fi-hl
-#  command: ./jobs/upload.sh fi-hl
-#  image: tf-python39
+#- name: upload-plot-fi-pln
+#  command: ./jobs/upload.sh fi-pln2021
+#  image: python3.11
 #  schedule: "45 22 * * *"
 #  emails: onfailure
+# fi-hl
+- name: fi-hl
+  command: ./jobs/run.sh fi-hl
+  image: python3.11
+  schedule: "1 * * * *"
+  emails: onfailure
+  mem: 2Gi
+- name: upload-plot-fi-hl
+  command: ./jobs/upload.sh fi-hl
+  image: python3.11
+  schedule: "45 22 * * *"
+  emails: onfailure
 # fi-ek
-#- name: fi-ek
-#  command: ./jobs/run.sh fi-ek
-#  image: tf-python39
-#  schedule: "29 * * * *"
-#  emails: onfailure
-#  mem: 2Gi
-#- name: upload-plot-fi-ek
-#  command: ./jobs/upload.sh fi-ek
-#  image: tf-python39
-#  schedule: "50 22 * * *"
-#  emails: onfailure
+- name: fi-ek2023
+  command: ./jobs/run.sh fi-ek2023
+  image: python3.11
+  schedule: "29 * * * *"
+  emails: onfailure
+  mem: 2Gi
+- name: upload-plot-fi-ek2023
+  command: ./jobs/upload.sh fi-ek2023
+  image: python3.11
+  schedule: "50 22 * * *"
+  emails: onfailure
+# fi-ek
+- name: fi-wsc
+  command: ./jobs/run.sh fi-wsc
+  image: python3.11
+  schedule: "29 * * * *"
+  emails: onfailure
+  mem: 2Gi
+- name: upload-plot-fi-wsc
+  command: ./jobs/upload.sh fi-wsc
+  image: python3.11
+  schedule: "50 22 * * *"
+  emails: onfailure
 # eu
 - name: eu
   command: ./jobs/run.sh eu
-  image: tf-python39
+  image: python3.11
   schedule: "25 * * * *"
   emails: onfailure
 - name: upload-plot-eu
   command: ./jobs/upload.sh eu
-  image: tf-python39
+  image: python3.11
   schedule: "55 23 * * *"
   emails: onfailure

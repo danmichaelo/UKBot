@@ -1,6 +1,7 @@
 # This file is used by Toolforge infrastructure.
 # Please do not edit manually at this time.
-# Sun Jun 12 21:23:41 2022
+# Sat Dec 30 20:46:48 2023
 backend: kubernetes
+buildservice-image: tool-ukbot/tool-ukbot:latest
 version: 4
-web: python3.9
+web: python3.11

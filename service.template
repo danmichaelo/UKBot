@@ -8,4 +8,4 @@ backend: kubernetes
 
 # Runtime type
 # See "Supported webservice types" in `webservice --help` output for valid values.
-type: python3.9
+type: python3.11

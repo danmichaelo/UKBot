@@ -1063,6 +1063,9 @@ class Contest(object):
 
                 # Store stats
                 for result in results:
+                    sum_bytes = max(0, sum_stats_by(stats, user=result['name'], key='bytes'))
+                    sum_pages = max(0, sum_stats_by(stats, user=result['name'], key='pages'))
+                    sum_newpages = max(0, sum_stats_by(stats, user=result['name'], key='newpages'))
                     cur.execute(
                         'INSERT INTO users (site, contest, user, points, bytes, pages, newpages) VALUES (%s,%s,%s,%s,%s,%s,%s)',
                         [
@@ -1070,14 +1073,15 @@ class Contest(object):
                             self.name,
                             result['name'],
                             result['points'],
-                            sum_stats_by(stats, user=result['name'], key='bytes'),
-                            sum_stats_by(stats, user=result['name'], key='pages'),
-                            sum_stats_by(stats, user=result['name'], key='newpages'),
+                            sum_bytes,
+                            sum_pages,
+                            sum_newpages
                         ]
                     )
 
                     for dimension, values in stats_agg.items():
                         for contribsite, value in values.items():
+                            nonzero_value = max(0, value)
                             cur.execute(
                                 'INSERT INTO stats (contestsite, contest, contribsite, dimension, value) VALUES (%s,%s,%s,%s,%s)',
                                 [
@@ -1085,7 +1089,7 @@ class Contest(object):
                                     self.name,
                                     contribsite,
                                     dimension,
-                                    value,
+                                    nonzero_value,
                                 ]
                             )
                 cur.execute(

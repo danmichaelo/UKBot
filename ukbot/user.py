@@ -13,7 +13,6 @@ from datetime import datetime
 import pytz
 import pymysql
 from more_itertools import first
-from retry import retry
 
 from .contributions import UserContributions
 from .common import _
@@ -415,7 +414,6 @@ class User:
 
         cur.close()
 
-    @retry(pymysql.err.OperationalError, tries=3, delay=30)
     def add_contribs_from_db(self, sql, start, end, sites):
         """
         Populates self.articles with entries from MySQL DB
@@ -425,7 +423,9 @@ class User:
             end   : datetime object
             sites : list of sites
         """
-        # logger.info('Reading user contributions from database')
+        logger.info('Reading user contributions from database')
+        sql.close()
+        sql.open_conn()
 
         cur = sql.cursor()
         ts_start = start.astimezone(pytz.utc).strftime('%F %T')

@@ -218,7 +218,7 @@ class UserContributions(object):
         if len(revision_contribs) == 0:
             return None
 
-        formatted = '[%s %s]: ' % (revision.get_link(homesite), revision.wiki_tz.strftime(_('%d.%m, %H:%M')))
+        formatted = '[[%s|%s]]: ' % (revision.get_link(), revision.wiki_tz.strftime(_('%d.%m, %H:%M')))
 
         # Make a formatted string on this form:
         # 10.0 p (ny side) + 9.7 p (967 byte) + 5.4 p (54 ord) + 10.0 p (2 kilder)

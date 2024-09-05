@@ -172,20 +172,20 @@ class Revision(object):
 
     def get_link(self, homesite):
         """ returns a link to revision """
-		iw_prefix = ''
-		if self.article().site().host !== homesite.host:
-			homelang = homesite.host.split('.')[0]
-			homefam = homesite.host.split('.')[1]
-			targetlang = self.article().site().host.split('.')[0]
-			targetfam = self.article().site().host.split('.')[1]
-			if homefam == targetfam:
-				iw_prefix = ':' + targetlang + ':'
-			else if targetfam == 'wikimedia':
-				iw_prefix = targetlang + ':'
-			else if targetfam == 'wikidata':
-				iw_prefix = 'd:'
-			else:
-				iw_prefix = targetfam + ':' + targetlang + ':'
+        iw_prefix = ''
+        if self.article().site().host !== homesite.host:
+            homelang = homesite.host.split('.')[0]
+            homefam = homesite.host.split('.')[1]
+            targetlang = self.article().site().host.split('.')[0]
+            targetfam = self.article().site().host.split('.')[1]
+            if homefam == targetfam:
+                iw_prefix = ':' + targetlang + ':'
+            else if targetfam == 'wikimedia':
+                iw_prefix = targetlang + ':'
+            else if targetfam == 'wikidata':
+                iw_prefix = 'd:'
+            else:
+                iw_prefix = targetfam + ':' + targetlang + ':'
         return iw_prefix + 'Special:Diff/' + self.revid
 
     def get_parent_link(self):

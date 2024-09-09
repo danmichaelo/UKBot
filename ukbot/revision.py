@@ -173,7 +173,7 @@ class Revision(object):
     def get_link(self, homesite):
         """ returns a link to revision """
         iw_prefix = ''
-        if self.article().site().host !== homesite.host:
+        if self.article().site().host != homesite.host:
             homelang = homesite.host.split('.')[0]
             homefam = homesite.host.split('.')[1]
             targetlang = self.article().site().host.split('.')[0]

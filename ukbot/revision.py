@@ -186,7 +186,7 @@ class Revision(object):
                 iw_prefix = 'd:'
             else:
                 iw_prefix = targetfam + ':' + targetlang + ':'
-        return iw_prefix + 'Special:Diff/' + self.revid
+        return iw_prefix + 'Special:Diff/' + str(self.revid)
 
     def get_parent_link(self):
         """ returns a link to parent revision """

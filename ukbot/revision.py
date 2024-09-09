@@ -180,13 +180,13 @@ class Revision(object):
             targetfam = self.article().site().host.split('.')[1]
             if homefam == targetfam:
                 iw_prefix = ':' + targetlang + ':'
-            else if targetfam == 'wikimedia':
+            elif targetfam == 'wikimedia':
                 iw_prefix = targetlang + ':'
-            else if targetfam == 'wikidata':
+            elif targetfam == 'wikidata':
                 iw_prefix = 'd:'
             else:
                 iw_prefix = targetfam + ':' + targetlang + ':'
-        return iw_prefix + 'Special:Diff/' + str(self.revid)
+        return f'{iw_prefix}Special:Diff/{self.revid}'
 
     def get_parent_link(self):
         """ returns a link to parent revision """

@@ -1,0 +1,37 @@
+# Configuration file for "Månedens konkurranse" @ nowiki
+_extends: sites/nowiki.yml
+name: Fiks det! %(year)d-%(month)02d
+pages:
+    base: Wikipedia:Konkurranser/Fiks det!
+    default: Wikipedia:Konkurranser/Fiks det!/%(year)d-%(month)02d
+contestPages:
+    footer: "{{Fiks det!}}\n[[Kategori:Artikkelkonkurranser]]"
+award_messages:
+    winner_template: '{{FD vinner|år=%(year)s|måned=%(month)s|%(awards)s}}'
+    participant_template: '{{FD deltaker|år=%(year)s|måned=%(month)s|%(awards)s}}'
+    organizer_template: '{{FD arrangør|år=%(year)s|måned=%(month)s|%(awards)s|visuk=nei}}'
+plot:
+    datafile: 'plots/Nowp Fiks det! %(year)d-%(month)02d.json'
+    figname: 'plots/Nowp Fiks det! %(year)d-%(month)02d.svg'
+    description: |
+        == {{int:filedesc}} ==
+        {{Information
+        |Description    = {{no|1=Resultater for «Fiks det!»-konkurransen [[:no:%(pagename)s|%(year)s-%(month)s]]}}
+                          {{en|1=Results from the monthly "Fix it!"" contest at the Norwegian Bokmål/Nynorsk Wikipedias [[:no:%(pagename)s|%(year)s-%(month)s]]}}
+        |Source         = {{own}}
+        |Date           = %(start)s
+        |Author         = [[User:UKBot|UKBot]]
+        }}
+        
+        == {{int:license-header}} ==
+        {{PD-self}}
+        
+        [[Category:Fiks det!]]
+awards:
+    blå: { file: FD-premie blå.svg, winner: true }
+    grå: { file: FD-premie grå.svg }
+    lilla: { file: FD-premie lilla.svg }
+    lyslilla: { file: FD-premie lyslilla.svg }
+    brun: { file: FD-premie brun.svg }
+awardstatus:
+    pagename: Wikipedia:Konkurranser/Fiks det!/Premieutsendelse

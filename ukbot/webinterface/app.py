@@ -28,6 +28,11 @@ contest_setups = [
         "url": "https://no.wikipedia.org/wiki/WP:MK",
     },
     {
+        "id": "no-fd",
+		"name": "Fiks det!",
+		"url": "https://no.wikipedia.org/wiki/Wikipedia:Konkurranser/Fiks_det!",
+    },
+    {
         "id": "fi-vk",
         "name": "Viikon kilpailu",
         "url": "https://fi.wikipedia.org/wiki/WP:VK",
@@ -35,12 +40,12 @@ contest_setups = [
     {
         "id": "fi-hl",
         "name": "Heinäkuun lähdetalkoot",
-        "url": "https://fi.wikipedia.org/wiki/Wikipedia:Heinäkuun lähdetalkoot/2020",
+        "url": "https://fi.wikipedia.org/wiki/Wikipedia:Heinäkuun lähdetalkoot",
     },
     {
         "id": "fi-ek",
         "name": "Elokuun kuvitustalkoot",
-        "url": "https://fi.wikipedia.org/wiki/Wikipedia:Elokuun kuvitustalkoot/2020",
+        "url": "https://fi.wikipedia.org/wiki/Wikipedia:Elokuun kuvitustalkoot",
     },
     {
         "id": "fi-pln2021",

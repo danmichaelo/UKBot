@@ -5,7 +5,7 @@ pages:
     base: Wikipedia:Konkurranser/Fiks det!
     default: Wikipedia:Konkurranser/Fiks det!/%(year)d-%(month)02d
 contestPages:
-    footer: "{{Fiks det!}}\n[[Kategori:Artikkelkonkurranser]]"
+    footer: "{{Fiks det!}}\n[[Kategori:Fiks det!]]\n[[Kategori:Artikkelkonkurranser]]"
 award_messages:
     winner_template: '{{FD vinner|år=%(year)s|måned=%(month)s|%(awards)s}}'
     participant_template: '{{FD deltaker|år=%(year)s|måned=%(month)s|%(awards)s}}'
@@ -34,4 +34,4 @@ awards:
     lyslilla: { file: FD-premie lyslilla.svg }
     brun: { file: FD-premie brun.svg }
 awardstatus:
-    pagename: Wikipedia:Konkurranser/Fiks det!/Premieutsendelse
+    pagename: Wikipedia:Konkurranser/Fiks_det!/Premieutsendelse

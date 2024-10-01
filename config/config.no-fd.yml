@@ -10,6 +10,7 @@ award_messages:
     winner_template: '{{FD vinner|år=%(year)s|måned=%(month)s|%(awards)s}}'
     participant_template: '{{FD deltaker|år=%(year)s|måned=%(month)s|%(awards)s}}'
     organizer_template: '{{FD arrangør|år=%(year)s|måned=%(month)s|%(awards)s|visuk=nei}}'
+    reminder_msg: ''
 plot:
     datafile: 'plots/Nowp Fiks det! %(year)d-%(month)02d.json'
     figname: 'plots/Nowp Fiks det! %(year)d-%(month)02d.svg'

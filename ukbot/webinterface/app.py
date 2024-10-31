@@ -29,8 +29,13 @@ contest_setups = [
     },
     {
         "id": "no-fd",
-		"name": "Fiks det!",
-		"url": "https://no.wikipedia.org/wiki/Wikipedia:Konkurranser/Fiks_det!",
+        "name": "Fiks det!",
+        "url": "https://no.wikipedia.org/wiki/Wikipedia:Konkurranser/Fiks_det!",
+    },
+    {
+        "id": "no-uk",
+        "name": "Ukens konkurrans",
+        "url": "https://no.wikipedia.org/wiki/WP:UK",
     },
     {
         "id": "fi-vk",

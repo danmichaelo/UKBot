@@ -1,6 +1,10 @@
 # Configuration file for "Månedens konkurranse" @ nowiki
 _extends: sites/nowiki.yml
 name: Fiks det! %(year)d-%(month)02d
+othersites:
+    - nn.wikipedia.org
+    - se.wikipedia.org
+    - smn.wikipedia.org
 pages:
     base: Wikipedia:Konkurranser/Fiks det!
     default: Wikipedia:Konkurranser/Fiks det!/%(year)d-%(month)02d

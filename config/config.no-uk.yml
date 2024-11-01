@@ -10,6 +10,8 @@ contestPages:
 templates:
     contestlist:
         name: Ukens konkurranse
+    infobox:
+        name: Infoboks ukens konkurranse
 award_messages:
     winner_template: '{{UK vinner|år=%(year)s|uke=%(week)s|%(awards)s}}'
     participant_template: '{{UK deltaker|år=%(year)s|uke=%(week)s|%(awards)s}}'

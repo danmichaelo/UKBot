@@ -30,11 +30,11 @@ contest_setups = [
     {
         "id": "no-fd",
         "name": "Fiks det!",
-        "url": "https://no.wikipedia.org/wiki/Wikipedia:Konkurranser/Fiks_det!",
+        "url": "https://no.wikipedia.org/wiki/WP:FD!",
     },
     {
         "id": "no-uk",
-        "name": "Ukens konkurrans",
+        "name": "Ukens konkurranse",
         "url": "https://no.wikipedia.org/wiki/WP:UK",
     },
     {

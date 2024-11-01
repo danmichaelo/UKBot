@@ -8,13 +8,14 @@ othersites:
 pages:
     base: Wikipedia:Konkurranser/Fiks det!
     default: Wikipedia:Konkurranser/Fiks det!/%(year)d-%(month)02d
+    redirect: WP:FD!
 contestPages:
     footer: "{{Fiks det!}}\n[[Kategori:Fiks det!]]\n[[Kategori:Artikkelkonkurranser]]"
 award_messages:
-    winner_template: '{{FD vinner|år=%(year)s|måned=%(month)s|%(awards)s}}'
+    winner_template: '{{FD deltaker|år=%(year)s|måned=%(month)s|%(awards)s}}'
     participant_template: '{{FD deltaker|år=%(year)s|måned=%(month)s|%(awards)s}}'
     organizer_template: '{{FD arrangør|år=%(year)s|måned=%(month)s|%(awards)s|visuk=nei}}'
-    reminder_msg: ''
+    reminder_msg: 'Husk at <span class="fd-tekstlogo">Fiks det!</span> foregår fram til desember 2025, med [[Wikipedia:Konkurranser/Fiks det!#Premier og milepæler|premier]] <mark>hver måned</mark>, samt premier til de som deltar mange ganger. [[WP:FD!|Meld deg på månedens «<span class="fd-tekstlogo">Fiks det!</span>» nå!]]'
 plot:
     datafile: 'plots/Nowp Fiks det! %(year)d-%(month)02d.json'
     figname: 'plots/Nowp Fiks det! %(year)d-%(month)02d.svg'
